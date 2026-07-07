@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/KiaiControl.Api/KiaiControl.Api.csproj" />
+    <Project Path="src/KiaiControl.Contracts/KiaiControl.Contracts.csproj" />
+    <Project Path="src/KiaiControl.Core/KiaiControl.Core.csproj" />
+    <Project Path="src/KiaiControl.Repositories/KiaiControl.Repositories.csproj" />
+    <Project Path="src/KiaiControl.Services/KiaiControl.Services.csproj" />
+    <Project Path="src/KiaiControl.UseCases/KiaiControl.UseCases.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/KiaiControl.ArchitectureTests/KiaiControl.ArchitectureTests.csproj" />
+    <Project Path="tests/KiaiControl.IntegrationTests/KiaiControl.IntegrationTests.csproj" />
+    <Project Path="tests/KiaiControl.PerformanceTests/KiaiControl.PerformanceTests.csproj" />
+    <Project Path="tests/KiaiControl.UnitTests/KiaiControl.UnitTests.csproj" />
+  </Folder>
+</Solution>

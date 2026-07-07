@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+    <PackageReference Include="Swashbuckle.AspNetCore" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KiaiControl.UseCases\KiaiControl.UseCases.csproj" />
+    <ProjectReference Include="..\KiaiControl.Contracts\KiaiControl.Contracts.csproj" />
+    <ProjectReference Include="..\KiaiControl.Repositories\KiaiControl.Repositories.csproj" />
+    <ProjectReference Include="..\KiaiControl.Services\KiaiControl.Services.csproj" />
+    <ProjectReference Include="..\KiaiControl.Core\KiaiControl.Core.csproj" />
+  </ItemGroup>
+
+</Project>
