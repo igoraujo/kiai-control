@@ -1,6 +1,6 @@
 namespace KiaiControl.Core.Entities;
 
-public sealed class Student
+public sealed class Teacher
 {
     public Guid Id { get; set; }
 
