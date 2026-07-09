@@ -11,4 +11,6 @@ public sealed class Client
     public string Status { get; set; } = "active";
 
     public DateTimeOffset CreatedAt { get; set; }
+
+    public DateTimeOffset? UpdatedAt { get; set; }
 }

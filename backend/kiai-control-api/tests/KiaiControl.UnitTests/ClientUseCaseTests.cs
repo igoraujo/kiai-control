@@ -19,7 +19,7 @@ public sealed class ClientUseCaseTests
             Status = "active"
         }, CancellationToken.None);
 
-        var clients = await useCase.ListAsync(created.OrganizationId, CancellationToken.None);
+        var clients = await useCase.ListAsync(created.OrganizationId, 1, 50, CancellationToken.None);
 
         Assert.NotEqual(Guid.Empty, created.Id);
         Assert.Single(clients);

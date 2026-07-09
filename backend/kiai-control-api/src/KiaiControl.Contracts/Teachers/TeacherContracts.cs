@@ -9,6 +9,13 @@ public sealed class CreateTeacherRequest
     public string Status { get; set; } = "active";
 }
 
+public sealed class UpdateTeacherRequest
+{
+    public string FullName { get; set; } = string.Empty;
+
+    public string Status { get; set; } = "active";
+}
+
 public sealed class TeacherResponse
 {
     public Guid Id { get; init; }
@@ -20,4 +27,6 @@ public sealed class TeacherResponse
     public string Status { get; init; } = string.Empty;
 
     public DateTimeOffset CreatedAt { get; init; }
+
+    public DateTimeOffset? UpdatedAt { get; init; }
 }

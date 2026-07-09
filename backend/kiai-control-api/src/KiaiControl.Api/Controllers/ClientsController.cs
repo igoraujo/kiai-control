@@ -33,14 +33,17 @@ public sealed class ClientsController(OrganizationContext organizationContext, C
     }
 
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<ClientResponse>>> ListAsync(CancellationToken cancellationToken)
+    public async Task<ActionResult<IReadOnlyList<ClientResponse>>> ListAsync(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50,
+        CancellationToken cancellationToken = default)
     {
         if (organizationContext.OrganizationId is null)
         {
             return BadRequest("Organization context is required.");
         }
 
-        var clients = await clientUseCase.ListAsync(organizationContext.OrganizationId.Value, cancellationToken);
+        var clients = await clientUseCase.ListAsync(organizationContext.OrganizationId.Value, page, pageSize, cancellationToken);
         return Ok(clients);
     }
 
@@ -52,9 +55,39 @@ public sealed class ClientsController(OrganizationContext organizationContext, C
             return BadRequest("Organization context is required.");
         }
 
-        var clients = await clientUseCase.ListAsync(organizationContext.OrganizationId.Value, cancellationToken);
-        var client = clients.FirstOrDefault(item => item.Id == id);
+        var client = await clientUseCase.GetByIdAsync(organizationContext.OrganizationId.Value, id, cancellationToken);
 
         return client is null ? NotFound() : Ok(client);
+    }
+
+    [HttpPut("{id:guid}")]
+    public async Task<ActionResult<ClientResponse>> UpdateAsync(Guid id, [FromBody] UpdateClientRequest request, CancellationToken cancellationToken)
+    {
+        if (organizationContext.OrganizationId is null)
+        {
+            return BadRequest("Organization context is required.");
+        }
+
+        try
+        {
+            var updated = await clientUseCase.UpdateAsync(organizationContext.OrganizationId.Value, id, request, cancellationToken);
+            return updated is null ? NotFound() : Ok(updated);
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(exception.Message);
+        }
+    }
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> DeleteAsync(Guid id, CancellationToken cancellationToken)
+    {
+        if (organizationContext.OrganizationId is null)
+        {
+            return BadRequest("Organization context is required.");
+        }
+
+        var deleted = await clientUseCase.DeleteAsync(organizationContext.OrganizationId.Value, id, cancellationToken);
+        return deleted ? NoContent() : NotFound();
     }
 }

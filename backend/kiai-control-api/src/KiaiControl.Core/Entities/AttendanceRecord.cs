@@ -6,6 +6,8 @@ public sealed class AttendanceRecord
 
     public Guid OrganizationId { get; set; }
 
+    public Guid LessonId { get; set; }
+
     public Guid ClientId { get; set; }
 
     public DateTimeOffset AttendanceDate { get; set; }
@@ -13,4 +15,6 @@ public sealed class AttendanceRecord
     public string Status { get; set; } = "present";
 
     public DateTimeOffset CreatedAt { get; set; }
+
+    public DateTimeOffset? UpdatedAt { get; set; }
 }
