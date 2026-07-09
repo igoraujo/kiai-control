@@ -23,9 +23,9 @@ public sealed class AttendanceController(OrganizationContext organizationContext
     {
         request.OrganizationId = request.OrganizationId == Guid.Empty ? organizationContext.OrganizationId ?? Guid.Empty : request.OrganizationId;
 
-        if (request.OrganizationId == Guid.Empty || request.StudentId == Guid.Empty)
+        if (request.OrganizationId == Guid.Empty || request.ClientId == Guid.Empty)
         {
-            return BadRequest("OrganizationId and StudentId are required.");
+            return BadRequest("OrganizationId and ClientId are required.");
         }
 
         var created = await attendanceUseCase.CreateAsync(request, cancellationToken);

@@ -11,7 +11,7 @@ public sealed class BillingUseCase(IBillingRepository billingRepository)
         var billing = new CoreBilling
         {
             OrganizationId = request.OrganizationId,
-            StudentId = request.StudentId,
+            ClientId = request.ClientId,
             Amount = request.Amount,
             Status = request.Status
         };
@@ -22,7 +22,7 @@ public sealed class BillingUseCase(IBillingRepository billingRepository)
         {
             Id = created.Id,
             OrganizationId = created.OrganizationId,
-            StudentId = created.StudentId,
+            ClientId = created.ClientId,
             Amount = created.Amount,
             Status = created.Status,
             CreatedAt = created.CreatedAt
@@ -37,7 +37,7 @@ public sealed class BillingUseCase(IBillingRepository billingRepository)
         {
             Id = item.Id,
             OrganizationId = item.OrganizationId,
-            StudentId = item.StudentId,
+            ClientId = item.ClientId,
             Amount = item.Amount,
             Status = item.Status,
             CreatedAt = item.CreatedAt

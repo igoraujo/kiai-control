@@ -11,7 +11,7 @@ public sealed class AttendanceUseCase(IAttendanceRepository attendanceRepository
         var attendance = new AttendanceRecord
         {
             OrganizationId = request.OrganizationId,
-            StudentId = request.StudentId,
+            ClientId = request.ClientId,
             AttendanceDate = request.AttendanceDate,
             Status = request.Status
         };
@@ -22,7 +22,7 @@ public sealed class AttendanceUseCase(IAttendanceRepository attendanceRepository
         {
             Id = created.Id,
             OrganizationId = created.OrganizationId,
-            StudentId = created.StudentId,
+            ClientId = created.ClientId,
             AttendanceDate = created.AttendanceDate,
             Status = created.Status
         };
@@ -36,7 +36,7 @@ public sealed class AttendanceUseCase(IAttendanceRepository attendanceRepository
         {
             Id = record.Id,
             OrganizationId = record.OrganizationId,
-            StudentId = record.StudentId,
+            ClientId = record.ClientId,
             AttendanceDate = record.AttendanceDate,
             Status = record.Status
         }).ToList();

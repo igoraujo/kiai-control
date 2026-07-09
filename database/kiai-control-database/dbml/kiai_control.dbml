@@ -1,0 +1,787 @@
+Project kiai_control {
+  database_type: 'PostgreSQL'
+  Note: 'Modelo relacional normalizado do Kiai Control (SaaS multi-tenant). Baseado em CHECKPOINT.md, COPILOT.md e SYSTEM_DESIGN.md.'
+}
+
+Enum organization_status {
+  active
+  inactive
+  suspended
+}
+
+Enum person_status {
+  active
+  inactive
+  suspended
+  canceled
+  trial
+}
+
+Enum role_code {
+  client
+  teacher
+  admin
+  financial
+  reception
+  owner
+}
+
+Enum modality_type {
+  martial_art
+  fitness
+  hybrid
+}
+
+Enum class_group_status {
+  active
+  inactive
+  archived
+}
+
+Enum enrollment_status {
+  active
+  paused
+  canceled
+  completed
+}
+
+Enum lesson_status {
+  scheduled
+  completed
+  canceled
+  rescheduled
+}
+
+Enum attendance_status {
+  present
+  absent
+  justified_absence
+  late
+}
+
+Enum invoice_status {
+  pending
+  paid
+  overdue
+  canceled
+  exempt
+  partially_paid
+}
+
+Enum payment_method {
+  cash
+  pix
+  bank_transfer
+  credit_card
+  debit_card
+  boleto
+  manual_adjustment
+}
+
+Enum graduation_event_type {
+  promotion
+  demotion
+  correction
+}
+
+Enum goal_type {
+  training_days
+  attendance_rate
+  load
+  body_measurement
+  weight
+  conditioning
+  score
+  category
+  custom
+}
+
+Enum goal_status {
+  active
+  achieved
+  canceled
+  expired
+}
+
+Enum ranking_cycle_status {
+  open
+  closed
+  archived
+}
+
+Enum notification_channel {
+  in_app
+  push
+  email
+}
+
+Enum notification_status {
+  pending
+  sent
+  read
+  failed
+}
+
+Table organizations {
+  id uuid [pk]
+  name varchar(160) [not null]
+  trade_name varchar(160)
+  document varchar(30)
+  email varchar(160)
+  phone varchar(30)
+  status organization_status [not null, default: 'active']
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz
+  deleted_at timestamptz
+
+  Note: 'Tenant raiz. Todas as tabelas multi-tenant devem carregar organization_id e filtrar por ele.'
+
+  Indexes {
+    (name)
+    (document) [name: 'uq_organizations_document', unique]
+    (email)
+    (status)
+  }
+}
+
+Table organization_settings {
+  id uuid [pk]
+  organization_id uuid [not null, ref: > organizations.id]
+  timezone varchar(60) [not null, default: 'America/Sao_Paulo']
+  currency_code char(3) [not null, default: 'BRL']
+  allow_client_checkin boolean [not null, default: false]
+  require_teacher_confirmation boolean [not null, default: true]
+  default_late_tolerance_minutes int [not null, default: 10]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz
+
+  Indexes {
+    (organization_id) [name: 'uq_organization_settings_org', unique]
+  }
+}
+
+Table branches {
+  id uuid [pk]
+  organization_id uuid [not null, ref: > organizations.id]
+  name varchar(160) [not null]
+  address_line varchar(255)
+  city varchar(100)
+  state varchar(50)
+  postal_code varchar(20)
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz
+
+  Indexes {
+    (organization_id, name) [name: 'uq_branches_org_name', unique]
+    (organization_id)
+    (city)
+  }
+}
+
+Table persons {
+  id uuid [pk]
+  organization_id uuid [not null, ref: > organizations.id]
+  branch_id uuid [ref: > branches.id]
+  full_name varchar(180) [not null]
+  preferred_name varchar(100)
+  email varchar(160)
+  phone varchar(30)
+  birth_date date
+  document varchar(30)
+  status person_status [not null, default: 'active']
+  medical_notes text
+  emergency_contact_name varchar(160)
+  emergency_contact_phone varchar(30)
+  hide_from_ranking boolean [not null, default: false]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz
+  deleted_at timestamptz
+
+  Indexes {
+    (organization_id, email) [name: 'uq_persons_org_email', unique]
+    (organization_id, document) [name: 'uq_persons_org_document', unique]
+    (organization_id, full_name)
+    (organization_id, status)
+    (branch_id)
+  }
+}
+
+Table user_accounts {
+  id uuid [pk]
+  person_id uuid [not null, ref: > persons.id]
+  email varchar(160) [not null]
+  password_hash varchar(255) [not null]
+  is_active boolean [not null, default: true]
+  last_login_at timestamptz
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz
+
+  Indexes {
+    (person_id) [name: 'uq_user_accounts_person', unique]
+    (email) [name: 'uq_user_accounts_email', unique]
+    (is_active)
+  }
+}
+
+Table refresh_tokens {
+  id uuid [pk]
+  user_account_id uuid [not null, ref: > user_accounts.id]
+  token_hash varchar(255) [not null]
+  expires_at timestamptz [not null]
+  revoked_at timestamptz
+  replaced_by_token_id uuid [ref: > refresh_tokens.id]
+  created_at timestamptz [not null, default: `now()`]
+  created_by_ip varchar(80)
+  revoked_by_ip varchar(80)
+
+  Indexes {
+    (user_account_id)
+    (token_hash) [name: 'uq_refresh_tokens_hash', unique]
+    (expires_at)
+    (revoked_at)
+  }
+}
+
+Table roles {
+  id uuid [pk]
+  code role_code [not null]
+  name varchar(80) [not null]
+  description varchar(255)
+
+  Indexes {
+    (code) [name: 'uq_roles_code', unique]
+    (name) [name: 'uq_roles_name', unique]
+  }
+}
+
+Table permissions {
+  id uuid [pk]
+  code varchar(120) [not null]
+  name varchar(120) [not null]
+  description varchar(255)
+
+  Indexes {
+    (code) [name: 'uq_permissions_code', unique]
+    (name) [name: 'uq_permissions_name', unique]
+  }
+}
+
+Table role_permissions {
+  role_id uuid [not null, ref: > roles.id]
+  permission_id uuid [not null, ref: > permissions.id]
+  granted_at timestamptz [not null, default: `now()`]
+
+  Indexes {
+    (role_id, permission_id) [pk]
+    (permission_id)
+  }
+}
+
+Table person_roles {
+  person_id uuid [not null, ref: > persons.id]
+  role_id uuid [not null, ref: > roles.id]
+  granted_by_user_account_id uuid [ref: > user_accounts.id]
+  granted_at timestamptz [not null, default: `now()`]
+
+  Indexes {
+    (person_id, role_id) [pk]
+    (role_id)
+  }
+}
+
+Table clients {
+  id uuid [pk]
+  organization_id uuid [not null, ref: > organizations.id]
+  person_id uuid [not null, ref: > persons.id]
+  registration_code varchar(40)
+  joined_at date
+  current_status person_status [not null, default: 'active']
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz
+
+  Note: 'Perfil de aluno (1:1 com person), preserva naming atual do backend (Client).'
+
+  Indexes {
+    (person_id) [name: 'uq_clients_person', unique]
+    (organization_id, registration_code) [name: 'uq_clients_org_registration', unique]
+    (organization_id, current_status)
+  }
+}
+
+Table teachers {
+  id uuid [pk]
+  organization_id uuid [not null, ref: > organizations.id]
+  person_id uuid [not null, ref: > persons.id]
+  hired_at date
+  active_from date
+  current_status person_status [not null, default: 'active']
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz
+
+  Note: 'Perfil de professor (1:1 com person), preserva naming atual do backend (Teacher).'
+
+  Indexes {
+    (person_id) [name: 'uq_teachers_person', unique]
+    (organization_id, current_status)
+  }
+}
+
+Table modalities {
+  id uuid [pk]
+  organization_id uuid [not null, ref: > organizations.id]
+  name varchar(120) [not null]
+  type modality_type [not null]
+  description text
+  is_active boolean [not null, default: true]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz
+
+  Indexes {
+    (organization_id, name) [name: 'uq_modalities_org_name', unique]
+    (organization_id, type)
+    (is_active)
+  }
+}
+
+Table person_modalities {
+  person_id uuid [not null, ref: > persons.id]
+  modality_id uuid [not null, ref: > modalities.id]
+  linked_at timestamptz [not null, default: `now()`]
+
+  Indexes {
+    (person_id, modality_id) [pk]
+    (modality_id)
+  }
+}
+
+Table class_groups {
+  id uuid [pk]
+  organization_id uuid [not null, ref: > organizations.id]
+  branch_id uuid [ref: > branches.id]
+  modality_id uuid [not null, ref: > modalities.id]
+  name varchar(140) [not null]
+  description text
+  capacity int [not null, default: 1]
+  status class_group_status [not null, default: 'active']
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz
+
+  Note: 'Capacidade deve ser > 0 (constraint SQL na migration).'
+
+  Indexes {
+    (organization_id, name) [name: 'uq_class_groups_org_name', unique]
+    (organization_id, modality_id)
+    (branch_id)
+    (status)
+  }
+}
+
+Table class_group_teachers {
+  id uuid [pk]
+  class_group_id uuid [not null, ref: > class_groups.id]
+  teacher_id uuid [not null, ref: > teachers.id]
+  is_primary boolean [not null, default: false]
+  starts_at date [not null]
+  ends_at date
+  created_at timestamptz [not null, default: `now()`]
+
+  Indexes {
+    (class_group_id, teacher_id, starts_at) [name: 'uq_class_group_teachers_period', unique]
+    (teacher_id)
+    (class_group_id, is_primary)
+  }
+}
+
+Table class_schedules {
+  id uuid [pk]
+  class_group_id uuid [not null, ref: > class_groups.id]
+  day_of_week int [not null]
+  starts_at time [not null]
+  ends_at time [not null]
+  created_at timestamptz [not null, default: `now()`]
+
+  Note: 'day_of_week entre 0 e 6 e ends_at > starts_at (constraints SQL na migration).'
+
+  Indexes {
+    (class_group_id, day_of_week, starts_at) [name: 'uq_class_schedules_slot', unique]
+    (day_of_week)
+  }
+}
+
+Table enrollments {
+  id uuid [pk]
+  organization_id uuid [not null, ref: > organizations.id]
+  class_group_id uuid [not null, ref: > class_groups.id]
+  client_id uuid [not null, ref: > clients.id]
+  enrolled_at timestamptz [not null, default: `now()`]
+  ended_at timestamptz
+  status enrollment_status [not null, default: 'active']
+
+  Indexes {
+    (organization_id, class_group_id, client_id) [name: 'uq_enrollments_org_class_client', unique]
+    (organization_id, status)
+    (class_group_id)
+    (client_id)
+  }
+}
+
+Table lessons {
+  id uuid [pk]
+  organization_id uuid [not null, ref: > organizations.id]
+  class_group_id uuid [not null, ref: > class_groups.id]
+  starts_at timestamptz [not null]
+  ends_at timestamptz [not null]
+  status lesson_status [not null, default: 'scheduled']
+  cancellation_reason varchar(255)
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz
+
+  Indexes {
+    (organization_id, class_group_id, starts_at)
+    (organization_id, status)
+    (starts_at)
+  }
+}
+
+Table lesson_instructors {
+  id uuid [pk]
+  lesson_id uuid [not null, ref: > lessons.id]
+  teacher_id uuid [not null, ref: > teachers.id]
+  is_substitute boolean [not null, default: false]
+  created_at timestamptz [not null, default: `now()`]
+
+  Indexes {
+    (lesson_id, teacher_id) [name: 'uq_lesson_instructors_lesson_teacher', unique]
+    (teacher_id)
+  }
+}
+
+Table attendances {
+  id uuid [pk]
+  organization_id uuid [not null, ref: > organizations.id]
+  lesson_id uuid [not null, ref: > lessons.id]
+  client_id uuid [not null, ref: > clients.id]
+  status attendance_status [not null]
+  checked_in_at timestamptz
+  checked_by_teacher_id uuid [ref: > teachers.id]
+  notes varchar(255)
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz
+
+  Note: 'Preserva conceito atual de AttendanceRecord e evolui para presença por aula.'
+
+  Indexes {
+    (organization_id, lesson_id, client_id) [name: 'uq_attendances_org_lesson_client', unique]
+    (organization_id, status)
+    (client_id)
+    (checked_by_teacher_id)
+  }
+}
+
+Table plans {
+  id uuid [pk]
+  organization_id uuid [not null, ref: > organizations.id]
+  name varchar(120) [not null]
+  description varchar(255)
+  monthly_amount numeric(12,2) [not null]
+  due_day int [not null]
+  is_active boolean [not null, default: true]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz
+
+  Note: 'monthly_amount >= 0 e due_day entre 1 e 28 (constraints SQL na migration).'
+
+  Indexes {
+    (organization_id, name) [name: 'uq_plans_org_name', unique]
+    (organization_id, is_active)
+  }
+}
+
+Table client_plan_subscriptions {
+  id uuid [pk]
+  organization_id uuid [not null, ref: > organizations.id]
+  client_id uuid [not null, ref: > clients.id]
+  plan_id uuid [not null, ref: > plans.id]
+  starts_at date [not null]
+  ends_at date
+  is_active boolean [not null, default: true]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz
+
+  Indexes {
+    (organization_id, client_id, is_active)
+    (organization_id, plan_id, is_active)
+    (client_id, starts_at)
+  }
+}
+
+Table invoices {
+  id uuid [pk]
+  organization_id uuid [not null, ref: > organizations.id]
+  client_plan_subscription_id uuid [not null, ref: > client_plan_subscriptions.id]
+  client_id uuid [not null, ref: > clients.id]
+  due_date date [not null]
+  amount numeric(12,2) [not null]
+  discount_amount numeric(12,2) [not null, default: 0]
+  interest_amount numeric(12,2) [not null, default: 0]
+  fine_amount numeric(12,2) [not null, default: 0]
+  paid_amount numeric(12,2) [not null, default: 0]
+  status invoice_status [not null, default: 'pending']
+  issued_at timestamptz [not null, default: `now()`]
+  paid_at timestamptz
+  canceled_at timestamptz
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz
+
+  Note: 'amount >= 0 e paid_amount >= 0 (constraints SQL na migration).'
+
+  Indexes {
+    (organization_id, client_id, due_date)
+    (organization_id, status, due_date)
+    (client_plan_subscription_id)
+  }
+}
+
+Table payments {
+  id uuid [pk]
+  organization_id uuid [not null, ref: > organizations.id]
+  invoice_id uuid [not null, ref: > invoices.id]
+  amount numeric(12,2) [not null]
+  method payment_method [not null]
+  paid_at timestamptz [not null]
+  external_reference varchar(120)
+  notes varchar(255)
+  created_at timestamptz [not null, default: `now()`]
+
+  Note: 'amount > 0 (constraint SQL na migration).'
+
+  Indexes {
+    (organization_id, invoice_id)
+    (organization_id, method)
+    (paid_at)
+    (external_reference)
+  }
+}
+
+Table graduation_systems {
+  id uuid [pk]
+  organization_id uuid [not null, ref: > organizations.id]
+  modality_id uuid [not null, ref: > modalities.id]
+  name varchar(120) [not null]
+  description text
+  is_active boolean [not null, default: true]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz
+
+  Indexes {
+    (organization_id, modality_id, name) [name: 'uq_graduation_systems_org_modality_name', unique]
+    (is_active)
+  }
+}
+
+Table graduation_levels {
+  id uuid [pk]
+  graduation_system_id uuid [not null, ref: > graduation_systems.id]
+  name varchar(80) [not null]
+  hierarchy_order int [not null]
+  min_training_days int [not null, default: 0]
+  min_attendance_percentage numeric(5,2)
+  min_lessons int [not null, default: 0]
+  min_age int
+  requires_manual_evaluation boolean [not null, default: false]
+  created_at timestamptz [not null, default: `now()`]
+
+  Indexes {
+    (graduation_system_id, hierarchy_order) [name: 'uq_graduation_levels_system_order', unique]
+    (graduation_system_id, name) [name: 'uq_graduation_levels_system_name', unique]
+  }
+}
+
+Table client_graduations {
+  id uuid [pk]
+  organization_id uuid [not null, ref: > organizations.id]
+  client_id uuid [not null, ref: > clients.id]
+  modality_id uuid [not null, ref: > modalities.id]
+  current_level_id uuid [not null, ref: > graduation_levels.id]
+  granted_at date [not null]
+  granted_by_teacher_id uuid [ref: > teachers.id]
+  notes varchar(255)
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz
+
+  Indexes {
+    (organization_id, client_id, modality_id) [name: 'uq_client_graduations_org_client_modality', unique]
+    (current_level_id)
+    (granted_by_teacher_id)
+  }
+}
+
+Table graduation_events {
+  id uuid [pk]
+  organization_id uuid [not null, ref: > organizations.id]
+  client_id uuid [not null, ref: > clients.id]
+  modality_id uuid [not null, ref: > modalities.id]
+  from_level_id uuid [ref: > graduation_levels.id]
+  to_level_id uuid [not null, ref: > graduation_levels.id]
+  event_type graduation_event_type [not null, default: 'promotion']
+  event_date date [not null]
+  teacher_id uuid [ref: > teachers.id]
+  justification varchar(255)
+  created_at timestamptz [not null, default: `now()`]
+
+  Indexes {
+    (organization_id, client_id, modality_id, event_date)
+    (event_type)
+    (teacher_id)
+  }
+}
+
+Table fitness_goals {
+  id uuid [pk]
+  organization_id uuid [not null, ref: > organizations.id]
+  client_id uuid [not null, ref: > clients.id]
+  modality_id uuid [ref: > modalities.id]
+  title varchar(160) [not null]
+  description text
+  goal_type goal_type [not null]
+  target_value numeric(12,2) [not null]
+  current_value numeric(12,2) [not null, default: 0]
+  unit varchar(30)
+  starts_at date [not null]
+  due_date date [not null]
+  status goal_status [not null, default: 'active']
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz
+
+  Note: 'target_value > 0 (constraint SQL na migration).'
+
+  Indexes {
+    (organization_id, client_id, status)
+    (organization_id, goal_type)
+    (due_date)
+  }
+}
+
+Table fitness_progress_records {
+  id uuid [pk]
+  fitness_goal_id uuid [not null, ref: > fitness_goals.id]
+  recorded_value numeric(12,2) [not null]
+  notes varchar(255)
+  recorded_at timestamptz [not null, default: `now()`]
+  created_by_teacher_id uuid [ref: > teachers.id]
+
+  Indexes {
+    (fitness_goal_id, recorded_at)
+    (created_by_teacher_id)
+  }
+}
+
+Table ranking_cycles {
+  id uuid [pk]
+  organization_id uuid [not null, ref: > organizations.id]
+  modality_id uuid [ref: > modalities.id]
+  class_group_id uuid [ref: > class_groups.id]
+  name varchar(120) [not null]
+  starts_at date [not null]
+  ends_at date [not null]
+  status ranking_cycle_status [not null, default: 'open']
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz
+
+  Indexes {
+    (organization_id, name, starts_at) [name: 'uq_ranking_cycles_org_name_start', unique]
+    (organization_id, status)
+    (modality_id)
+    (class_group_id)
+  }
+}
+
+Table ranking_entries {
+  id uuid [pk]
+  ranking_cycle_id uuid [not null, ref: > ranking_cycles.id]
+  client_id uuid [not null, ref: > clients.id]
+  points int [not null, default: 0]
+  attendance_count int [not null, default: 0]
+  streak_count int [not null, default: 0]
+  position int
+  updated_at timestamptz [not null, default: `now()`]
+
+  Indexes {
+    (ranking_cycle_id, client_id) [name: 'uq_ranking_entries_cycle_client', unique]
+    (ranking_cycle_id, position)
+    (points)
+  }
+}
+
+Table medals {
+  id uuid [pk]
+  organization_id uuid [not null, ref: > organizations.id]
+  code varchar(60) [not null]
+  name varchar(120) [not null]
+  description varchar(255)
+  points_bonus int [not null, default: 0]
+  is_active boolean [not null, default: true]
+  created_at timestamptz [not null, default: `now()`]
+
+  Indexes {
+    (organization_id, code) [name: 'uq_medals_org_code', unique]
+    (organization_id, is_active)
+  }
+}
+
+Table person_medals {
+  id uuid [pk]
+  organization_id uuid [not null, ref: > organizations.id]
+  person_id uuid [not null, ref: > persons.id]
+  medal_id uuid [not null, ref: > medals.id]
+  awarded_at timestamptz [not null, default: `now()`]
+  reason varchar(255)
+
+  Indexes {
+    (organization_id, person_id, medal_id, awarded_at) [name: 'uq_person_medals_award', unique]
+    (medal_id)
+  }
+}
+
+Table notifications {
+  id uuid [pk]
+  organization_id uuid [not null, ref: > organizations.id]
+  person_id uuid [not null, ref: > persons.id]
+  title varchar(160) [not null]
+  body text [not null]
+  channel notification_channel [not null, default: 'in_app']
+  status notification_status [not null, default: 'pending']
+  scheduled_at timestamptz
+  sent_at timestamptz
+  read_at timestamptz
+  created_at timestamptz [not null, default: `now()`]
+
+  Indexes {
+    (organization_id, person_id, status)
+    (scheduled_at)
+    (channel)
+  }
+}
+
+Table audit_logs {
+  id uuid [pk]
+  organization_id uuid [not null, ref: > organizations.id]
+  actor_person_id uuid [ref: > persons.id]
+  actor_user_account_id uuid [ref: > user_accounts.id]
+  action varchar(120) [not null]
+  entity_name varchar(120) [not null]
+  entity_id uuid
+  metadata jsonb
+  ip_address varchar(80)
+  user_agent varchar(255)
+  created_at timestamptz [not null, default: `now()`]
+
+  Note: 'Append-only lógico para rastreabilidade de ações críticas.'
+
+  Indexes {
+    (organization_id, created_at)
+    (organization_id, entity_name, entity_id)
+    (actor_person_id)
+    (action)
+  }
+}

@@ -4,7 +4,7 @@ public sealed class CreateAttendanceRequest
 {
     public Guid OrganizationId { get; set; }
 
-    public Guid StudentId { get; set; }
+    public Guid ClientId { get; set; }
 
     public DateTimeOffset AttendanceDate { get; set; }
 
@@ -17,7 +17,7 @@ public sealed class AttendanceRecordResponse
 
     public Guid OrganizationId { get; init; }
 
-    public Guid StudentId { get; init; }
+    public Guid ClientId { get; init; }
 
     public DateTimeOffset AttendanceDate { get; init; }
 

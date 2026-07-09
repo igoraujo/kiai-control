@@ -1,6 +1,6 @@
-namespace KiaiControl.Contracts.Students;
+namespace KiaiControl.Contracts.Clients;
 
-public sealed class CreateStudentRequest
+public sealed class CreateClientRequest
 {
     public Guid OrganizationId { get; set; }
 
@@ -9,7 +9,7 @@ public sealed class CreateStudentRequest
     public string Status { get; set; } = "active";
 }
 
-public sealed class StudentResponse
+public sealed class ClientResponse
 {
     public Guid Id { get; init; }
 

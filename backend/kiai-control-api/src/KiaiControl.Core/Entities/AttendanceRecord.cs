@@ -6,7 +6,7 @@ public sealed class AttendanceRecord
 
     public Guid OrganizationId { get; set; }
 
-    public Guid StudentId { get; set; }
+    public Guid ClientId { get; set; }
 
     public DateTimeOffset AttendanceDate { get; set; }
 
