@@ -10,6 +10,7 @@ public sealed class SqlClientRepository(IDbConnectionFactory dbConnectionFactory
     public async Task<Client> CreateAsync(Client client, CancellationToken cancellationToken = default)
     {
         client.Id = Guid.NewGuid();
+        client.PersonId = Guid.NewGuid();
         client.CreatedAt = DateTimeOffset.UtcNow;
 
         using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);

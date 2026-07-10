@@ -10,6 +10,7 @@ public sealed class SqlTeacherRepository(IDbConnectionFactory dbConnectionFactor
     public async Task<Teacher> CreateAsync(Teacher teacher, CancellationToken cancellationToken = default)
     {
         teacher.Id = Guid.NewGuid();
+        teacher.PersonId = Guid.NewGuid();
         teacher.CreatedAt = DateTimeOffset.UtcNow;
 
         using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);

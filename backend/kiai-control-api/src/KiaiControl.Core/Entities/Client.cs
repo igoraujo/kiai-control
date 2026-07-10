@@ -6,6 +6,8 @@ public sealed class Client
 
     public Guid OrganizationId { get; set; }
 
+    public Guid PersonId { get; set; }
+
     public string FullName { get; set; } = string.Empty;
 
     public string Status { get; set; } = "active";
