@@ -11,12 +11,7 @@ public static class ServiceCollectionExtensions
     {
         if (string.IsNullOrWhiteSpace(connectionString))
         {
-            // Fallback seguro para ambientes sem banco configurado.
-            services.AddScoped<IClientRepository, InMemoryClientRepository>();
-            services.AddScoped<ITeacherRepository, InMemoryTeacherRepository>();
-            services.AddScoped<IAttendanceRepository, InMemoryAttendanceRepository>();
-            services.AddScoped<IBillingRepository, InMemoryBillingRepository>();
-            return services;
+            throw new InvalidOperationException("A connection string PostgreSql deve ser configurada para registrar os repositórios de producao.");
         }
 
         services.AddSingleton<IDbConnectionFactory>(_ => new NpgsqlDbConnectionFactory(connectionString));
