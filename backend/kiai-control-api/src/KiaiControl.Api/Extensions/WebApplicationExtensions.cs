@@ -8,7 +8,6 @@ public static class WebApplicationExtensions
     public static WebApplication UseKiaiApi(this WebApplication app)
     {
         app.UseMiddleware<CorrelationIdMiddleware>();
-        app.UseMiddleware<OrganizationContextMiddleware>();
 
         if (app.Environment.IsDevelopment())
         {
@@ -18,6 +17,7 @@ public static class WebApplicationExtensions
 
         app.UseHttpsRedirection();
         app.UseAuthentication();
+        app.UseMiddleware<OrganizationContextMiddleware>();
         app.UseAuthorization();
 
         app.MapControllers();

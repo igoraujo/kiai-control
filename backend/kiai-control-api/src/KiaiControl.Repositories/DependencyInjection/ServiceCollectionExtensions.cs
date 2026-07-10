@@ -15,6 +15,7 @@ public static class ServiceCollectionExtensions
         }
 
         services.AddSingleton<IDbConnectionFactory>(_ => new NpgsqlDbConnectionFactory(connectionString));
+        services.AddScoped<IAuthRepository, SqlAuthRepository>();
         services.AddScoped<IClientRepository, SqlClientRepository>();
         services.AddScoped<ITeacherRepository, SqlTeacherRepository>();
         services.AddScoped<IAttendanceRepository, SqlAttendanceRepository>();

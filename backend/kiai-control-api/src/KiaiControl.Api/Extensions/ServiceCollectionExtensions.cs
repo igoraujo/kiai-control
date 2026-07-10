@@ -50,7 +50,13 @@ public static class ServiceCollectionExtensions
         services.AddHealthChecks();
         services.AddKiaiUseCases();
         services.AddKiaiRepositories(connectionStrings.PostgreSql);
-        services.AddKiaiServices(redisOptions.Redis);
+        services.AddKiaiServices(
+            redisOptions.Redis,
+            jwtOptions.Issuer,
+            jwtOptions.Audience,
+            signingKey,
+            jwtOptions.AccessTokenExpirationMinutes,
+            jwtOptions.RefreshTokenExpirationDays);
 
         return services;
     }
