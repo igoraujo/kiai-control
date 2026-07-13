@@ -1,11 +1,25 @@
 ﻿<MudNavMenu Class="nav-root">
-    <MudText Typo="Typo.subtitle2" Class="menu-title">PAINEL</MudText>
-    <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">Dashboard</MudNavLink>
+    <MudText Typo="Typo.overline" Class="menu-kicker">Navegação</MudText>
 
-    <MudDivider Class="my-2" />
+    <div class="menu-brand">
+        <MudAvatar Size="Size.Medium" Color="Color.Secondary" Variant="Variant.Filled">KC</MudAvatar>
+        <div>
+            <MudText Typo="Typo.subtitle1" Class="menu-title">Kiai Control</MudText>
+            <MudText Typo="Typo.caption" Class="menu-subtitle">Academia Central</MudText>
+        </div>
+    </div>
 
-    <MudText Typo="Typo.subtitle2" Class="menu-title">EXEMPLOS</MudText>
-    <MudNavLink Href="/counter" Icon="@Icons.Material.Filled.Calculate">Counter</MudNavLink>
-    <MudNavLink Href="/weather" Icon="@Icons.Material.Filled.Cloud">Weather</MudNavLink>
+    <MudDivider Class="menu-divider" />
+
+    <MudText Typo="Typo.overline" Class="menu-kicker">Principal</MudText>
+    <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.SpaceDashboard">Dashboard</MudNavLink>
+    <MudNavLink Href="/counter" Icon="@Icons.Material.Filled.Groups">Alunos</MudNavLink>
+    <MudNavLink Href="/weather" Icon="@Icons.Material.Filled.School">Turmas</MudNavLink>
+
+    <MudDivider Class="menu-divider" />
+
+    <MudText Typo="Typo.overline" Class="menu-kicker">Operação</MudText>
+    <MudNavLink Href="/counter" Icon="@Icons.Material.Filled.Payments">Financeiro</MudNavLink>
+    <MudNavLink Href="/weather" Icon="@Icons.Material.Filled.BarChart">Relatórios</MudNavLink>
 </MudNavMenu>
 

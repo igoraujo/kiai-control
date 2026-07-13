@@ -2,6 +2,168 @@
 
 <PageTitle>Home</PageTitle>
 
-<h1>Hello, world!</h1>
+<MudStack Spacing="3" Class="dashboard-page">
+	<MudPaper Elevation="0" Class="hero-panel">
+		<MudStack Spacing="2" Class="hero-copy">
+			<MudChip T="string" Color="Color.Secondary" Variant="Variant.Filled" Size="Size.Small" Class="hero-chip">Gestão da academia</MudChip>
+			<MudText Typo="Typo.h3" Class="hero-title">Visão geral do desempenho, presença e financeiro.</MudText>
+			<MudText Typo="Typo.body1" Class="hero-subtitle">
+				Um dashboard inicial para acompanhar alunos, turmas, receita e evolução com leitura rápida e navegação lateral retrátil.
+			</MudText>
 
-Welcome to your new app.
+			<MudStack Row="true" Spacing="2" Class="hero-actions">
+				<MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add">Nova matrícula</MudButton>
+				<MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.CalendarMonth">Agenda da semana</MudButton>
+			</MudStack>
+		</MudStack>
+
+		<MudPaper Elevation="0" Class="hero-stats-card">
+			<div class="hero-stats-grid">
+				<div>
+					<MudText Typo="Typo.caption" Class="stat-label">Alunos ativos</MudText>
+					<MudText Typo="Typo.h4" Class="stat-value">248</MudText>
+				</div>
+				<div>
+					<MudText Typo="Typo.caption" Class="stat-label">Presença média</MudText>
+					<MudText Typo="Typo.h4" Class="stat-value">87%</MudText>
+				</div>
+				<div>
+					<MudText Typo="Typo.caption" Class="stat-label">Receita prevista</MudText>
+					<MudText Typo="Typo.h4" Class="stat-value">R$ 42k</MudText>
+				</div>
+			</div>
+		</MudPaper>
+	</MudPaper>
+
+	<MudGrid Spacing="3">
+		<MudItem xs="12" sm="6" lg="3">
+			<MudCard Class="metric-card metric-card-primary">
+				<MudCardContent>
+						<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+						<div>
+							<MudText Typo="Typo.caption" Class="metric-label">Alunos ativos</MudText>
+							<MudText Typo="Typo.h4" Class="metric-value">248</MudText>
+						</div>
+						<MudAvatar Color="Color.Primary" Variant="Variant.Filled"><MudIcon Icon="@Icons.Material.Filled.Groups" /></MudAvatar>
+					</MudStack>
+					<MudText Typo="Typo.caption" Class="metric-note">+18 no último mês</MudText>
+				</MudCardContent>
+			</MudCard>
+		</MudItem>
+
+		<MudItem xs="12" sm="6" lg="3">
+			<MudCard Class="metric-card metric-card-warning">
+				<MudCardContent>
+						<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+						<div>
+							<MudText Typo="Typo.caption" Class="metric-label">Em atraso</MudText>
+							<MudText Typo="Typo.h4" Class="metric-value">32</MudText>
+						</div>
+						<MudAvatar Color="Color.Secondary" Variant="Variant.Filled"><MudIcon Icon="@Icons.Material.Filled.Payments" /></MudAvatar>
+					</MudStack>
+					<MudText Typo="Typo.caption" Class="metric-note">Acompanhamento financeiro</MudText>
+				</MudCardContent>
+			</MudCard>
+		</MudItem>
+
+		<MudItem xs="12" sm="6" lg="3">
+			<MudCard Class="metric-card metric-card-success">
+				<MudCardContent>
+						<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+						<div>
+							<MudText Typo="Typo.caption" Class="metric-label">Presenças hoje</MudText>
+							<MudText Typo="Typo.h4" Class="metric-value">94</MudText>
+						</div>
+						<MudAvatar Color="Color.Tertiary" Variant="Variant.Filled"><MudIcon Icon="@Icons.Material.Filled.CheckCircle" /></MudAvatar>
+					</MudStack>
+					<MudText Typo="Typo.caption" Class="metric-note">3 turmas em andamento</MudText>
+				</MudCardContent>
+			</MudCard>
+		</MudItem>
+
+		<MudItem xs="12" sm="6" lg="3">
+			<MudCard Class="metric-card metric-card-neutral">
+				<MudCardContent>
+						<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+						<div>
+							<MudText Typo="Typo.caption" Class="metric-label">Ranking líder</MudText>
+							<MudText Typo="Typo.h4" Class="metric-value">Rafa</MudText>
+						</div>
+						<MudAvatar Color="Color.Info" Variant="Variant.Filled"><MudIcon Icon="@Icons.Material.Filled.EmojiEvents" /></MudAvatar>
+					</MudStack>
+					<MudText Typo="Typo.caption" Class="metric-note">132 pontos acumulados</MudText>
+				</MudCardContent>
+			</MudCard>
+		</MudItem>
+	</MudGrid>
+
+	<MudGrid Spacing="3">
+		<MudItem xs="12" lg="8">
+			<MudCard Class="panel-card">
+				<MudCardHeader>
+					<CardHeaderContent>
+						<MudText Typo="Typo.h6">Atividade recente</MudText>
+						<MudText Typo="Typo.body2" Class="panel-subtitle">Entradas resumidas do dia para apoiar a operação.</MudText>
+					</CardHeaderContent>
+				</MudCardHeader>
+				<MudCardContent>
+					<MudStack Spacing="1">
+						<MudPaper Elevation="0" Class="activity-row">
+							<MudIcon Color="Color.Primary" Icon="@Icons.Material.Filled.PersonAdd" />
+							<div>
+								<MudText Typo="Typo.subtitle2">Nova matrícula registrada</MudText>
+								<MudText Typo="Typo.body2">Lívia Santos entrou no Muay Thai Kids às 08:40.</MudText>
+							</div>
+							<MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined">Agora</MudChip>
+						</MudPaper>
+
+						<MudPaper Elevation="0" Class="activity-row">
+							<MudIcon Color="Color.Secondary" Icon="@Icons.Material.Filled.ReceiptLong" />
+							<div>
+								<MudText Typo="Typo.subtitle2">Pagamento confirmado</MudText>
+								<MudText Typo="Typo.body2">Mensalidade de agosto quitada via registro manual.</MudText>
+							</div>
+							<MudChip T="string" Size="Size.Small" Color="Color.Secondary" Variant="Variant.Outlined">Financeiro</MudChip>
+						</MudPaper>
+
+						<MudPaper Elevation="0" Class="activity-row">
+							<MudIcon Color="Color.Tertiary" Icon="@Icons.Material.Filled.FitnessCenter" />
+							<div>
+								<MudText Typo="Typo.subtitle2">Meta física atualizada</MudText>
+								<MudText Typo="Typo.body2">João avançou para 72% na meta de condicionamento.</MudText>
+							</div>
+							<MudChip T="string" Size="Size.Small" Color="Color.Tertiary" Variant="Variant.Outlined">Progresso</MudChip>
+						</MudPaper>
+					</MudStack>
+				</MudCardContent>
+			</MudCard>
+		</MudItem>
+
+		<MudItem xs="12" lg="4">
+			<MudCard Class="panel-card spotlight-card">
+				<MudCardHeader>
+					<CardHeaderContent>
+						<MudText Typo="Typo.h6">Próximas aulas</MudText>
+						<MudText Typo="Typo.body2" Class="panel-subtitle">Agenda operacional resumida.</MudText>
+					</CardHeaderContent>
+				</MudCardHeader>
+				<MudCardContent>
+					<MudStack Spacing="1">
+						<div class="lesson-item">
+							<MudText Typo="Typo.subtitle2">Jiu-Jitsu Adulto</MudText>
+							<MudText Typo="Typo.body2">17:30 - Sala 1</MudText>
+						</div>
+						<div class="lesson-item">
+							<MudText Typo="Typo.subtitle2">Muay Thai Iniciante</MudText>
+							<MudText Typo="Typo.body2">18:40 - Sala 2</MudText>
+						</div>
+						<div class="lesson-item">
+							<MudText Typo="Typo.subtitle2">Funcional</MudText>
+							<MudText Typo="Typo.body2">19:30 - Área principal</MudText>
+						</div>
+					</MudStack>
+				</MudCardContent>
+			</MudCard>
+		</MudItem>
+	</MudGrid>
+</MudStack>

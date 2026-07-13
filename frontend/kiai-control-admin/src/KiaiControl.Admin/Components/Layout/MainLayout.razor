@@ -5,24 +5,42 @@
 <MudDialogProvider />
 <MudSnackbarProvider />
 
-<MudLayout>
-    <MudAppBar Elevation="1" Dense="true">
-        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="ToggleDrawer" />
-        <MudText Typo="Typo.h6">Kiai Control Admin</MudText>
-        <MudSpacer />
-        <MudChip T="string" Color="Color.Secondary" Variant="Variant.Outlined" Size="Size.Small">MVP</MudChip>
-    </MudAppBar>
+<div class="dashboard-shell">
+    <MudLayout>
+        <MudAppBar Elevation="0" Dense="true" Class="dashboard-appbar">
+            <MudIconButton Icon="@Icons.Material.Filled.MenuOpen" Color="Color.Inherit" Edge="Edge.Start" OnClick="ToggleDrawer" Class="drawer-toggle" />
 
-    <MudDrawer @bind-Open="_drawerOpen" Elevation="1" ClipMode="DrawerClipMode.Always" Variant="DrawerVariant.Responsive">
-        <NavMenu />
-    </MudDrawer>
+            <div class="brand-lockup">
+                <MudText Typo="Typo.subtitle1" Class="brand-title">Kiai Control</MudText>
+                <MudText Typo="Typo.caption" Class="brand-subtitle">Painel administrativo</MudText>
+            </div>
 
-    <MudMainContent>
-        <MudContainer MaxWidth="MaxWidth.False" Class="admin-content">
-            @Body
-        </MudContainer>
-    </MudMainContent>
-</MudLayout>
+            <MudSpacer />
+
+            <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                <MudChip T="string" Color="Color.Secondary" Variant="Variant.Filled" Size="Size.Small" Class="status-chip">MVP</MudChip>
+                <MudAvatar Size="Size.Medium" Color="Color.Primary" Variant="Variant.Filled">KC</MudAvatar>
+            </MudStack>
+        </MudAppBar>
+
+        <MudDrawer @bind-Open="_drawerOpen"
+                   Elevation="0"
+                   ClipMode="DrawerClipMode.Always"
+                   Variant="DrawerVariant.Responsive"
+                   Breakpoint="Breakpoint.Md"
+                   MiniWidth="72px"
+                   OpenMiniOnHover="true"
+                   Class="dashboard-drawer">
+            <NavMenu />
+        </MudDrawer>
+
+        <MudMainContent>
+            <MudContainer MaxWidth="MaxWidth.False" Class="admin-content">
+                @Body
+            </MudContainer>
+        </MudMainContent>
+    </MudLayout>
+</div>
 
 <div id="blazor-error-ui" data-nosnippet>
     An unhandled error has occurred.
@@ -35,12 +53,26 @@
 
     private readonly MudTheme _theme = new()
     {
+        Typography = new Typography
+        {
+            Default = new DefaultTypography
+            {
+                FontFamily = ["Inter", "Montserrat", "Segoe UI", "sans-serif"]
+            }
+        },
         PaletteLight = new PaletteLight
         {
-            Primary = "#0F4C81",
-            Secondary = "#E67E22",
-            Background = "#F5F7FA",
-            AppbarBackground = "#0F4C81"
+            Primary = "#12365A",
+            Secondary = "#F08A24",
+            Tertiary = "#36A3A8",
+            Background = "#F2F5F9",
+            Surface = "#FFFFFF",
+            AppbarBackground = "rgba(10, 22, 35, 0.92)",
+            DrawerBackground = "#0F172A",
+            DrawerText = "rgba(255, 255, 255, 0.86)",
+            DrawerIcon = "rgba(255, 255, 255, 0.7)",
+            TextPrimary = "#0F172A",
+            TextSecondary = "#5B6475"
         },
         LayoutProperties = new LayoutProperties
         {

@@ -3,6 +3,11 @@ html, body {
     background: linear-gradient(180deg, #f5f7fa 0%, #eef2f7 100%);
 }
 
+body {
+    margin: 0;
+    color: #0f172a;
+}
+
 a, .btn-link {
     color: #0f4c81;
 }
@@ -58,4 +63,168 @@ h1:focus {
 
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
+}
+
+.dashboard-page {
+    position: relative;
+}
+
+.hero-panel {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.9fr);
+    gap: 1.25rem;
+    padding: 1.5rem;
+    border-radius: 1.5rem;
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(18, 54, 90, 0.92));
+    color: #f8fafc;
+    box-shadow: 0 20px 50px rgba(15, 23, 42, 0.14);
+}
+
+.hero-copy {
+    padding: 0.4rem 0.2rem 0.4rem 0.3rem;
+}
+
+.hero-chip {
+    align-self: flex-start;
+}
+
+.hero-title {
+    max-width: 12ch;
+    font-weight: 800;
+    line-height: 1.02;
+    letter-spacing: -0.04em;
+}
+
+.hero-subtitle {
+    max-width: 62ch;
+    color: rgba(248, 250, 252, 0.78);
+}
+
+.hero-actions {
+    flex-wrap: wrap;
+}
+
+.hero-stats-card {
+    border-radius: 1.25rem;
+    padding: 1.1rem;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    align-self: stretch;
+}
+
+.hero-stats-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: center;
+    height: 100%;
+}
+
+.stat-label,
+.metric-label,
+.panel-subtitle,
+.metric-note {
+    color: rgba(255, 255, 255, 0.72);
+}
+
+.stat-value,
+.metric-value {
+    font-weight: 800;
+    letter-spacing: -0.04em;
+}
+
+.metric-card,
+.panel-card {
+    height: 100%;
+    border-radius: 1.25rem;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    box-shadow: 0 14px 35px rgba(15, 23, 42, 0.06);
+}
+
+.metric-card-primary {
+    background: linear-gradient(180deg, rgba(37, 99, 235, 0.08), rgba(255, 255, 255, 0.92));
+}
+
+.metric-card-warning {
+    background: linear-gradient(180deg, rgba(240, 138, 36, 0.1), rgba(255, 255, 255, 0.92));
+}
+
+.metric-card-success {
+    background: linear-gradient(180deg, rgba(54, 163, 168, 0.1), rgba(255, 255, 255, 0.92));
+}
+
+.metric-card-neutral {
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.06), rgba(255, 255, 255, 0.92));
+}
+
+.metric-label,
+.metric-note {
+    color: #64748b;
+}
+
+.metric-value {
+    color: #0f172a;
+}
+
+.panel-card {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(12px);
+}
+
+.panel-subtitle {
+    color: #64748b;
+}
+
+.activity-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 0.9rem;
+    align-items: center;
+    padding: 1rem;
+    border-radius: 1rem;
+    background: #f8fafc;
+    border: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.lesson-item {
+    padding: 0.95rem 1rem;
+    border-radius: 1rem;
+    background: linear-gradient(135deg, rgba(18, 54, 90, 0.06), rgba(255, 255, 255, 0.98));
+    border: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.spotlight-card {
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(18, 54, 90, 0.95));
+    color: #f8fafc;
+}
+
+.spotlight-card .panel-subtitle,
+.spotlight-card .lesson-item,
+.spotlight-card .lesson-item .mud-typography {
+    color: rgba(248, 250, 252, 0.76);
+}
+
+.spotlight-card .lesson-item {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+@media (max-width: 960px) {
+    .hero-panel {
+        grid-template-columns: 1fr;
+    }
+
+    .hero-title {
+        max-width: 18ch;
+    }
+
+    .hero-stats-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 600px) {
+    .activity-row {
+        grid-template-columns: 1fr;
+    }
 }
