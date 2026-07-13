@@ -1,0 +1,5 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/KiaiControl.Admin/KiaiControl.Admin.csproj" />
+  </Folder>
+</Solution>
