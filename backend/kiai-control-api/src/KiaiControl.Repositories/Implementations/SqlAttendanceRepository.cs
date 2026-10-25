@@ -53,4 +53,58 @@ public sealed class SqlAttendanceRepository(IDbConnectionFactory dbConnectionFac
         var affected = await connection.ExecuteAsync(AttendanceQueries.Delete, new { OrganizationId = organizationId, Id = id });
         return affected > 0;
     }
+
+    public async Task<IReadOnlyList<AttendanceRecord>> ListByLessonAsync(
+        Guid organizationId,
+        Guid lessonId,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
+        var entries = await connection.QueryAsync<AttendanceRecord>(
+            AttendanceQueries.ListByLesson,
+            new { OrganizationId = organizationId, LessonId = lessonId });
+        return entries.ToList();
+    }
+
+    public async Task<IReadOnlyList<AttendanceRecord>?> SaveLessonCallAsync(
+        Guid organizationId,
+        Guid lessonId,
+        IReadOnlyList<AttendanceRecord> entries,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
+        using var transaction = connection.BeginTransaction();
+
+        var classGroupId = await connection.QuerySingleOrDefaultAsync<Guid?>(
+            AttendanceQueries.LockLessonForCall,
+            new { OrganizationId = organizationId, LessonId = lessonId },
+            transaction);
+        if (classGroupId is null)
+        {
+            return null;
+        }
+
+        var savedEntries = new List<AttendanceRecord>(entries.Count);
+        foreach (var entry in entries)
+        {
+            entry.Id = Guid.NewGuid();
+            entry.OrganizationId = organizationId;
+            entry.LessonId = lessonId;
+            entry.CreatedAt = DateTimeOffset.UtcNow;
+
+            var saved = await connection.QuerySingleOrDefaultAsync<AttendanceRecord>(
+                AttendanceQueries.UpsertCallEntry,
+                entry,
+                transaction);
+            if (saved is null)
+            {
+                return null;
+            }
+
+            savedEntries.Add(saved);
+        }
+
+        transaction.Commit();
+        return savedEntries;
+    }
 }

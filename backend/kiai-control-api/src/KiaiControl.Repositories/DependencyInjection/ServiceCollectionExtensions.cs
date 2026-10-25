@@ -18,8 +18,20 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAuthRepository, SqlAuthRepository>();
         services.AddScoped<IClientRepository, SqlClientRepository>();
         services.AddScoped<ITeacherRepository, SqlTeacherRepository>();
+        services.AddScoped<IModalityRepository, SqlModalityRepository>();
+        services.AddScoped<IClassGroupRepository, SqlClassGroupRepository>();
+        services.AddScoped<ILessonRepository, SqlLessonRepository>();
         services.AddScoped<IAttendanceRepository, SqlAttendanceRepository>();
         services.AddScoped<IBillingRepository, SqlBillingRepository>();
+        services.AddScoped<IBillingCatalogRepository, SqlBillingCatalogRepository>();
+        services.AddScoped<IOrganizationRepository, SqlOrganizationRepository>();
+        services.AddScoped<IBranchRepository, SqlBranchRepository>();
+        services.AddScoped<INotificationRepository, SqlNotificationRepository>();
+        services.AddScoped<IAuditLogRepository, SqlAuditLogRepository>();
+        services.AddScoped<IRankingRepository, SqlRankingRepository>();
+        services.AddScoped<IAccessControlRepository, SqlAccessControlRepository>();
+        services.AddScoped<IReportRepository, SqlReportRepository>();
+        services.AddScoped<IProgressionRepository, SqlProgressionRepository>();
 
         return services;
     }

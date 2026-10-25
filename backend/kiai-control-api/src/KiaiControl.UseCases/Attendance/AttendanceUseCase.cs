@@ -6,6 +6,8 @@ namespace KiaiControl.UseCases.Attendance;
 
 public sealed class AttendanceUseCase(IAttendanceRepository attendanceRepository)
 {
+    private static readonly string[] AllowedStatuses = ["present", "absent", "justified_absence", "late"];
+
     public async Task<AttendanceRecordResponse> CreateAsync(CreateAttendanceRequest request, CancellationToken cancellationToken)
     {
         Validate(request.OrganizationId, request.ClientId, request.LessonId, request.Status);
@@ -110,6 +112,62 @@ public sealed class AttendanceUseCase(IAttendanceRepository attendanceRepository
         return attendanceRepository.DeleteAsync(organizationId, id, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<AttendanceRecordResponse>> ListByLessonAsync(
+        Guid organizationId,
+        Guid lessonId,
+        CancellationToken cancellationToken)
+    {
+        if (organizationId == Guid.Empty || lessonId == Guid.Empty)
+        {
+            throw new ArgumentException("OrganizationId and LessonId are required.");
+        }
+
+        var records = await attendanceRepository.ListByLessonAsync(organizationId, lessonId, cancellationToken);
+        return records.Select(ToResponse).ToList();
+    }
+
+    public async Task<IReadOnlyList<AttendanceRecordResponse>?> SaveLessonCallAsync(
+        Guid organizationId,
+        Guid lessonId,
+        SaveAttendanceCallRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (organizationId == Guid.Empty || lessonId == Guid.Empty)
+        {
+            throw new ArgumentException("OrganizationId and LessonId are required.");
+        }
+
+        if (request.Entries.Count == 0)
+        {
+            throw new ArgumentException("At least one attendance entry is required.");
+        }
+
+        if (request.Entries.Any(entry => entry.ClientId == Guid.Empty))
+        {
+            throw new ArgumentException("Every attendance entry must include a ClientId.");
+        }
+
+        if (request.Entries.Select(entry => entry.ClientId).Distinct().Count() != request.Entries.Count)
+        {
+            throw new ArgumentException("A client can only appear once in an attendance call.");
+        }
+
+        foreach (var entry in request.Entries)
+        {
+            ValidateStatus(entry.Status);
+        }
+
+        var records = request.Entries.Select(entry => new AttendanceRecord
+        {
+            ClientId = entry.ClientId,
+            AttendanceDate = entry.AttendanceDate,
+            Status = entry.Status.Trim().ToLowerInvariant()
+        }).ToList();
+
+        var saved = await attendanceRepository.SaveLessonCallAsync(organizationId, lessonId, records, cancellationToken);
+        return saved?.Select(ToResponse).ToList();
+    }
+
     private static void Validate(Guid organizationId, Guid clientId, Guid lessonId, string status)
     {
         if (organizationId == Guid.Empty)
@@ -127,9 +185,29 @@ public sealed class AttendanceUseCase(IAttendanceRepository attendanceRepository
             throw new ArgumentException("LessonId is required.");
         }
 
-        if (string.IsNullOrWhiteSpace(status))
+        ValidateStatus(status);
+    }
+
+    private static void ValidateStatus(string status)
+    {
+        if (!AllowedStatuses.Contains(status.Trim(), StringComparer.OrdinalIgnoreCase))
         {
-            throw new ArgumentException("Status is required.");
+            throw new ArgumentException("Status must be present, absent, justified_absence or late.");
         }
+    }
+
+    private static AttendanceRecordResponse ToResponse(AttendanceRecord record)
+    {
+        return new AttendanceRecordResponse
+        {
+            Id = record.Id,
+            OrganizationId = record.OrganizationId,
+            LessonId = record.LessonId,
+            ClientId = record.ClientId,
+            AttendanceDate = record.AttendanceDate,
+            Status = record.Status,
+            CreatedAt = record.CreatedAt,
+            UpdatedAt = record.UpdatedAt
+        };
     }
 }

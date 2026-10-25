@@ -2,14 +2,19 @@ using KiaiControl.Contracts.Common;
 using KiaiControl.Contracts.Clients;
 using KiaiControl.Core.Common;
 using KiaiControl.UseCases.Clients;
+using KiaiControl.UseCases.Modalities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace KiaiControl.Api.Controllers;
 
 [ApiController]
+[Authorize(Roles = "owner,admin,reception")]
 [Route("api/v1/clients")]
-public sealed class ClientsController(OrganizationContext organizationContext, ClientUseCase clientUseCase) : ControllerBase
+public sealed class ClientsController(
+    OrganizationContext organizationContext,
+    ClientUseCase clientUseCase,
+    ModalityUseCase modalityUseCase) : ControllerBase
 {
     [AllowAnonymous]
     [HttpGet("status")]
@@ -21,12 +26,17 @@ public sealed class ClientsController(OrganizationContext organizationContext, C
     [HttpPost]
     public async Task<ActionResult<ClientResponse>> CreateAsync([FromBody] CreateClientRequest request, CancellationToken cancellationToken)
     {
-        request.OrganizationId = request.OrganizationId == Guid.Empty ? organizationContext.OrganizationId ?? Guid.Empty : request.OrganizationId;
-
-        if (request.OrganizationId == Guid.Empty)
+        if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("OrganizationId is required.");
+            return BadRequest("Organization context is required.");
         }
+
+        if (request.OrganizationId != Guid.Empty && request.OrganizationId != organizationId)
+        {
+            return Forbid();
+        }
+
+        request.OrganizationId = organizationId;
 
         var created = await clientUseCase.CreateAsync(request, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
@@ -89,5 +99,36 @@ public sealed class ClientsController(OrganizationContext organizationContext, C
 
         var deleted = await clientUseCase.DeleteAsync(organizationContext.OrganizationId.Value, id, cancellationToken);
         return deleted ? NoContent() : NotFound();
+    }
+
+    [HttpPost("{clientId:guid}/modalities/{modalityId:guid}")]
+    public async Task<IActionResult> LinkModalityAsync(Guid clientId, Guid modalityId, CancellationToken cancellationToken)
+    {
+        if (organizationContext.OrganizationId is not Guid organizationId)
+        {
+            return BadRequest("Organization context is required.");
+        }
+
+        try
+        {
+            var linked = await modalityUseCase.LinkClientAsync(organizationId, clientId, modalityId, cancellationToken);
+            return linked ? NoContent() : NotFound("The client or active modality is unavailable in this organization.");
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(exception.Message);
+        }
+    }
+
+    [HttpDelete("{clientId:guid}/modalities/{modalityId:guid}")]
+    public async Task<IActionResult> UnlinkModalityAsync(Guid clientId, Guid modalityId, CancellationToken cancellationToken)
+    {
+        if (organizationContext.OrganizationId is not Guid organizationId)
+        {
+            return BadRequest("Organization context is required.");
+        }
+
+        var unlinked = await modalityUseCase.UnlinkClientAsync(organizationId, clientId, modalityId, cancellationToken);
+        return unlinked ? NoContent() : NotFound();
     }
 }

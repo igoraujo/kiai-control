@@ -17,4 +17,15 @@ public interface IAttendanceRepository
     Task<AttendanceRecord?> UpdateAsync(AttendanceRecord attendance, CancellationToken cancellationToken = default);
 
     Task<bool> DeleteAsync(Guid organizationId, Guid id, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<AttendanceRecord>> ListByLessonAsync(
+        Guid organizationId,
+        Guid lessonId,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<AttendanceRecord>?> SaveLessonCallAsync(
+        Guid organizationId,
+        Guid lessonId,
+        IReadOnlyList<AttendanceRecord> entries,
+        CancellationToken cancellationToken = default);
 }

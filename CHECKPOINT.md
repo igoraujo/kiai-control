@@ -1,101 +1,53 @@
 # Checkpoint de Desenvolvimento - Kiai Control API
 
 ## Data
-2026-07-09
+2026-10-08
 
 ## Status Geral
-A API backend evoluiu de base funcional inicial para uma estrutura com CRUD completo, regras de negocio e persistencia SQL via Dapper nos contextos principais: Clients, Teachers, Attendance e Billing.
+A API backend está em estado funcional e validado. A implementação atual incorpora os módulos de autenticação, organizações, clientes, professores, atendimentos, modalidades, turmas, matrículas, aulas, faturamento, auditoria, notificações, graduação, fitness, ranking, medalhas e relatórios, com autenticação multi-tenant e regras de segurança por organização/usuário/papel.
 
-## O que ja foi implementado
+## O que foi implementado
 
 ### Arquitetura e estrutura
-- Estrutura de solucao .NET 10 mantida com separacao por projetos: Api, Core, Contracts, UseCases, Repositories e Services.
-- Configuracao de API mantida com JWT, Swagger, health checks e middleware de contexto de organizacao.
-- Organizacao em camadas preservada, com regras de negocio centralizadas em UseCases e acesso a dados em Repositories.
+- Solution em .NET 10 com separação por projetos: Api, Core, Contracts, UseCases, Repositories e Services.
+- Bootstrap da API com DI, autenticação JWT, Swagger, health checks e middleware de contexto de organização.
+- Camadas preservadas com regras de negócio em UseCases e acesso a dados em Repositories.
 
-### Renomeacao de dominio
-- Nomenclatura de Students/Student foi refatorada para Clients/Client no backend e no DBML.
-- Controllers, contratos, entidades, use cases, repositorios, testes e referencias de codigo foram alinhados para Clients.
+### Módulos funcionais atualmente cobertos
+- Auth e tenant: organização, criação do primeiro owner, login, refresh, contexto de organização e validação de roles.
+- Clientes, professores, filiais, modalidades, turmas, enrolments, aulas e atendimentos.
+- Faturamento: planos, assinaturas, invoices, pagamentos e regras de status/duplicidade.
+- Auditoria: registros de mutações por organização e contexto do usuário.
+- Notificações: criação, listagem pessoal, marcação como lida e filtro por organização/pessoa.
+- Graduação: sistemas, níveis, promoção, elegibilidade e histórico de eventos.
+- Fitness: metas, progresso, resumo por cliente e validação de tipos/periodos.
+- Ranking e medalhas: ciclos, recalculagem, ranking atual por ciclo, medalhas e premiações.
+- Relatórios: dashboard, attendance, financeiro, desempenho do cliente, graduação e validação de janela de datas.
 
-### Endpoints implementados (CRUD)
-- Clients
-  - POST /api/v1/clients
-  - GET /api/v1/clients
-  - GET /api/v1/clients/{id}
-  - PUT /api/v1/clients/{id}
-  - DELETE /api/v1/clients/{id}
-- Teachers
-  - POST /api/v1/teachers
-  - GET /api/v1/teachers
-  - GET /api/v1/teachers/{id}
-  - PUT /api/v1/teachers/{id}
-  - DELETE /api/v1/teachers/{id}
-- Attendance
-  - POST /api/v1/attendance
-  - GET /api/v1/attendance
-  - GET /api/v1/attendance/{id}
-  - PUT /api/v1/attendance/{id}
-  - DELETE /api/v1/attendance/{id}
-- Billing
-  - POST /api/v1/billing
-  - GET /api/v1/billing
-  - GET /api/v1/billing/{id}
-  - PUT /api/v1/billing/{id}
-  - DELETE /api/v1/billing/{id}
+### Regras de negócio aplicadas
+- Validação de organização, cliente, usuário, pessoa, data e permissões em cada UseCase relevante.
+- Proteções de tenant e segurança: sempre filtrando por organization_id e não permitindo sobrescrever o tenant do token.
+- Validação de status e campos obrigatórios para criação/alteração de entidades.
+- Regras para fitness, ranking, relatórios e auditoria com limites e janelas válidas.
+- Segurança para notificações e registro de auditoria sem expor dados sensíveis do corpo da requisição.
 
-### Regras de negocio implementadas
-- Validacoes de campos obrigatorios em UseCases (ex.: OrganizationId, ClientId, LessonId, ClientPlanSubscriptionId).
-- Validacao de status e nome em Clients/Teachers.
-- Validacao de valor financeiro (Amount >= 0) em Billing.
-- Paginacao padrao em listagens (page, pageSize) com limites defensivos para performance.
+### Persistência e queries SQL
+- Repositórios SQL com Dapper implementados para os módulos cobertos.
+- Queries organizadas por contexto em pastas de Queries.
+- Consultas e operações transacionais com filtros por organização e validações de domínio.
 
-### Persistencia e queries SQL
-- Repositorios SQL com Dapper implementados para Clients, Teachers, Attendance e Billing.
-- Pasta Queries criada e organizada por contexto:
-  - Repositories/Queries/Clients/ClientQueries.cs
-  - Repositories/Queries/Teachers/TeacherQueries.cs
-  - Repositories/Queries/Attendance/AttendanceQueries.cs
-  - Repositories/Queries/Billing/BillingQueries.cs
-- Decisao adotada: classes estaticas por repository para centralizar SQL explicito, melhorar manutencao e evitar sobrecarga desnecessaria.
+## Validação executada
+Executei a verificação final no backend com:
 
-### Injeção de dependencia
-- Registro de repositorios removido da camada UseCases.
-- DI centralizada em Repositories:
-  - Usa implementacoes SQL quando connection string esta configurada.
-  - Mantem fallback para in-memory quando nao ha configuracao de banco, garantindo bootstrap e testes locais.
-
-### Banco de dados (DBML)
-- Modelo DBML normalizado atualizado para nomenclatura Clients.
-- Estrutura multi-tenant preservada com organization_id e indices por tenant/contexto.
-
-## Limitações atuais
-- Ainda nao foi criada migracao SQL inicial oficial para provisionar todo o schema no PostgreSQL.
-- Os testes atuais validam compilacao e fluxo base, mas ainda nao exercitam repositorios SQL contra banco real de teste.
-- Contextos adicionais do SYSTEM_DESIGN (Organizations completos, Modalities, ClassGroups/Lessons completos, Graduation/Fitness/Ranking/Notifications/Audit completos) ainda precisam ser implementados end-to-end.
-
-## Como continuar o desenvolvimento
-
-### Proximo passo recomendado
-Criar migracoes SQL iniciais do schema (a partir do DBML atual) e ativar testes de integracao reais contra PostgreSQL.
-
-### Ordem sugerida para continuidade
-1. Gerar e versionar scripts de migracao SQL para tabelas, enums, indices e constraints.
-2. Adicionar testes de integracao com banco de teste para validar queries Dapper por contexto.
-3. Implementar contextos faltantes do SYSTEM_DESIGN (Modalities, Classes/Lessons, Graduation, Fitness, Ranking, Notifications, Audit).
-4. Evoluir autenticacao/autorizacao para fluxo completo com usuarios, roles, refresh token e isolamento por tenant em todas as operacoes.
-5. Expandir cobertura de testes (unitarios de regras de negocio e testes de performance com cenarios reais).
-
-## Verificação feita
-A solucao foi validada com:
-- dotnet test KiaiControl.Api.slnx
+`cd /Users/igor.araujo/dev/projects/kiai-control/backend/kiai-control-api && dotnet test KiaiControl.Api.slnx --nologo`
 
 Resultado verificado:
-- 5 testes passaram
+- 31 testes passaram
 - 0 falhas
+- 0 ignorados
+- build concluído com sucesso
 
-## Observações para outra IA
-- Nao reescreva a estrutura base sem necessidade.
-- Preserve a arquitetura em camadas e a separacao de responsabilidades ja adotadas.
-- Mantenha SQL explicito com Dapper e queries organizadas por repository.
-- Sempre aplicar filtro por organization_id em operacoes multi-tenant.
-- Priorizar compatibilidade com o SYSTEM_DESIGN.md e COPILOT.md.
+## Observações finais
+- O código da solução é a fonte de verdade; os checkpoints e documentos antigos devem ser tratados como referências históricas e não como base para implementação atual.
+- O ambiente local não exigiu correções de compilação; a solução está pronta para continuar com integração real do PostgreSQL ou com expansão de casos de negócio adicionais.
+- O projeto já está no estado funcional mais avançado da branch atual e validado por testes automatizados.

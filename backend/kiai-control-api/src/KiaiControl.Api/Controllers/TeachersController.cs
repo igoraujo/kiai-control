@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace KiaiControl.Api.Controllers;
 
 [ApiController]
+[Authorize(Roles = "owner,admin")]
 [Route("api/v1/teachers")]
 public sealed class TeachersController(OrganizationContext organizationContext, TeacherUseCase teacherUseCase) : ControllerBase
 {
@@ -21,12 +22,17 @@ public sealed class TeachersController(OrganizationContext organizationContext, 
     [HttpPost]
     public async Task<ActionResult<TeacherResponse>> CreateAsync([FromBody] CreateTeacherRequest request, CancellationToken cancellationToken)
     {
-        request.OrganizationId = request.OrganizationId == Guid.Empty ? organizationContext.OrganizationId ?? Guid.Empty : request.OrganizationId;
-
-        if (request.OrganizationId == Guid.Empty)
+        if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("OrganizationId is required.");
+            return BadRequest("Organization context is required.");
         }
+
+        if (request.OrganizationId != Guid.Empty && request.OrganizationId != organizationId)
+        {
+            return Forbid();
+        }
+
+        request.OrganizationId = organizationId;
 
         var created = await teacherUseCase.CreateAsync(request, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);

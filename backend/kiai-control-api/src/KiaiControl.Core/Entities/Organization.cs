@@ -2,15 +2,21 @@ namespace KiaiControl.Core.Entities;
 
 public sealed class Organization
 {
-    public Guid Id { get; init; }
+    public Guid Id { get; set; }
 
-    public string Name { get; init; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
 
-    public string? TradeName { get; init; }
+    public string? TradeName { get; set; }
 
-    public string? Email { get; init; }
+    public string? Document { get; set; }
 
-    public string Status { get; init; } = "active";
+    public string? Email { get; set; }
 
-    public DateTimeOffset CreatedAt { get; init; }
+    public string? Phone { get; set; }
+
+    public string Status { get; set; } = "active";
+
+    public DateTimeOffset CreatedAt { get; set; }
+
+    public DateTimeOffset? UpdatedAt { get; set; }
 }

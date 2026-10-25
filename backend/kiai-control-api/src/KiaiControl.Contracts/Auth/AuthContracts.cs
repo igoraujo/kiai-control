@@ -54,6 +54,8 @@ public sealed class AuthUserProfileResponse
     public Guid OrganizationId { get; init; }
 
     public string Email { get; init; } = string.Empty;
+
+    public IReadOnlyList<string> Roles { get; init; } = [];
 }
 
 public sealed class SessionTokenResponse

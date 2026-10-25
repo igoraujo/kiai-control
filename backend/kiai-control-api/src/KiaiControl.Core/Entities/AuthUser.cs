@@ -13,4 +13,6 @@ public sealed class AuthUser
     public string PasswordHash { get; set; } = string.Empty;
 
     public bool IsActive { get; set; }
+
+    public string[] Roles { get; set; } = [];
 }

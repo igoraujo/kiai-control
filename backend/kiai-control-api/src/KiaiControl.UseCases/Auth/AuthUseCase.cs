@@ -133,7 +133,8 @@ public sealed class AuthUseCase(
             UserId = user.Id,
             PersonId = user.PersonId,
             OrganizationId = user.OrganizationId,
-            Email = user.Email
+            Email = user.Email,
+            Roles = user.Roles
         };
     }
 
@@ -252,7 +253,8 @@ public sealed class AuthUseCase(
                 UserId = user.Id,
                 PersonId = user.PersonId,
                 OrganizationId = user.OrganizationId,
-                Email = user.Email
+                Email = user.Email,
+                Roles = user.Roles
             }
         };
 

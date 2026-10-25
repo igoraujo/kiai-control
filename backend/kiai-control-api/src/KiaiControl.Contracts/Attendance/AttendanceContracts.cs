@@ -42,3 +42,17 @@ public sealed class AttendanceRecordResponse
 
     public DateTimeOffset? UpdatedAt { get; init; }
 }
+
+public sealed class SaveAttendanceCallRequest
+{
+    public List<AttendanceCallEntryRequest> Entries { get; set; } = [];
+}
+
+public sealed class AttendanceCallEntryRequest
+{
+    public Guid ClientId { get; set; }
+
+    public DateTimeOffset AttendanceDate { get; set; }
+
+    public string Status { get; set; } = "present";
+}

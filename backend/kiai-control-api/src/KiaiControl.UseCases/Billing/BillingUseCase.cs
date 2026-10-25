@@ -6,6 +6,9 @@ namespace KiaiControl.UseCases.Billing;
 
 public sealed class BillingUseCase(IBillingRepository billingRepository)
 {
+    private static readonly string[] AllowedInvoiceStatuses = ["pending", "paid", "overdue", "canceled", "exempt", "partially_paid"];
+    private static readonly string[] AllowedPaymentMethods = ["cash", "pix", "bank_transfer", "credit_card", "debit_card", "boleto", "manual_adjustment"];
+
     public async Task<BillingResponse> CreateAsync(CreateBillingRequest request, CancellationToken cancellationToken)
     {
         Validate(request.OrganizationId, request.ClientId, request.ClientPlanSubscriptionId, request.Amount, request.Status);
@@ -116,6 +119,70 @@ public sealed class BillingUseCase(IBillingRepository billingRepository)
         return billingRepository.DeleteAsync(organizationId, id, cancellationToken);
     }
 
+    public async Task<PaymentResponse?> RegisterPaymentAsync(
+        Guid organizationId,
+        Guid invoiceId,
+        RegisterPaymentRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (organizationId == Guid.Empty || invoiceId == Guid.Empty)
+        {
+            throw new ArgumentException("OrganizationId and InvoiceId are required.");
+        }
+
+        if (request.Amount <= 0)
+        {
+            throw new ArgumentException("Payment amount must be greater than zero.");
+        }
+
+        var method = AllowedPaymentMethods.FirstOrDefault(allowed =>
+            string.Equals(allowed, request.Method.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (method is null)
+        {
+            throw new ArgumentException("Payment method is not supported.");
+        }
+
+        if (request.PaidAt == default || request.ExternalReference?.Length > 120 || request.Notes?.Length > 255)
+        {
+            throw new ArgumentException("PaidAt is required; external reference and notes exceed their allowed lengths.");
+        }
+
+        var payment = await billingRepository.RegisterPaymentAsync(organizationId, invoiceId, new Core.Entities.Payment
+        {
+            Amount = request.Amount,
+            Method = method,
+            PaidAt = request.PaidAt,
+            ExternalReference = string.IsNullOrWhiteSpace(request.ExternalReference) ? null : request.ExternalReference.Trim(),
+            Notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim()
+        }, cancellationToken);
+
+        return payment is null ? null : ToResponse(payment);
+    }
+
+    public async Task<IReadOnlyList<PaymentResponse>> ListPaymentsAsync(
+        Guid organizationId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken)
+    {
+        var payments = await billingRepository.ListPaymentsByOrganizationAsync(organizationId, page, pageSize, cancellationToken);
+        return payments.Select(ToResponse).ToList();
+    }
+
+    public async Task<IReadOnlyList<PaymentResponse>> ListPaymentsByInvoiceAsync(
+        Guid organizationId,
+        Guid invoiceId,
+        CancellationToken cancellationToken)
+    {
+        if (organizationId == Guid.Empty || invoiceId == Guid.Empty)
+        {
+            throw new ArgumentException("OrganizationId and InvoiceId are required.");
+        }
+
+        var payments = await billingRepository.ListPaymentsByInvoiceAsync(organizationId, invoiceId, cancellationToken);
+        return payments.Select(ToResponse).ToList();
+    }
+
     private static void Validate(Guid organizationId, Guid clientId, Guid clientPlanSubscriptionId, decimal amount, string status)
     {
         if (organizationId == Guid.Empty)
@@ -138,9 +205,25 @@ public sealed class BillingUseCase(IBillingRepository billingRepository)
             throw new ArgumentException("Amount must be greater than or equal to zero.");
         }
 
-        if (string.IsNullOrWhiteSpace(status))
+        if (!AllowedInvoiceStatuses.Contains(status.Trim(), StringComparer.OrdinalIgnoreCase))
         {
-            throw new ArgumentException("Status is required.");
+            throw new ArgumentException("Status is not a supported invoice status.");
         }
+    }
+
+    private static PaymentResponse ToResponse(Core.Entities.Payment payment)
+    {
+        return new PaymentResponse
+        {
+            Id = payment.Id,
+            OrganizationId = payment.OrganizationId,
+            InvoiceId = payment.InvoiceId,
+            Amount = payment.Amount,
+            Method = payment.Method,
+            PaidAt = payment.PaidAt,
+            ExternalReference = payment.ExternalReference,
+            Notes = payment.Notes,
+            CreatedAt = payment.CreatedAt
+        };
     }
 }

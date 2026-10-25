@@ -19,6 +19,7 @@ public static class WebApplicationExtensions
         app.UseAuthentication();
         app.UseMiddleware<OrganizationContextMiddleware>();
         app.UseAuthorization();
+        app.UseMiddleware<MutationAuditMiddleware>();
 
         app.MapControllers();
         app.MapHealthChecks("/health/live", new HealthCheckOptions

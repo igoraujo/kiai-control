@@ -2,7 +2,7 @@ namespace KiaiControl.Repositories.Queries.Clients;
 
 public static class ClientQueries
 {
-    public const string Insert = """
+    public const string Insert = @"
         with inserted_person as (
             insert into persons (id, organization_id, full_name, status, hide_from_ranking, created_at)
             values (@PersonId, @OrganizationId, @FullName, @Status, false, @CreatedAt)
@@ -22,9 +22,9 @@ public static class ClientQueries
             c.updated_at as UpdatedAt
         from inserted_client c
         join persons p on p.id = c.person_id;
-        """;
+        ";
 
-    public const string ListByOrganization = """
+    public const string ListByOrganization = @"
         select
             c.id,
             c.organization_id as OrganizationId,
@@ -38,9 +38,9 @@ public static class ClientQueries
         where c.organization_id = @OrganizationId and p.deleted_at is null
         order by c.created_at desc
         offset @Offset rows fetch next @PageSize rows only;
-        """;
+        ";
 
-    public const string GetById = """
+    public const string GetById = @"
         select
             c.id,
             c.organization_id as OrganizationId,
@@ -52,9 +52,9 @@ public static class ClientQueries
         from clients c
         join persons p on p.id = c.person_id
         where c.organization_id = @OrganizationId and c.id = @Id and p.deleted_at is null;
-        """;
+        ";
 
-    public const string Update = """
+    public const string Update = @"
         with target as (
             select c.id, c.organization_id, c.person_id
             from clients c
@@ -87,10 +87,10 @@ public static class ClientQueries
             c.updated_at as UpdatedAt
         from updated_client c
         join persons p on p.id = c.person_id;
-        """;
+        ";
 
-    public const string Delete = """
+    public const string Delete = @"
         delete from clients
         where organization_id = @OrganizationId and id = @Id;
-        """;
+        ";
 }

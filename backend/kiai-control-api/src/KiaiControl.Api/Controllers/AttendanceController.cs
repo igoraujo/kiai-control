@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace KiaiControl.Api.Controllers;
 
 [ApiController]
+[Authorize(Roles = "owner,admin,teacher,reception")]
 [Route("api/v1/attendance")]
 public sealed class AttendanceController(OrganizationContext organizationContext, AttendanceUseCase attendanceUseCase) : ControllerBase
 {
@@ -21,11 +22,21 @@ public sealed class AttendanceController(OrganizationContext organizationContext
     [HttpPost]
     public async Task<ActionResult<AttendanceRecordResponse>> CreateAsync([FromBody] CreateAttendanceRequest request, CancellationToken cancellationToken)
     {
-        request.OrganizationId = request.OrganizationId == Guid.Empty ? organizationContext.OrganizationId ?? Guid.Empty : request.OrganizationId;
-
-        if (request.OrganizationId == Guid.Empty || request.ClientId == Guid.Empty || request.LessonId == Guid.Empty)
+        if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("OrganizationId, ClientId and LessonId are required.");
+            return BadRequest("Organization context is required.");
+        }
+
+        if (request.OrganizationId != Guid.Empty && request.OrganizationId != organizationId)
+        {
+            return Forbid();
+        }
+
+        request.OrganizationId = organizationId;
+
+        if (request.ClientId == Guid.Empty || request.LessonId == Guid.Empty)
+        {
+            return BadRequest("ClientId and LessonId are required.");
         }
 
         try
