@@ -1,4 +1,7 @@
 ﻿@inherits LayoutComponentBase
+@inject AdminSession Session
+@inject AdminApiClient Api
+@inject NavigationManager Navigation
 
 <MudThemeProvider Theme="_theme" />
 <MudPopoverProvider />
@@ -19,6 +22,11 @@
 
             <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
                 <MudChip T="string" Color="Color.Secondary" Variant="Variant.Filled" Size="Size.Small" Class="status-chip">MVP</MudChip>
+                @if (Session.Current is not null)
+                {
+                    <MudText Typo="Typo.body2" Class="signed-in-email">@Session.Current.User.Email</MudText>
+                    <MudIconButton Icon="@Icons.Material.Filled.Logout" Color="Color.Inherit" aria-label="Sair" OnClick="LogoutAsync" />
+                }
                 <MudAvatar Size="Size.Medium" Color="Color.Primary" Variant="Variant.Filled">KC</MudAvatar>
             </MudStack>
         </MudAppBar>
@@ -83,5 +91,19 @@
     private void ToggleDrawer()
     {
         _drawerOpen = !_drawerOpen;
+    }
+
+    private async Task LogoutAsync()
+    {
+        try
+        {
+            await Api.LogoutAsync();
+        }
+        catch (HttpRequestException)
+        {
+            Session.Clear();
+        }
+
+        Navigation.NavigateTo("/login");
     }
 }

@@ -1,52 +1,52 @@
 ﻿@page "/"
+@inject AdminSession Session
+@inject AdminApiClient Api
+@inject NavigationManager Navigation
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Dashboard | Kiai Control</PageTitle>
 
 <MudStack Spacing="3" Class="dashboard-page">
-	<MudPaper Elevation="0" Class="hero-panel">
-		<MudStack Spacing="2" Class="hero-copy">
-			<MudChip T="string" Color="Color.Secondary" Variant="Variant.Filled" Size="Size.Small" Class="hero-chip">Gestão da academia</MudChip>
-			<MudText Typo="Typo.h3" Class="hero-title">Visão geral do desempenho, presença e financeiro.</MudText>
-			<MudText Typo="Typo.body1" Class="hero-subtitle">
-				Um dashboard inicial para acompanhar alunos, turmas, receita e evolução com leitura rápida e navegação lateral retrátil.
-			</MudText>
+	<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="dashboard-heading">
+		<div>
+			<MudText Typo="Typo.h4">Visão geral</MudText>
+			<MudText Typo="Typo.body2" Color="Color.Secondary">Resumo operacional da sua academia</MudText>
+		</div>
+		<MudSelect T="int" Value="_selectedMonth" ValueChanged="LoadDashboardAsync" Label="Período" Variant="Variant.Outlined" Margin="Margin.Dense" Class="period-select">
+			<MudSelectItem Value="@DateTime.Today.Month">Este mês</MudSelectItem>
+			<MudSelectItem Value="@DateTime.Today.AddMonths(-1).Month">Mês passado</MudSelectItem>
+		</MudSelect>
+	</MudStack>
 
-			<MudStack Row="true" Spacing="2" Class="hero-actions">
-				<MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add">Nova matrícula</MudButton>
-				<MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.CalendarMonth">Agenda da semana</MudButton>
-			</MudStack>
-		</MudStack>
-
-		<MudPaper Elevation="0" Class="hero-stats-card">
-			<div class="hero-stats-grid">
-				<div>
-					<MudText Typo="Typo.caption" Class="stat-label">Alunos ativos</MudText>
-					<MudText Typo="Typo.h4" Class="stat-value">248</MudText>
-				</div>
-				<div>
-					<MudText Typo="Typo.caption" Class="stat-label">Presença média</MudText>
-					<MudText Typo="Typo.h4" Class="stat-value">87%</MudText>
-				</div>
-				<div>
-					<MudText Typo="Typo.caption" Class="stat-label">Receita prevista</MudText>
-					<MudText Typo="Typo.h4" Class="stat-value">R$ 42k</MudText>
-				</div>
-			</div>
-		</MudPaper>
-	</MudPaper>
-
+	@if (_isLoading)
+	{
+		<MudGrid Spacing="3">
+			@for (var index = 0; index < 4; index++)
+			{
+				<MudItem xs="12" sm="6" lg="3"><MudSkeleton Height="132px" /></MudItem>
+			}
+		</MudGrid>
+	}
+	else if (!string.IsNullOrEmpty(_errorMessage))
+	{
+		<MudAlert Severity="Severity.Error" Variant="Variant.Outlined">
+			@_errorMessage
+			<MudButton Variant="Variant.Text" Color="Color.Error" OnClick="ReloadAsync">Tentar novamente</MudButton>
+		</MudAlert>
+	}
+	else if (_report is not null)
+	{
 	<MudGrid Spacing="3">
 		<MudItem xs="12" sm="6" lg="3">
 			<MudCard Class="metric-card metric-card-primary">
 				<MudCardContent>
-						<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+					<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
 						<div>
 							<MudText Typo="Typo.caption" Class="metric-label">Alunos ativos</MudText>
-							<MudText Typo="Typo.h4" Class="metric-value">248</MudText>
+							<MudText Typo="Typo.h4" Class="metric-value">@_report.ActiveClients</MudText>
 						</div>
 						<MudAvatar Color="Color.Primary" Variant="Variant.Filled"><MudIcon Icon="@Icons.Material.Filled.Groups" /></MudAvatar>
 					</MudStack>
-					<MudText Typo="Typo.caption" Class="metric-note">+18 no último mês</MudText>
+					<MudText Typo="Typo.caption" Class="metric-note">@_report.NewClients novos · @_report.CanceledClients cancelados</MudText>
 				</MudCardContent>
 			</MudCard>
 		</MudItem>
@@ -54,14 +54,14 @@
 		<MudItem xs="12" sm="6" lg="3">
 			<MudCard Class="metric-card metric-card-warning">
 				<MudCardContent>
-						<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+					<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
 						<div>
-							<MudText Typo="Typo.caption" Class="metric-label">Em atraso</MudText>
-							<MudText Typo="Typo.h4" Class="metric-value">32</MudText>
+							<MudText Typo="Typo.caption" Class="metric-label">Frequência média</MudText>
+							<MudText Typo="Typo.h4" Class="metric-value">@_report.AttendanceRate.ToString("N1")%</MudText>
 						</div>
-						<MudAvatar Color="Color.Secondary" Variant="Variant.Filled"><MudIcon Icon="@Icons.Material.Filled.Payments" /></MudAvatar>
+						<MudAvatar Color="Color.Tertiary" Variant="Variant.Filled"><MudIcon Icon="@Icons.Material.Filled.FactCheck" /></MudAvatar>
 					</MudStack>
-					<MudText Typo="Typo.caption" Class="metric-note">Acompanhamento financeiro</MudText>
+					<MudText Typo="Typo.caption" Class="metric-note">@_report.CompletedLessons aulas concluídas</MudText>
 				</MudCardContent>
 			</MudCard>
 		</MudItem>
@@ -69,14 +69,14 @@
 		<MudItem xs="12" sm="6" lg="3">
 			<MudCard Class="metric-card metric-card-success">
 				<MudCardContent>
-						<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+					<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
 						<div>
-							<MudText Typo="Typo.caption" Class="metric-label">Presenças hoje</MudText>
-							<MudText Typo="Typo.h4" Class="metric-value">94</MudText>
+							<MudText Typo="Typo.caption" Class="metric-label">Receita recebida</MudText>
+							<MudText Typo="Typo.h4" Class="metric-value">@FormatCurrency(_report.RevenueReceived)</MudText>
 						</div>
-						<MudAvatar Color="Color.Tertiary" Variant="Variant.Filled"><MudIcon Icon="@Icons.Material.Filled.CheckCircle" /></MudAvatar>
+						<MudAvatar Color="Color.Secondary" Variant="Variant.Filled"><MudIcon Icon="@Icons.Material.Filled.Payments" /></MudAvatar>
 					</MudStack>
-					<MudText Typo="Typo.caption" Class="metric-note">3 turmas em andamento</MudText>
+					<MudText Typo="Typo.caption" Class="metric-note">Prevista: @FormatCurrency(_report.RevenueExpected)</MudText>
 				</MudCardContent>
 			</MudCard>
 		</MudItem>
@@ -84,86 +84,82 @@
 		<MudItem xs="12" sm="6" lg="3">
 			<MudCard Class="metric-card metric-card-neutral">
 				<MudCardContent>
-						<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+					<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
 						<div>
-							<MudText Typo="Typo.caption" Class="metric-label">Ranking líder</MudText>
-							<MudText Typo="Typo.h4" Class="metric-value">Rafa</MudText>
+							<MudText Typo="Typo.caption" Class="metric-label">Receita em atraso</MudText>
+							<MudText Typo="Typo.h4" Class="metric-value">@FormatCurrency(_report.RevenueOverdue)</MudText>
 						</div>
-						<MudAvatar Color="Color.Info" Variant="Variant.Filled"><MudIcon Icon="@Icons.Material.Filled.EmojiEvents" /></MudAvatar>
+						<MudAvatar Color="Color.Info" Variant="Variant.Filled"><MudIcon Icon="@Icons.Material.Filled.WarningAmber" /></MudAvatar>
 					</MudStack>
-					<MudText Typo="Typo.caption" Class="metric-note">132 pontos acumulados</MudText>
+					<MudText Typo="Typo.caption" Class="metric-note">No período selecionado</MudText>
 				</MudCardContent>
 			</MudCard>
 		</MudItem>
 	</MudGrid>
-
 	<MudGrid Spacing="3">
 		<MudItem xs="12" lg="8">
-			<MudCard Class="panel-card">
-				<MudCardHeader>
-					<CardHeaderContent>
-						<MudText Typo="Typo.h6">Atividade recente</MudText>
-						<MudText Typo="Typo.body2" Class="panel-subtitle">Entradas resumidas do dia para apoiar a operação.</MudText>
-					</CardHeaderContent>
-				</MudCardHeader>
-				<MudCardContent>
-					<MudStack Spacing="1">
-						<MudPaper Elevation="0" Class="activity-row">
-							<MudIcon Color="Color.Primary" Icon="@Icons.Material.Filled.PersonAdd" />
-							<div>
-								<MudText Typo="Typo.subtitle2">Nova matrícula registrada</MudText>
-								<MudText Typo="Typo.body2">Lívia Santos entrou no Muay Thai Kids às 08:40.</MudText>
-							</div>
-							<MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined">Agora</MudChip>
-						</MudPaper>
-
-						<MudPaper Elevation="0" Class="activity-row">
-							<MudIcon Color="Color.Secondary" Icon="@Icons.Material.Filled.ReceiptLong" />
-							<div>
-								<MudText Typo="Typo.subtitle2">Pagamento confirmado</MudText>
-								<MudText Typo="Typo.body2">Mensalidade de agosto quitada via registro manual.</MudText>
-							</div>
-							<MudChip T="string" Size="Size.Small" Color="Color.Secondary" Variant="Variant.Outlined">Financeiro</MudChip>
-						</MudPaper>
-
-						<MudPaper Elevation="0" Class="activity-row">
-							<MudIcon Color="Color.Tertiary" Icon="@Icons.Material.Filled.FitnessCenter" />
-							<div>
-								<MudText Typo="Typo.subtitle2">Meta física atualizada</MudText>
-								<MudText Typo="Typo.body2">João avançou para 72% na meta de condicionamento.</MudText>
-							</div>
-							<MudChip T="string" Size="Size.Small" Color="Color.Tertiary" Variant="Variant.Outlined">Progresso</MudChip>
-						</MudPaper>
-					</MudStack>
-				</MudCardContent>
-			</MudCard>
-		</MudItem>
-
-		<MudItem xs="12" lg="4">
-			<MudCard Class="panel-card spotlight-card">
-				<MudCardHeader>
-					<CardHeaderContent>
-						<MudText Typo="Typo.h6">Próximas aulas</MudText>
-						<MudText Typo="Typo.body2" Class="panel-subtitle">Agenda operacional resumida.</MudText>
-					</CardHeaderContent>
-				</MudCardHeader>
-				<MudCardContent>
-					<MudStack Spacing="1">
-						<div class="lesson-item">
-							<MudText Typo="Typo.subtitle2">Jiu-Jitsu Adulto</MudText>
-							<MudText Typo="Typo.body2">17:30 - Sala 1</MudText>
-						</div>
-						<div class="lesson-item">
-							<MudText Typo="Typo.subtitle2">Muay Thai Iniciante</MudText>
-							<MudText Typo="Typo.body2">18:40 - Sala 2</MudText>
-						</div>
-						<div class="lesson-item">
-							<MudText Typo="Typo.subtitle2">Funcional</MudText>
-							<MudText Typo="Typo.body2">19:30 - Área principal</MudText>
-						</div>
-					</MudStack>
-				</MudCardContent>
-			</MudCard>
+			<MudPaper Elevation="0" Class="report-period-note">
+				<MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Color="Color.Primary" />
+				<MudText Typo="Typo.body2">Dados de @_periodLabel</MudText>
+			</MudPaper>
 		</MudItem>
 	</MudGrid>
+	}
 </MudStack>
+
+@code {
+	private DashboardReportResponse? _report;
+	private bool _isLoading = true;
+	private int _selectedMonth = DateTime.Today.Month;
+	private string? _errorMessage;
+	private string _periodLabel = string.Empty;
+
+	protected override async Task OnInitializedAsync()
+	{
+		if (Session.Current is null)
+		{
+			Navigation.NavigateTo("/login");
+			return;
+		}
+
+		await LoadDashboardAsync(_selectedMonth);
+	}
+
+	private async Task LoadDashboardAsync(int month)
+	{
+		_selectedMonth = month;
+		var year = DateTime.Today.Year;
+		if (month > DateTime.Today.Month)
+		{
+			year--;
+		}
+
+		var from = new DateOnly(year, month, 1);
+		var to = from.AddMonths(1).AddDays(-1);
+		_periodLabel = from.ToString("MMMM yyyy", System.Globalization.CultureInfo.GetCultureInfo("pt-BR"));
+		_isLoading = true;
+		_errorMessage = null;
+
+		try
+		{
+			_report = await Api.GetDashboardAsync(from, to);
+		}
+		catch (UnauthorizedAccessException)
+		{
+			Session.Clear();
+			Navigation.NavigateTo("/login");
+		}
+		catch (HttpRequestException)
+		{
+			_errorMessage = "Não foi possível carregar o dashboard. Verifique se a API está disponível.";
+		}
+		finally
+		{
+			_isLoading = false;
+		}
+	}
+
+	private Task ReloadAsync() => LoadDashboardAsync(_selectedMonth);
+
+	private static string FormatCurrency(decimal amount) => amount.ToString("C0", System.Globalization.CultureInfo.GetCultureInfo("pt-BR"));
+}

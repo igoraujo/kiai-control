@@ -69,6 +69,61 @@ h1:focus {
     position: relative;
 }
 
+.dashboard-heading {
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.period-select {
+    width: 190px;
+}
+
+.report-period-note {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.9rem 1rem;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    background: rgba(255, 255, 255, 0.84);
+}
+
+.login-page {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 1.5rem;
+    background: radial-gradient(circle at 12% 14%, rgba(54, 163, 168, 0.18), transparent 28rem),
+                linear-gradient(145deg, #edf3f4 0%, #f7f8f5 54%, #f4e8da 100%);
+}
+
+.login-panel {
+    width: min(100%, 440px);
+    display: grid;
+    gap: 1.5rem;
+    padding: clamp(1.5rem, 5vw, 2.5rem);
+    border: 1px solid rgba(15, 23, 42, 0.1);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.94);
+    box-shadow: 0 24px 64px rgba(15, 23, 42, 0.12);
+}
+
+.login-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+}
+
+.login-title {
+    margin-top: 0.4rem;
+}
+
+.signed-in-email {
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .hero-panel {
     display: grid;
     grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.9fr);
@@ -226,5 +281,13 @@ h1:focus {
 @media (max-width: 600px) {
     .activity-row {
         grid-template-columns: 1fr;
+    }
+
+    .period-select {
+        width: 100%;
+    }
+
+    .signed-in-email {
+        display: none;
     }
 }

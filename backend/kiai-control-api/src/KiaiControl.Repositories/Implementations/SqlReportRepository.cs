@@ -17,8 +17,8 @@ public sealed class SqlReportRepository(IDbConnectionFactory dbConnectionFactory
         return await connection.QuerySingleAsync<DashboardReportData>(ReportQueries.Dashboard, new
         {
             OrganizationId = organizationId,
-            From = from,
-            To = to
+            From = from.ToDateTime(TimeOnly.MinValue),
+            To = to.ToDateTime(TimeOnly.MinValue)
         });
     }
 
@@ -33,8 +33,8 @@ public sealed class SqlReportRepository(IDbConnectionFactory dbConnectionFactory
         var items = await connection.QueryAsync<AttendanceReportData>(ReportQueries.Attendance, new
         {
             OrganizationId = organizationId,
-            From = from,
-            To = to,
+            From = from.ToDateTime(TimeOnly.MinValue),
+            To = to.ToDateTime(TimeOnly.MinValue),
             ModalityId = modalityId
         });
         return items.ToList();
@@ -50,8 +50,8 @@ public sealed class SqlReportRepository(IDbConnectionFactory dbConnectionFactory
         return await connection.QuerySingleAsync<FinancialReportData>(ReportQueries.Financial, new
         {
             OrganizationId = organizationId,
-            From = from,
-            To = to
+            From = from.ToDateTime(TimeOnly.MinValue),
+            To = to.ToDateTime(TimeOnly.MinValue)
         });
     }
 
@@ -70,8 +70,8 @@ public sealed class SqlReportRepository(IDbConnectionFactory dbConnectionFactory
         var items = await connection.QueryAsync<ClientPerformanceReportData>(ReportQueries.ClientPerformance, new
         {
             OrganizationId = organizationId,
-            From = from,
-            To = to,
+            From = from.ToDateTime(TimeOnly.MinValue),
+            To = to.ToDateTime(TimeOnly.MinValue),
             ModalityId = modalityId,
             Offset = (safePage - 1) * safePageSize,
             PageSize = safePageSize
@@ -90,8 +90,8 @@ public sealed class SqlReportRepository(IDbConnectionFactory dbConnectionFactory
         var items = await connection.QueryAsync<GraduationReportData>(ReportQueries.Graduation, new
         {
             OrganizationId = organizationId,
-            From = from,
-            To = to,
+            From = from.ToDateTime(TimeOnly.MinValue),
+            To = to.ToDateTime(TimeOnly.MinValue),
             ModalityId = modalityId
         });
         return items.ToList();

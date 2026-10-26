@@ -1,0 +1,85 @@
+@page "/login"
+@layout Layout.LoginLayout
+@inject AdminSession Session
+@inject AdminApiClient Api
+@inject NavigationManager Navigation
+
+<PageTitle>Entrar | Kiai Control</PageTitle>
+
+<main class="login-page">
+    <section class="login-panel">
+        <div class="login-brand">
+            <MudAvatar Color="Color.Secondary" Variant="Variant.Filled" Size="Size.Large">KC</MudAvatar>
+            <div>
+                <MudText Typo="Typo.h5">Kiai Control</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Painel administrativo</MudText>
+            </div>
+        </div>
+        <MudText Typo="Typo.h4" Class="login-title">Acesse sua academia</MudText>
+
+        @if (!string.IsNullOrWhiteSpace(_errorMessage))
+        {
+            <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">@_errorMessage</MudAlert>
+        }
+
+        <EditForm Model="_form" OnValidSubmit="SignInAsync">
+            <DataAnnotationsValidator />
+            <MudStack Spacing="2">
+                <MudTextField T="string" Label="E-mail" @bind-Value="_form.Email" For="() => _form.Email" InputType="InputType.Email" Variant="Variant.Outlined" Required="true" Disabled="_isSubmitting" />
+                <MudTextField T="string" Label="Senha" @bind-Value="_form.Password" For="() => _form.Password" InputType="InputType.Password" Variant="Variant.Outlined" Required="true" Disabled="_isSubmitting" />
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Disabled="_isSubmitting" StartIcon="@Icons.Material.Filled.Login">
+                    @(_isSubmitting ? "Entrando..." : "Entrar")
+                </MudButton>
+            </MudStack>
+        </EditForm>
+    </section>
+</main>
+
+@code {
+    private readonly LoginForm _form = new();
+    private bool _isSubmitting;
+    private string? _errorMessage;
+
+    protected override void OnInitialized()
+    {
+        if (Session.Current is not null)
+        {
+            Navigation.NavigateTo("/");
+        }
+    }
+
+    private async Task SignInAsync()
+    {
+        _isSubmitting = true;
+        _errorMessage = null;
+
+        try
+        {
+            var session = await Api.LoginAsync(_form.Email, _form.Password);
+            Session.Set(session);
+            Navigation.NavigateTo("/");
+        }
+        catch (UnauthorizedAccessException)
+        {
+            _errorMessage = "E-mail ou senha inválidos.";
+        }
+        catch (HttpRequestException)
+        {
+            _errorMessage = "Não foi possível conectar à API. Tente novamente em instantes.";
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private sealed class LoginForm
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.EmailAddress]
+        public string Email { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required]
+        public string Password { get; set; } = string.Empty;
+    }
+}

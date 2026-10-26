@@ -1,4 +1,5 @@
 using KiaiControl.Admin.Components;
+using KiaiControl.Admin.Services;
 using MudBlazor.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -7,6 +8,13 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
                 .AddInteractiveServerComponents();
 builder.Services.AddMudServices();
+builder.Services.AddHttpClient("KiaiApi", client =>
+{
+    var apiBaseUrl = builder.Configuration["Api:BaseUrl"] ?? "http://localhost:5210";
+    client.BaseAddress = new Uri(apiBaseUrl.EndsWith('/') ? apiBaseUrl : $"{apiBaseUrl}/");
+});
+builder.Services.AddScoped<AdminSession>();
+builder.Services.AddScoped<AdminApiClient>();
 
 var app = builder.Build();
 
