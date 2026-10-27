@@ -3,6 +3,43 @@ using KiaiControl.Core.Interfaces;
 
 namespace KiaiControl.Repositories.Implementations;
 
+public sealed class InMemoryBranchRepository : IBranchRepository
+{
+    private readonly List<Branch> _branches = [];
+
+    public void Add(Branch branch) => _branches.Add(branch);
+
+    public Task<Branch?> CreateAsync(Branch branch, CancellationToken cancellationToken = default)
+    {
+        branch.Id = Guid.NewGuid();
+        branch.CreatedAt = DateTimeOffset.UtcNow;
+        _branches.Add(branch);
+        return Task.FromResult<Branch?>(branch);
+    }
+
+    public Task<IReadOnlyList<Branch>> ListByOrganizationAsync(Guid organizationId, int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        var branches = _branches.Where(item => item.OrganizationId == organizationId).ToList();
+        return Task.FromResult<IReadOnlyList<Branch>>(branches);
+    }
+
+    public Task<Branch?> GetByIdAsync(Guid organizationId, Guid id, CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(_branches.FirstOrDefault(item => item.OrganizationId == organizationId && item.Id == id));
+    }
+
+    public Task<Branch?> UpdateAsync(Branch branch, CancellationToken cancellationToken = default)
+    {
+        var existing = _branches.FirstOrDefault(item => item.OrganizationId == branch.OrganizationId && item.Id == branch.Id);
+        return Task.FromResult(existing);
+    }
+
+    public Task<bool> DeleteAsync(Guid organizationId, Guid id, CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(_branches.RemoveAll(item => item.OrganizationId == organizationId && item.Id == id) > 0);
+    }
+}
+
 public sealed class InMemoryClientRepository : IClientRepository
 {
     private readonly List<Client> _clients = [];
@@ -10,6 +47,7 @@ public sealed class InMemoryClientRepository : IClientRepository
     public Task<Client> CreateAsync(Client client, CancellationToken cancellationToken = default)
     {
         client.Id = Guid.NewGuid();
+        client.PersonId = Guid.NewGuid();
         client.CreatedAt = DateTimeOffset.UtcNow;
         _clients.Add(client);
         return Task.FromResult(client);
@@ -20,7 +58,7 @@ public sealed class InMemoryClientRepository : IClientRepository
         var safePage = page < 1 ? 1 : page;
         var safePageSize = pageSize is < 1 or > 200 ? 50 : pageSize;
         var items = _clients
-            .Where(client => client.OrganizationId == organizationId)
+            .Where(client => client.OrganizationId == organizationId && client.DeletedAt is null)
             .OrderByDescending(client => client.CreatedAt)
             .Skip((safePage - 1) * safePageSize)
             .Take(safePageSize)
@@ -30,20 +68,32 @@ public sealed class InMemoryClientRepository : IClientRepository
 
     public Task<Client?> GetByIdAsync(Guid organizationId, Guid id, CancellationToken cancellationToken = default)
     {
-        var client = _clients.FirstOrDefault(item => item.OrganizationId == organizationId && item.Id == id);
+        var client = _clients.FirstOrDefault(item => item.OrganizationId == organizationId && item.Id == id && item.DeletedAt is null);
         return Task.FromResult(client);
     }
 
     public Task<Client?> UpdateAsync(Client client, CancellationToken cancellationToken = default)
     {
-        var index = _clients.FindIndex(item => item.OrganizationId == client.OrganizationId && item.Id == client.Id);
+        var index = _clients.FindIndex(item => item.OrganizationId == client.OrganizationId && item.Id == client.Id && item.DeletedAt is null);
         if (index < 0)
         {
             return Task.FromResult<Client?>(null);
         }
 
         var current = _clients[index];
+        current.BranchId = client.BranchId;
         current.FullName = client.FullName;
+        current.PreferredName = client.PreferredName;
+        current.Email = client.Email;
+        current.Phone = client.Phone;
+        current.BirthDate = client.BirthDate;
+        current.Document = client.Document;
+        current.MedicalNotes = client.MedicalNotes;
+        current.EmergencyContactName = client.EmergencyContactName;
+        current.EmergencyContactPhone = client.EmergencyContactPhone;
+        current.HideFromRanking = client.HideFromRanking;
+        current.RegistrationCode = client.RegistrationCode;
+        current.JoinedAt = client.JoinedAt;
         current.Status = client.Status;
         current.UpdatedAt = DateTimeOffset.UtcNow;
         return Task.FromResult<Client?>(current);
@@ -51,8 +101,15 @@ public sealed class InMemoryClientRepository : IClientRepository
 
     public Task<bool> DeleteAsync(Guid organizationId, Guid id, CancellationToken cancellationToken = default)
     {
-        var removed = _clients.RemoveAll(item => item.OrganizationId == organizationId && item.Id == id) > 0;
-        return Task.FromResult(removed);
+        var client = _clients.FirstOrDefault(item => item.OrganizationId == organizationId && item.Id == id && item.DeletedAt is null);
+        if (client is null)
+        {
+            return Task.FromResult(false);
+        }
+
+        client.DeletedAt = DateTimeOffset.UtcNow;
+        client.Status = "inactive";
+        return Task.FromResult(true);
     }
 }
 
@@ -63,6 +120,7 @@ public sealed class InMemoryTeacherRepository : ITeacherRepository
     public Task<Teacher> CreateAsync(Teacher teacher, CancellationToken cancellationToken = default)
     {
         teacher.Id = Guid.NewGuid();
+        teacher.PersonId = Guid.NewGuid();
         teacher.CreatedAt = DateTimeOffset.UtcNow;
         _teachers.Add(teacher);
         return Task.FromResult(teacher);
@@ -73,7 +131,7 @@ public sealed class InMemoryTeacherRepository : ITeacherRepository
         var safePage = page < 1 ? 1 : page;
         var safePageSize = pageSize is < 1 or > 200 ? 50 : pageSize;
         var items = _teachers
-            .Where(teacher => teacher.OrganizationId == organizationId)
+            .Where(teacher => teacher.OrganizationId == organizationId && teacher.DeletedAt is null)
             .OrderByDescending(teacher => teacher.CreatedAt)
             .Skip((safePage - 1) * safePageSize)
             .Take(safePageSize)
@@ -83,20 +141,32 @@ public sealed class InMemoryTeacherRepository : ITeacherRepository
 
     public Task<Teacher?> GetByIdAsync(Guid organizationId, Guid id, CancellationToken cancellationToken = default)
     {
-        var teacher = _teachers.FirstOrDefault(item => item.OrganizationId == organizationId && item.Id == id);
+        var teacher = _teachers.FirstOrDefault(item => item.OrganizationId == organizationId && item.Id == id && item.DeletedAt is null);
         return Task.FromResult(teacher);
     }
 
     public Task<Teacher?> UpdateAsync(Teacher teacher, CancellationToken cancellationToken = default)
     {
-        var index = _teachers.FindIndex(item => item.OrganizationId == teacher.OrganizationId && item.Id == teacher.Id);
+        var index = _teachers.FindIndex(item => item.OrganizationId == teacher.OrganizationId && item.Id == teacher.Id && item.DeletedAt is null);
         if (index < 0)
         {
             return Task.FromResult<Teacher?>(null);
         }
 
         var current = _teachers[index];
+        current.BranchId = teacher.BranchId;
         current.FullName = teacher.FullName;
+        current.PreferredName = teacher.PreferredName;
+        current.Email = teacher.Email;
+        current.Phone = teacher.Phone;
+        current.BirthDate = teacher.BirthDate;
+        current.Document = teacher.Document;
+        current.MedicalNotes = teacher.MedicalNotes;
+        current.EmergencyContactName = teacher.EmergencyContactName;
+        current.EmergencyContactPhone = teacher.EmergencyContactPhone;
+        current.HideFromRanking = teacher.HideFromRanking;
+        current.HiredAt = teacher.HiredAt;
+        current.ActiveFrom = teacher.ActiveFrom;
         current.Status = teacher.Status;
         current.UpdatedAt = DateTimeOffset.UtcNow;
         return Task.FromResult<Teacher?>(current);
@@ -104,8 +174,15 @@ public sealed class InMemoryTeacherRepository : ITeacherRepository
 
     public Task<bool> DeleteAsync(Guid organizationId, Guid id, CancellationToken cancellationToken = default)
     {
-        var removed = _teachers.RemoveAll(item => item.OrganizationId == organizationId && item.Id == id) > 0;
-        return Task.FromResult(removed);
+        var teacher = _teachers.FirstOrDefault(item => item.OrganizationId == organizationId && item.Id == id && item.DeletedAt is null);
+        if (teacher is null)
+        {
+            return Task.FromResult(false);
+        }
+
+        teacher.DeletedAt = DateTimeOffset.UtcNow;
+        teacher.Status = "inactive";
+        return Task.FromResult(true);
     }
 }
 

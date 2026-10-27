@@ -1,7 +1,9 @@
 using Dapper;
+using KiaiControl.Core.Common;
 using KiaiControl.Core.Entities;
 using KiaiControl.Core.Interfaces;
 using KiaiControl.Repositories.Queries.Teachers;
+using Npgsql;
 
 namespace KiaiControl.Repositories.Implementations;
 
@@ -14,8 +16,14 @@ public sealed class SqlTeacherRepository(IDbConnectionFactory dbConnectionFactor
         teacher.CreatedAt = DateTimeOffset.UtcNow;
 
         using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
-        var created = await connection.QuerySingleAsync<Teacher>(TeacherQueries.Insert, teacher);
-        return created;
+        try
+        {
+            return await connection.QuerySingleAsync<Teacher>(TeacherQueries.Insert, teacher);
+        }
+        catch (PostgresException exception) when (exception.SqlState == PostgresErrorCodes.UniqueViolation)
+        {
+            throw PostgresConflictMapper.ToConflict(exception);
+        }
     }
 
     public async Task<IReadOnlyList<Teacher>> ListByOrganizationAsync(Guid organizationId, int page, int pageSize, CancellationToken cancellationToken = default)
@@ -45,7 +53,14 @@ public sealed class SqlTeacherRepository(IDbConnectionFactory dbConnectionFactor
         teacher.UpdatedAt = DateTimeOffset.UtcNow;
 
         using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
-        return await connection.QuerySingleOrDefaultAsync<Teacher>(TeacherQueries.Update, teacher);
+        try
+        {
+            return await connection.QuerySingleOrDefaultAsync<Teacher>(TeacherQueries.Update, teacher);
+        }
+        catch (PostgresException exception) when (exception.SqlState == PostgresErrorCodes.UniqueViolation)
+        {
+            throw PostgresConflictMapper.ToConflict(exception);
+        }
     }
 
     public async Task<bool> DeleteAsync(Guid organizationId, Guid id, CancellationToken cancellationToken = default)

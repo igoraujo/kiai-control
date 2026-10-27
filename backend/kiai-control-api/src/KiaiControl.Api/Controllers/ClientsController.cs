@@ -38,8 +38,19 @@ public sealed class ClientsController(
 
         request.OrganizationId = organizationId;
 
-        var created = await clientUseCase.CreateAsync(request, cancellationToken);
-        return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+        try
+        {
+            var created = await clientUseCase.CreateAsync(request, cancellationToken);
+            return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(exception.Message);
+        }
+        catch (ConflictException exception)
+        {
+            return Conflict(exception.Message);
+        }
     }
 
     [HttpGet]
@@ -86,6 +97,10 @@ public sealed class ClientsController(
         catch (ArgumentException exception)
         {
             return BadRequest(exception.Message);
+        }
+        catch (ConflictException exception)
+        {
+            return Conflict(exception.Message);
         }
     }
 

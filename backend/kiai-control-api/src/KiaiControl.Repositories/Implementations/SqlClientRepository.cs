@@ -1,7 +1,9 @@
 using Dapper;
+using KiaiControl.Core.Common;
 using KiaiControl.Core.Entities;
 using KiaiControl.Core.Interfaces;
 using KiaiControl.Repositories.Queries.Clients;
+using Npgsql;
 
 namespace KiaiControl.Repositories.Implementations;
 
@@ -14,8 +16,14 @@ public sealed class SqlClientRepository(IDbConnectionFactory dbConnectionFactory
         client.CreatedAt = DateTimeOffset.UtcNow;
 
         using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
-        var created = await connection.QuerySingleAsync<Client>(ClientQueries.Insert, client);
-        return created;
+        try
+        {
+            return await connection.QuerySingleAsync<Client>(ClientQueries.Insert, client);
+        }
+        catch (PostgresException exception) when (exception.SqlState == PostgresErrorCodes.UniqueViolation)
+        {
+            throw PostgresConflictMapper.ToConflict(exception);
+        }
     }
 
     public async Task<IReadOnlyList<Client>> ListByOrganizationAsync(Guid organizationId, int page, int pageSize, CancellationToken cancellationToken = default)
@@ -45,7 +53,14 @@ public sealed class SqlClientRepository(IDbConnectionFactory dbConnectionFactory
         client.UpdatedAt = DateTimeOffset.UtcNow;
 
         using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
-        return await connection.QuerySingleOrDefaultAsync<Client>(ClientQueries.Update, client);
+        try
+        {
+            return await connection.QuerySingleOrDefaultAsync<Client>(ClientQueries.Update, client);
+        }
+        catch (PostgresException exception) when (exception.SqlState == PostgresErrorCodes.UniqueViolation)
+        {
+            throw PostgresConflictMapper.ToConflict(exception);
+        }
     }
 
     public async Task<bool> DeleteAsync(Guid organizationId, Guid id, CancellationToken cancellationToken = default)

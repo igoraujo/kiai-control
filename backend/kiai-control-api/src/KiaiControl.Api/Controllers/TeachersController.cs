@@ -34,8 +34,19 @@ public sealed class TeachersController(OrganizationContext organizationContext, 
 
         request.OrganizationId = organizationId;
 
-        var created = await teacherUseCase.CreateAsync(request, cancellationToken);
-        return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+        try
+        {
+            var created = await teacherUseCase.CreateAsync(request, cancellationToken);
+            return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(exception.Message);
+        }
+        catch (ConflictException exception)
+        {
+            return Conflict(exception.Message);
+        }
     }
 
     [HttpGet]
@@ -82,6 +93,10 @@ public sealed class TeachersController(OrganizationContext organizationContext, 
         catch (ArgumentException exception)
         {
             return BadRequest(exception.Message);
+        }
+        catch (ConflictException exception)
+        {
+            return Conflict(exception.Message);
         }
     }
 

@@ -86,9 +86,9 @@ create table persons (
 );
 
 create unique index uq_persons_org_email
-    on persons (organization_id, email) where email is not null;
+    on persons (organization_id, email) where email is not null and deleted_at is null;
 create unique index uq_persons_org_document
-    on persons (organization_id, document) where document is not null;
+    on persons (organization_id, document) where document is not null and deleted_at is null;
 create index ix_persons_org_full_name on persons (organization_id, full_name);
 create index ix_persons_org_status on persons (organization_id, status);
 create index ix_persons_branch_id on persons (branch_id);
