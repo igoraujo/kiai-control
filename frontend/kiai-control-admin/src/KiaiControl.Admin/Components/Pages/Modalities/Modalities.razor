@@ -1,0 +1,55 @@
+@page "/modalities"
+@inherits CrudPageBase<ModalityResponse>
+
+<PageTitle>Modalidades | Kiai Control</PageTitle>
+
+<MudStack Spacing="3">
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+        <div>
+            <MudText Typo="Typo.h4">Modalidades</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">Artes marciais e atividades oferecidas</MudText>
+        </div>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="() => EditAsync(null)">Nova modalidade</MudButton>
+    </MudStack>
+
+    @if (ErrorMessage is not null)
+    {
+        <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">@ErrorMessage</MudAlert>
+    }
+
+    <MudTable Items="Items" Loading="IsLoading" Hover="true" Dense="true"
+              Filter="@(new Func<ModalityResponse, bool>(m => string.IsNullOrWhiteSpace(Search) || m.Name.Contains(Search, StringComparison.OrdinalIgnoreCase)))">
+        <ToolBarContent>
+            <MudTextField @bind-Value="Search" Placeholder="Buscar por nome" Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Margin="Margin.Dense" />
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Nome</MudTh>
+            <MudTh>Tipo</MudTh>
+            <MudTh>Descrição</MudTh>
+            <MudTh>Situação</MudTh>
+            <MudTh Style="text-align:right">Ações</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.Name</MudTd>
+            <MudTd>@ModalityDialog.TypeLabel(context.Type)</MudTd>
+            <MudTd>@context.Description</MudTd>
+            <MudTd><MudChip T="string" Size="Size.Small" Color="@(context.IsActive ? Color.Success : Color.Default)">@(context.IsActive ? "Ativa" : "Inativa")</MudChip></MudTd>
+            <MudTd Style="text-align:right">
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" aria-label="Editar" OnClick="() => EditAsync(context)" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" aria-label="Excluir" OnClick="() => DeleteAsync(context.Id, context.Name)" />
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>Nenhuma modalidade encontrada.</MudText>
+        </NoRecordsContent>
+    </MudTable>
+</MudStack>
+
+@code {
+    protected override string Resource => "modalities";
+
+    private Task EditAsync(ModalityResponse? item) =>
+        OpenDialogAsync(item is null ? "Nova modalidade" : "Editar modalidade",
+            new DialogParameters<ModalityDialog> { { x => x.Item, item } });
+}

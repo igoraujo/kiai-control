@@ -1,0 +1,56 @@
+@inherits FormDialogBase
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="Form">
+            <MudStack Spacing="2">
+                @if (ErrorMessage is not null)
+                {
+                    <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">@ErrorMessage</MudAlert>
+                }
+                <MudTextField @bind-Value="_model.FullName" Label="Nome completo" Required="true" RequiredError="Informe o nome" Variant="Variant.Outlined" />
+                <MudSelect T="string" @bind-Value="_model.Status" Label="Situação" Variant="Variant.Outlined">
+                    @foreach (var status in PersonStatus.All)
+                    {
+                        <MudSelectItem Value="@status">@PersonStatus.Label(status)</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Disabled="IsSaving">Cancelar</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SubmitAsync" Disabled="IsSaving">Salvar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter] public ClientResponse? Item { get; set; }
+
+    private readonly UpdateClientRequest _model = new();
+
+    protected override void OnInitialized()
+    {
+        if (Item is not null)
+        {
+            _model.FullName = Item.FullName;
+            _model.Status = Item.Status;
+        }
+    }
+
+    protected override async Task SaveCoreAsync()
+    {
+        if (Item is null)
+        {
+            await Api.CreateAsync<CreateClientRequest, ClientResponse>("clients", new CreateClientRequest
+            {
+                FullName = _model.FullName,
+                Status = _model.Status
+            });
+        }
+        else
+        {
+            await Api.UpdateAsync<UpdateClientRequest, ClientResponse>("clients", Item.Id, _model);
+        }
+    }
+}

@@ -1,0 +1,71 @@
+@inherits FormDialogBase
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="Form">
+            <MudStack Spacing="2">
+                @if (ErrorMessage is not null)
+                {
+                    <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">@ErrorMessage</MudAlert>
+                }
+                <MudTextField @bind-Value="_model.Name" Label="Nome" Required="true" RequiredError="Informe o nome" Variant="Variant.Outlined" />
+                <MudSelect T="string" @bind-Value="_model.Type" Label="Tipo" Variant="Variant.Outlined">
+                    <MudSelectItem Value="@("martial_art")">@TypeLabel("martial_art")</MudSelectItem>
+                    <MudSelectItem Value="@("fitness")">@TypeLabel("fitness")</MudSelectItem>
+                    <MudSelectItem Value="@("hybrid")">@TypeLabel("hybrid")</MudSelectItem>
+                </MudSelect>
+                <MudTextField @bind-Value="_model.Description" Label="Descrição" Lines="3" Variant="Variant.Outlined" />
+                @if (Item is not null)
+                {
+                    <MudSwitch T="bool" @bind-Value="_model.IsActive" Label="Ativa" Color="Color.Primary" />
+                }
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Disabled="IsSaving">Cancelar</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SubmitAsync" Disabled="IsSaving">Salvar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter] public ModalityResponse? Item { get; set; }
+
+    private readonly UpdateModalityRequest _model = new() { Type = "martial_art" };
+
+    public static string TypeLabel(string type) => type switch
+    {
+        "martial_art" => "Arte marcial",
+        "fitness" => "Fitness",
+        "hybrid" => "Híbrida",
+        _ => type
+    };
+
+    protected override void OnInitialized()
+    {
+        if (Item is not null)
+        {
+            _model.Name = Item.Name;
+            _model.Type = Item.Type;
+            _model.Description = Item.Description;
+            _model.IsActive = Item.IsActive;
+        }
+    }
+
+    protected override async Task SaveCoreAsync()
+    {
+        if (Item is null)
+        {
+            await Api.CreateAsync<CreateModalityRequest, ModalityResponse>("modalities", new CreateModalityRequest
+            {
+                Name = _model.Name,
+                Type = _model.Type,
+                Description = _model.Description
+            });
+        }
+        else
+        {
+            await Api.UpdateAsync<UpdateModalityRequest, ModalityResponse>("modalities", Item.Id, _model);
+        }
+    }
+}

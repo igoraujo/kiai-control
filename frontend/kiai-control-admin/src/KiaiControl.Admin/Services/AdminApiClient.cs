@@ -35,6 +35,31 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
             ?? throw new HttpRequestException("The API returned an empty dashboard response.");
     }
 
+    public async Task<IReadOnlyList<T>> ListAsync<T>(string resource, int page = 1, int pageSize = 100)
+    {
+        using var response = await SendAuthorizedAsync(HttpMethod.Get, $"api/v1/{resource}?page={page}&pageSize={pageSize}");
+        return await response.Content.ReadFromJsonAsync<List<T>>() ?? [];
+    }
+
+    public async Task<TResponse> CreateAsync<TRequest, TResponse>(string resource, TRequest body)
+    {
+        using var response = await SendAuthorizedAsync(HttpMethod.Post, $"api/v1/{resource}", body);
+        return await response.Content.ReadFromJsonAsync<TResponse>()
+            ?? throw new HttpRequestException("A API retornou uma resposta vazia.");
+    }
+
+    public async Task<TResponse> UpdateAsync<TRequest, TResponse>(string resource, Guid id, TRequest body)
+    {
+        using var response = await SendAuthorizedAsync(HttpMethod.Put, $"api/v1/{resource}/{id}", body);
+        return await response.Content.ReadFromJsonAsync<TResponse>()
+            ?? throw new HttpRequestException("A API retornou uma resposta vazia.");
+    }
+
+    public async Task DeleteAsync(string resource, Guid id)
+    {
+        using var response = await SendAuthorizedAsync(HttpMethod.Delete, $"api/v1/{resource}/{id}");
+    }
+
     public async Task LogoutAsync()
     {
         var currentSession = session.Current;
@@ -52,11 +77,15 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
         session.Clear();
     }
 
-    private async Task<HttpResponseMessage> SendAuthorizedAsync(HttpMethod method, string requestUri, bool allowRefresh = true)
+    private async Task<HttpResponseMessage> SendAuthorizedAsync(HttpMethod method, string requestUri, object? body = null, bool allowRefresh = true)
     {
         var currentSession = session.Current ?? throw new UnauthorizedAccessException();
         var client = httpClientFactory.CreateClient("KiaiApi");
         using var request = new HttpRequestMessage(method, requestUri);
+        if (body is not null)
+        {
+            request.Content = JsonContent.Create(body, body.GetType());
+        }
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", currentSession.AccessToken);
         request.Headers.Add("X-Organization-Id", currentSession.User.OrganizationId.ToString());
 
@@ -66,7 +95,7 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
             response.Dispose();
             if (await RefreshSessionAsync())
             {
-                return await SendAuthorizedAsync(method, requestUri, allowRefresh: false);
+                return await SendAuthorizedAsync(method, requestUri, body, allowRefresh: false);
             }
 
             session.Clear();
@@ -80,7 +109,14 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
             throw new UnauthorizedAccessException();
         }
 
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            var detail = (await response.Content.ReadAsStringAsync()).Trim().Trim('"');
+            var status = response.StatusCode;
+            response.Dispose();
+            throw new HttpRequestException(string.IsNullOrWhiteSpace(detail) ? $"Erro {(int)status} ao chamar a API." : detail, null, status);
+        }
+
         return response;
     }
 

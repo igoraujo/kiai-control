@@ -1,0 +1,62 @@
+@inherits FormDialogBase
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="Form">
+            <MudStack Spacing="2">
+                @if (ErrorMessage is not null)
+                {
+                    <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">@ErrorMessage</MudAlert>
+                }
+                <MudTextField @bind-Value="_model.Name" Label="Nome" Required="true" RequiredError="Informe o nome" Variant="Variant.Outlined" />
+                <MudTextField @bind-Value="_model.AddressLine" Label="Endereço" Variant="Variant.Outlined" />
+                <MudGrid Spacing="2">
+                    <MudItem xs="12" sm="6"><MudTextField @bind-Value="_model.City" Label="Cidade" Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="6" sm="3"><MudTextField @bind-Value="_model.State" Label="UF" MaxLength="2" Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="6" sm="3"><MudTextField @bind-Value="_model.PostalCode" Label="CEP" Variant="Variant.Outlined" /></MudItem>
+                </MudGrid>
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Disabled="IsSaving">Cancelar</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SubmitAsync" Disabled="IsSaving">Salvar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter] public BranchResponse? Item { get; set; }
+
+    private readonly UpdateBranchRequest _model = new();
+
+    protected override void OnInitialized()
+    {
+        if (Item is not null)
+        {
+            _model.Name = Item.Name;
+            _model.AddressLine = Item.AddressLine;
+            _model.City = Item.City;
+            _model.State = Item.State;
+            _model.PostalCode = Item.PostalCode;
+        }
+    }
+
+    protected override async Task SaveCoreAsync()
+    {
+        if (Item is null)
+        {
+            await Api.CreateAsync<CreateBranchRequest, BranchResponse>("branches", new CreateBranchRequest
+            {
+                Name = _model.Name,
+                AddressLine = _model.AddressLine,
+                City = _model.City,
+                State = _model.State,
+                PostalCode = _model.PostalCode
+            });
+        }
+        else
+        {
+            await Api.UpdateAsync<UpdateBranchRequest, BranchResponse>("branches", Item.Id, _model);
+        }
+    }
+}

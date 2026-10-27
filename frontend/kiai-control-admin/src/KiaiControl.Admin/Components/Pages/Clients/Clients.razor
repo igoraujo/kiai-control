@@ -1,0 +1,53 @@
+@page "/clients"
+@inherits CrudPageBase<ClientResponse>
+
+<PageTitle>Alunos | Kiai Control</PageTitle>
+
+<MudStack Spacing="3">
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+        <div>
+            <MudText Typo="Typo.h4">Alunos</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">Cadastro e situação dos alunos</MudText>
+        </div>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="() => EditAsync(null)">Novo aluno</MudButton>
+    </MudStack>
+
+    @if (ErrorMessage is not null)
+    {
+        <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">@ErrorMessage</MudAlert>
+    }
+
+    <MudTable Items="Items" Loading="IsLoading" Hover="true" Dense="true"
+              Filter="@(new Func<ClientResponse, bool>(c => string.IsNullOrWhiteSpace(Search) || c.FullName.Contains(Search, StringComparison.OrdinalIgnoreCase)))">
+        <ToolBarContent>
+            <MudTextField @bind-Value="Search" Placeholder="Buscar por nome" Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Margin="Margin.Dense" />
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Nome</MudTh>
+            <MudTh>Situação</MudTh>
+            <MudTh>Cadastro</MudTh>
+            <MudTh Style="text-align:right">Ações</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.FullName</MudTd>
+            <MudTd><MudChip T="string" Size="Size.Small" Color="PersonStatus.Color(context.Status)">@PersonStatus.Label(context.Status)</MudChip></MudTd>
+            <MudTd>@context.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy")</MudTd>
+            <MudTd Style="text-align:right">
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" aria-label="Editar" OnClick="() => EditAsync(context)" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" aria-label="Excluir" OnClick="() => DeleteAsync(context.Id, context.FullName)" />
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>Nenhum aluno encontrado.</MudText>
+        </NoRecordsContent>
+    </MudTable>
+</MudStack>
+
+@code {
+    protected override string Resource => "clients";
+
+    private Task EditAsync(ClientResponse? item) =>
+        OpenDialogAsync(item is null ? "Novo aluno" : "Editar aluno",
+            new DialogParameters<ClientDialog> { { x => x.Item, item } });
+}
