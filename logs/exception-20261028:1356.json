@@ -1,0 +1,33 @@
+{
+    "type": "https://tools.ietf.org/html/rfc9110#section-15.6.1",
+    "title": "System.NotSupportedException",
+    "status": 500,
+    "detail": "The member BirthDate of type System.DateOnly cannot be used as a parameter value",
+    "exception": {
+        "details": "System.NotSupportedException: The member BirthDate of type System.DateOnly cannot be used as a parameter value\n at Dapper.SqlMapper.LookupDbType(Type type, String name, Boolean demand, ITypeHandler& handler) in /_/Dapper/SqlMapper.cs:line 526\n at Dapper.SqlMapper.CreateParamInfoGenerator(Identity identity, Boolean checkForDuplicates, Boolean removeUnused, IList`1 literals) in /_/Dapper/SqlMapper.cs:line 2685\n at Dapper.SqlMapper.GetCacheInfo(Identity identity, Object exampleParameters, Boolean addToCache) in /_/Dapper/SqlMapper.cs:line 1877\n at Dapper.SqlMapper.QueryRowAsync[T](IDbConnection cnn, Row row, Type effectiveType, CommandDefinition command) in /_/Dapper/SqlMapper.Async.cs:line 481\n at KiaiControl.Repositories.Implementations.SqlClientRepository.CreateAsync(Client client, CancellationToken cancellationToken) in /Users/igor.araujo/dev/projects/kiai-control/backend/kiai-control-api/src/KiaiControl.Repositories/Implementations/SqlClientRepository.cs:line 21\n at KiaiControl.UseCases.Clients.ClientUseCase.CreateAsync(CreateClientRequest request, CancellationToken cancellationToken) in /Users/igor.araujo/dev/projects/kiai-control/backend/kiai-control-api/src/KiaiControl.UseCases/Clients/ClientUseCase.cs:line 33\n at KiaiControl.Api.Controllers.ClientsController.CreateAsync(CreateClientRequest request, CancellationToken cancellationToken) in /Users/igor.araujo/dev/projects/kiai-control/backend/kiai-control-api/src/KiaiControl.Api/Controllers/ClientsController.cs:line 43\n at lambda_method71(Closure, Object)\n at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.AwaitableObjectResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)\n at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)\n at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)\n at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)\n at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)\n at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)\n at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)\n at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)\n at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)\n at KiaiControl.Api.Middlewares.MutationAuditMiddleware.InvokeAsync(HttpContext context, OrganizationContext organizationContext, IAuditLogRepository auditLogRepository) in /Users/igor.araujo/dev/projects/kiai-control/backend/kiai-control-api/src/KiaiControl.Api/Middlewares/MutationAuditMiddleware.cs:line 13\n at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)\n at KiaiControl.Api.Middlewares.OrganizationContextMiddleware.InvokeAsync(HttpContext context, OrganizationContext organizationContext) in /Users/igor.araujo/dev/projects/kiai-control/backend/kiai-control-api/src/KiaiControl.Api/Middlewares/OrganizationContextMiddleware.cs:line 18\n at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)\n at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)\n at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)\n at KiaiControl.Api.Middlewares.CorrelationIdMiddleware.InvokeAsync(HttpContext context) in /Users/igor.araujo/dev/projects/kiai-control/backend/kiai-control-api/src/KiaiControl.Api/Middlewares/CorrelationIdMiddleware.cs:line 23\n at Microsoft.AspNetCore.Diagnostics.DeveloperExceptionPageMiddlewareImpl.Invoke(HttpContext context)",
+        "headers": {
+            "Host": [
+                "localhost:5210"
+            ],
+            "Authorization": [
+                "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwNmRkOTY3MS0wNWEyLTQ0MWUtYTJjMy00ZjYyMmVmODVjMjEiLCJwZXJzb25faWQiOiI1OWRlNzgzNC0zZjU2LTQ1ZTQtOWU4OS1mODgwODExMTI2ODYiLCJvcmdhbml6YXRpb25faWQiOiI3M2E1YjRhZS1iYjlmLTQ5ZjEtYmJhMy1lYzg1YTRmYjMyM2YiLCJlbWFpbCI6ImFkbWluQGtpYWkubG9jYWwiLCJqdGkiOiIxNDg0YjQxYi03ZjJhLTRjNmYtYjJmYi02ZWFlNzk4NTc4MDgiLCJyb2xlIjoib3duZXIiLCJuYmYiOjE3OTMyMDYyOTcsImV4cCI6MTc5MzIwNzE5NywiaWF0IjoxNzkzMjA2Mjk3LCJpc3MiOiJLaWFpQ29udHJvbCIsImF1ZCI6IktpYWlDb250cm9sLkNsaWVudHMifQ.EmgxN-u3WoxLvMGSV2_VTNJZs1onX5PuqPQSjnmW4lM"
+            ],
+            "Content-Type": [
+                "application/json; charset=utf-8"
+            ],
+            "Transfer-Encoding": [
+                "chunked"
+            ],
+            "X-Organization-Id": [
+                "73a5b4ae-bb9f-49f1-bba3-ec85a4fb323f"
+            ]
+        },
+        "path": "/api/v1/clients",
+        "endpoint": "KiaiControl.Api.Controllers.ClientsController.CreateAsync (KiaiControl.Api)",
+        "routeValues": {
+            "action": "Create",
+            "controller": "Clients"
+        }
+    },
+    "traceId": "00-1e06b7fa90606e4ca34464fbf32dfe08-b1debee3c790ff21-00"
+}
