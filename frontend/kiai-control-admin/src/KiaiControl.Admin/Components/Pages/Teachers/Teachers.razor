@@ -18,21 +18,34 @@
     }
 
     <MudTable Items="Items" Loading="IsLoading" Hover="true" Dense="true"
-              Filter="@(new Func<TeacherResponse, bool>(t => string.IsNullOrWhiteSpace(Search) || t.FullName.Contains(Search, StringComparison.OrdinalIgnoreCase)))">
+              Filter="@(new Func<TeacherResponse, bool>(MatchesSearch))">
         <ToolBarContent>
-            <MudTextField @bind-Value="Search" Placeholder="Buscar por nome" Adornment="Adornment.Start"
+            <MudTextField @bind-Value="Search" Placeholder="Nome, email, documento ou telefone" Adornment="Adornment.Start"
                           AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Margin="Margin.Dense" />
         </ToolBarContent>
         <HeaderContent>
             <MudTh>Nome</MudTh>
+            <MudTh>Contato</MudTh>
+            <MudTh>Unidade</MudTh>
             <MudTh>Situação</MudTh>
-            <MudTh>Cadastro</MudTh>
+            <MudTh>Atuação</MudTh>
             <MudTh Style="text-align:right">Ações</MudTh>
         </HeaderContent>
         <RowTemplate>
-            <MudTd>@context.FullName</MudTd>
+            <MudTd>
+                <MudText Typo="Typo.body2">@context.FullName</MudText>
+                @if (!string.IsNullOrWhiteSpace(context.PreferredName))
+                {
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@context.PreferredName</MudText>
+                }
+            </MudTd>
+            <MudTd>
+                <MudText Typo="Typo.body2">@context.Email</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Phone</MudText>
+            </MudTd>
+            <MudTd>@_branches.FirstOrDefault(b => b.Id == context.BranchId)?.Name</MudTd>
             <MudTd><MudChip T="string" Size="Size.Small" Color="PersonStatus.Color(context.Status)">@PersonStatus.Label(context.Status)</MudChip></MudTd>
-            <MudTd>@context.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy")</MudTd>
+            <MudTd>@(context.ActiveFrom?.ToString("dd/MM/yyyy") ?? "-")</MudTd>
             <MudTd Style="text-align:right">
                 <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" aria-label="Editar" OnClick="() => EditAsync(context)" />
                 <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" aria-label="Excluir" OnClick="() => DeleteAsync(context.Id, context.FullName)" />
@@ -45,9 +58,43 @@
 </MudStack>
 
 @code {
+    private IReadOnlyList<BranchResponse> _branches = [];
+
     protected override string Resource => "teachers";
+
+    protected override async Task LoadExtrasAsync()
+    {
+        try
+        {
+            _branches = await Api.ListAsync<BranchResponse>("branches");
+        }
+        catch (UnauthorizedAccessException)
+        {
+            Session.Clear();
+            Navigation.NavigateTo("/login");
+        }
+        catch (HttpRequestException exception)
+        {
+            Snackbar.Add($"Não foi possível carregar as unidades: {exception.Message}", Severity.Warning);
+        }
+    }
+
+    private bool MatchesSearch(TeacherResponse teacher) => string.IsNullOrWhiteSpace(Search)
+        || Contains(teacher.FullName, Search)
+        || Contains(teacher.PreferredName, Search)
+        || Contains(teacher.Email, Search)
+        || Contains(teacher.Document, Search)
+        || Contains(teacher.Phone, Search)
+        || Contains(_branches.FirstOrDefault(branch => branch.Id == teacher.BranchId)?.Name, Search);
+
+    private static bool Contains(string? value, string search) =>
+        value?.Contains(search, StringComparison.OrdinalIgnoreCase) == true;
 
     private Task EditAsync(TeacherResponse? item) =>
         OpenDialogAsync(item is null ? "Novo professor" : "Editar professor",
-            new DialogParameters<TeacherDialog> { { x => x.Item, item } });
+            new DialogParameters<TeacherDialog>
+            {
+                { x => x.Item, item },
+                { x => x.Branches, _branches }
+            }, MaxWidth.Medium);
 }

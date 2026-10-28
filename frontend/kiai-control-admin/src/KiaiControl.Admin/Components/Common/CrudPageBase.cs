@@ -58,11 +58,11 @@ public abstract class CrudPageBase<T> : ComponentBase
         }
     }
 
-    protected async Task<bool> OpenDialogAsync<TDialog>(string title, DialogParameters<TDialog> parameters)
+    protected async Task<bool> OpenDialogAsync<TDialog>(string title, DialogParameters<TDialog> parameters, MaxWidth maxWidth = MaxWidth.Small)
         where TDialog : ComponentBase
     {
         var dialog = await DialogService.ShowAsync<TDialog>(title, parameters,
-            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
+            new DialogOptions { MaxWidth = maxWidth, FullWidth = true, CloseOnEscapeKey = true });
         var result = await dialog.Result;
         if (result is { Canceled: false })
         {

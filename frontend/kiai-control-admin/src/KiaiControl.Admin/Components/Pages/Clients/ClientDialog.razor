@@ -8,13 +8,17 @@
                 {
                     <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">@ErrorMessage</MudAlert>
                 }
-                <MudTextField @bind-Value="_model.FullName" Label="Nome completo" Required="true" RequiredError="Informe o nome" Variant="Variant.Outlined" />
-                <MudSelect T="string" @bind-Value="_model.Status" Label="Situação" Variant="Variant.Outlined">
-                    @foreach (var status in PersonStatus.All)
-                    {
-                        <MudSelectItem Value="@status">@PersonStatus.Label(status)</MudSelectItem>
-                    }
-                </MudSelect>
+                <MudTabs Elevation="0" Rounded="false">
+                    <MudTabPanel Text="Pessoa">
+                        <PersonFormFields Model="_person" Branches="Branches" />
+                    </MudTabPanel>
+                    <MudTabPanel Text="Aluno">
+                        <MudStack Spacing="2" Class="pt-3">
+                            <MudTextField @bind-Value="_registrationCode" Label="Código de matrícula" Variant="Variant.Outlined" />
+                            <MudDatePicker @bind-Date="_joinedAt" Label="Data de ingresso" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" />
+                        </MudStack>
+                    </MudTabPanel>
+                </MudTabs>
             </MudStack>
         </MudForm>
     </DialogContent>
@@ -26,15 +30,30 @@
 
 @code {
     [Parameter] public ClientResponse? Item { get; set; }
+    [Parameter] public IReadOnlyList<BranchResponse> Branches { get; set; } = [];
 
-    private readonly UpdateClientRequest _model = new();
+    private readonly PersonFormModel _person = new();
+    private string? _registrationCode;
+    private DateTime? _joinedAt;
 
     protected override void OnInitialized()
     {
         if (Item is not null)
         {
-            _model.FullName = Item.FullName;
-            _model.Status = Item.Status;
+            _person.BranchId = Item.BranchId;
+            _person.FullName = Item.FullName;
+            _person.PreferredName = Item.PreferredName;
+            _person.Email = Item.Email;
+            _person.Phone = Item.Phone;
+            _person.BirthDate = ToDateTime(Item.BirthDate);
+            _person.Document = Item.Document;
+            _person.MedicalNotes = Item.MedicalNotes;
+            _person.EmergencyContactName = Item.EmergencyContactName;
+            _person.EmergencyContactPhone = Item.EmergencyContactPhone;
+            _person.HideFromRanking = Item.HideFromRanking;
+            _person.Status = Item.Status;
+            _registrationCode = Item.RegistrationCode;
+            _joinedAt = ToDateTime(Item.JoinedAt);
         }
     }
 
@@ -44,13 +63,45 @@
         {
             await Api.CreateAsync<CreateClientRequest, ClientResponse>("clients", new CreateClientRequest
             {
-                FullName = _model.FullName,
-                Status = _model.Status
+                BranchId = _person.BranchId,
+                FullName = _person.FullName,
+                PreferredName = _person.PreferredName,
+                Email = _person.Email,
+                Phone = _person.Phone,
+                BirthDate = ToDateOnly(_person.BirthDate),
+                Document = _person.Document,
+                MedicalNotes = _person.MedicalNotes,
+                EmergencyContactName = _person.EmergencyContactName,
+                EmergencyContactPhone = _person.EmergencyContactPhone,
+                HideFromRanking = _person.HideFromRanking,
+                RegistrationCode = _registrationCode,
+                JoinedAt = ToDateOnly(_joinedAt),
+                Status = _person.Status
             });
         }
         else
         {
-            await Api.UpdateAsync<UpdateClientRequest, ClientResponse>("clients", Item.Id, _model);
+            await Api.UpdateAsync<UpdateClientRequest, ClientResponse>("clients", Item.Id, new UpdateClientRequest
+            {
+                BranchId = _person.BranchId,
+                FullName = _person.FullName,
+                PreferredName = _person.PreferredName,
+                Email = _person.Email,
+                Phone = _person.Phone,
+                BirthDate = ToDateOnly(_person.BirthDate),
+                Document = _person.Document,
+                MedicalNotes = _person.MedicalNotes,
+                EmergencyContactName = _person.EmergencyContactName,
+                EmergencyContactPhone = _person.EmergencyContactPhone,
+                HideFromRanking = _person.HideFromRanking,
+                RegistrationCode = _registrationCode,
+                JoinedAt = ToDateOnly(_joinedAt),
+                Status = _person.Status
+            });
         }
     }
+
+    private static DateOnly? ToDateOnly(DateTime? date) => date is null ? null : DateOnly.FromDateTime(date.Value);
+
+    private static DateTime? ToDateTime(DateOnly? date) => date?.ToDateTime(TimeOnly.MinValue);
 }

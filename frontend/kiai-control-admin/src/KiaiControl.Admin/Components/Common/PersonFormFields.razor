@@ -1,0 +1,61 @@
+<MudStack Spacing="2" Class="pt-3">
+    <MudText Typo="Typo.subtitle2">Dados pessoais</MudText>
+    <MudGrid Spacing="2">
+        <MudItem xs="12" sm="6">
+            <MudTextField @bind-Value="Model.FullName" Label="Nome completo" Required="true"
+                          RequiredError="Informe o nome" Variant="Variant.Outlined" />
+        </MudItem>
+        <MudItem xs="12" sm="6">
+            <MudTextField @bind-Value="Model.PreferredName" Label="Nome social ou preferido" Variant="Variant.Outlined" />
+        </MudItem>
+        <MudItem xs="12" sm="6">
+            <MudTextField @bind-Value="Model.Email" Label="Email" InputType="InputType.Email" Variant="Variant.Outlined" />
+        </MudItem>
+        <MudItem xs="12" sm="6">
+            <MudTextField @bind-Value="Model.Phone" Label="Telefone" InputType="InputType.Telephone" Variant="Variant.Outlined" />
+        </MudItem>
+        <MudItem xs="12" sm="6">
+            <MudDatePicker @bind-Date="Model.BirthDate" Label="Data de nascimento" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" />
+        </MudItem>
+        <MudItem xs="12" sm="6">
+            <MudTextField @bind-Value="Model.Document" Label="CPF ou documento" Variant="Variant.Outlined" />
+        </MudItem>
+        <MudItem xs="12">
+            <MudSelect T="Guid?" @bind-Value="Model.BranchId" Label="Unidade" Clearable="true" Variant="Variant.Outlined">
+                @foreach (var branch in Branches)
+                {
+                    <MudSelectItem T="Guid?" Value="@((Guid?)branch.Id)">@branch.Name</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+    </MudGrid>
+
+    <MudDivider />
+    <MudText Typo="Typo.subtitle2">Contato e saúde</MudText>
+    <MudGrid Spacing="2">
+        <MudItem xs="12" sm="6">
+            <MudTextField @bind-Value="Model.EmergencyContactName" Label="Contato de emergência" Variant="Variant.Outlined" />
+        </MudItem>
+        <MudItem xs="12" sm="6">
+            <MudTextField @bind-Value="Model.EmergencyContactPhone" Label="Telefone de emergência" InputType="InputType.Telephone" Variant="Variant.Outlined" />
+        </MudItem>
+        <MudItem xs="12">
+            <MudTextField @bind-Value="Model.MedicalNotes" Label="Observações médicas" Lines="3" Variant="Variant.Outlined" />
+        </MudItem>
+    </MudGrid>
+
+    <MudDivider />
+    <MudText Typo="Typo.subtitle2">Situação</MudText>
+    <MudSelect T="string" @bind-Value="Model.Status" Label="Situação" Variant="Variant.Outlined">
+        @foreach (var status in PersonStatus.All)
+        {
+            <MudSelectItem Value="@status">@PersonStatus.Label(status)</MudSelectItem>
+        }
+    </MudSelect>
+    <MudSwitch T="bool" @bind-Value="Model.HideFromRanking" Label="Ocultar dos rankings" Color="Color.Primary" />
+</MudStack>
+
+@code {
+    [Parameter, EditorRequired] public PersonFormModel Model { get; set; } = new();
+    [Parameter] public IReadOnlyList<BranchResponse> Branches { get; set; } = [];
+}
