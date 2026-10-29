@@ -8,17 +8,17 @@
                 {
                     <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">@ErrorMessage</MudAlert>
                 }
-                <MudTabs Elevation="0" Rounded="false">
-                    <MudTabPanel Text="Pessoa">
-                        <PersonFormFields Model="_person" Branches="Branches" />
-                    </MudTabPanel>
-                    <MudTabPanel Text="Professor">
-                        <MudStack Spacing="2" Class="pt-3">
-                            <MudDatePicker @bind-Date="_hiredAt" Label="Data de contratação" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" />
-                            <MudDatePicker @bind-Date="_activeFrom" Label="Início da atividade" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" />
-                        </MudStack>
-                    </MudTabPanel>
-                </MudTabs>
+                <PersonFormFields Model="_person" Branches="Branches" />
+                <MudDivider />
+                <MudText Typo="Typo.subtitle2">Dados do professor</MudText>
+                <MudGrid Spacing="2">
+                    <MudItem xs="12" sm="6">
+                        <MudDatePicker @bind-Date="_hiredAt" Label="Data de contratação" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudDatePicker @bind-Date="_activeFrom" Label="Início da atividade" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" />
+                    </MudItem>
+                </MudGrid>
             </MudStack>
         </MudForm>
     </DialogContent>
