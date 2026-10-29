@@ -1,3 +1,4 @@
+using Dapper;
 using KiaiControl.Core.Interfaces;
 using KiaiControl.Repositories.Connections;
 using KiaiControl.Repositories.Implementations;
@@ -14,6 +15,7 @@ public static class ServiceCollectionExtensions
             throw new InvalidOperationException("A connection string PostgreSql deve ser configurada para registrar os repositórios de producao.");
         }
 
+        SqlMapper.AddTypeHandler(new DateOnlyTypeHandler());
         services.AddSingleton<IDbConnectionFactory>(_ => new NpgsqlDbConnectionFactory(connectionString));
         services.AddScoped<IAuthRepository, SqlAuthRepository>();
         services.AddScoped<IClientRepository, SqlClientRepository>();
