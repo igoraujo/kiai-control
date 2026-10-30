@@ -13,6 +13,16 @@ public sealed class CreateAttendanceRequest
     public string Status { get; set; } = "present";
 }
 
+public sealed class CheckInRequest
+{
+    public Guid LessonId { get; set; }
+}
+
+public sealed class ValidateCheckInRequest
+{
+    public string Status { get; set; } = "present";
+}
+
 public sealed class UpdateAttendanceRequest
 {
     public Guid LessonId { get; set; }
@@ -34,9 +44,15 @@ public sealed class AttendanceRecordResponse
 
     public Guid ClientId { get; init; }
 
+    public string ClientName { get; init; } = string.Empty;
+
     public DateTimeOffset AttendanceDate { get; init; }
 
     public string Status { get; init; } = string.Empty;
+
+    public DateTimeOffset? ValidatedAt { get; init; }
+
+    public Guid? ValidatedByPersonId { get; init; }
 
     public DateTimeOffset CreatedAt { get; init; }
 

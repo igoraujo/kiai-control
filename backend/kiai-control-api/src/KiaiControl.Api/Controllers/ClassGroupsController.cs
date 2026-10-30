@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace KiaiControl.Api.Controllers;
 
 [ApiController]
-[Authorize(Roles = "owner,admin")]
+[Authorize]
 [Route("api/v1/class-groups")]
 public sealed class ClassGroupsController(OrganizationContext organizationContext, ClassGroupUseCase classGroupUseCase) : ControllerBase
 {
@@ -20,6 +20,7 @@ public sealed class ClassGroupsController(OrganizationContext organizationContex
     }
 
     [HttpPost]
+    [Authorize(Roles = "owner,admin")]
     public async Task<ActionResult<ClassGroupResponse>> CreateAsync(
         [FromBody] CreateClassGroupRequest request,
         CancellationToken cancellationToken)
@@ -43,6 +44,7 @@ public sealed class ClassGroupsController(OrganizationContext organizationContex
     }
 
     [HttpGet]
+    [Authorize(Roles = "owner,admin,teacher,reception")]
     public async Task<ActionResult<IReadOnlyList<ClassGroupResponse>>> ListAsync(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 50,
@@ -58,6 +60,7 @@ public sealed class ClassGroupsController(OrganizationContext organizationContex
     }
 
     [HttpGet("{id:guid}")]
+    [Authorize(Roles = "owner,admin,teacher,reception")]
     public async Task<ActionResult<ClassGroupResponse>> GetById(Guid id, CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
@@ -70,6 +73,7 @@ public sealed class ClassGroupsController(OrganizationContext organizationContex
     }
 
     [HttpPut("{id:guid}")]
+    [Authorize(Roles = "owner,admin")]
     public async Task<ActionResult<ClassGroupResponse>> UpdateAsync(
         Guid id,
         [FromBody] UpdateClassGroupRequest request,
@@ -92,6 +96,7 @@ public sealed class ClassGroupsController(OrganizationContext organizationContex
     }
 
     [HttpDelete("{id:guid}")]
+    [Authorize(Roles = "owner,admin")]
     public async Task<IActionResult> DeleteAsync(Guid id, CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
@@ -104,6 +109,7 @@ public sealed class ClassGroupsController(OrganizationContext organizationContex
     }
 
     [HttpPost("{classGroupId:guid}/schedules")]
+    [Authorize(Roles = "owner,admin")]
     public async Task<ActionResult<ClassScheduleResponse>> CreateScheduleAsync(
         Guid classGroupId,
         [FromBody] CreateClassScheduleRequest request,
@@ -127,7 +133,27 @@ public sealed class ClassGroupsController(OrganizationContext organizationContex
         }
     }
 
+    [HttpGet("{classGroupId:guid}/schedules")]
+    [Authorize(Roles = "owner,admin,teacher,reception")]
+    public async Task<ActionResult<IReadOnlyList<ClassScheduleResponse>>> ListSchedulesAsync(
+        Guid classGroupId,
+        CancellationToken cancellationToken)
+    {
+        if (organizationContext.OrganizationId is not Guid organizationId)
+        {
+            return BadRequest("Organization context is required.");
+        }
+
+        if (await classGroupUseCase.GetByIdAsync(organizationId, classGroupId, cancellationToken) is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(await classGroupUseCase.ListSchedulesAsync(organizationId, classGroupId, cancellationToken));
+    }
+
     [HttpDelete("{classGroupId:guid}/schedules/{scheduleId:guid}")]
+    [Authorize(Roles = "owner,admin")]
     public async Task<IActionResult> DeleteScheduleAsync(
         Guid classGroupId,
         Guid scheduleId,
@@ -143,6 +169,7 @@ public sealed class ClassGroupsController(OrganizationContext organizationContex
     }
 
     [HttpPost("{classGroupId:guid}/enrollments")]
+    [Authorize(Roles = "owner,admin")]
     public async Task<ActionResult<EnrollmentResponse>> CreateEnrollmentAsync(
         Guid classGroupId,
         [FromBody] CreateEnrollmentRequest request,
@@ -166,7 +193,27 @@ public sealed class ClassGroupsController(OrganizationContext organizationContex
         }
     }
 
+    [HttpGet("{classGroupId:guid}/enrollments")]
+    [Authorize(Roles = "owner,admin,teacher,reception")]
+    public async Task<ActionResult<IReadOnlyList<EnrollmentResponse>>> ListEnrollmentsAsync(
+        Guid classGroupId,
+        CancellationToken cancellationToken)
+    {
+        if (organizationContext.OrganizationId is not Guid organizationId)
+        {
+            return BadRequest("Organization context is required.");
+        }
+
+        if (await classGroupUseCase.GetByIdAsync(organizationId, classGroupId, cancellationToken) is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(await classGroupUseCase.ListEnrollmentsAsync(organizationId, classGroupId, cancellationToken));
+    }
+
     [HttpDelete("{classGroupId:guid}/enrollments/{enrollmentId:guid}")]
+    [Authorize(Roles = "owner,admin")]
     public async Task<IActionResult> CancelEnrollmentAsync(
         Guid classGroupId,
         Guid enrollmentId,
@@ -182,10 +229,11 @@ public sealed class ClassGroupsController(OrganizationContext organizationContex
     }
 
     [HttpPut("{classGroupId:guid}/teachers/{teacherId:guid}")]
+    [Authorize(Roles = "owner,admin")]
     public async Task<IActionResult> AssignTeacherAsync(
         Guid classGroupId,
         Guid teacherId,
-        [FromBody] TeacherAssignmentRequest request,
+        [FromBody] AssignClassGroupTeacherRequest request,
         CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
@@ -211,7 +259,27 @@ public sealed class ClassGroupsController(OrganizationContext organizationContex
         }
     }
 
+    [HttpGet("{classGroupId:guid}/teachers")]
+    [Authorize(Roles = "owner,admin,teacher,reception")]
+    public async Task<ActionResult<IReadOnlyList<TeacherAssignmentResponse>>> ListTeacherAssignmentsAsync(
+        Guid classGroupId,
+        CancellationToken cancellationToken)
+    {
+        if (organizationContext.OrganizationId is not Guid organizationId)
+        {
+            return BadRequest("Organization context is required.");
+        }
+
+        if (await classGroupUseCase.GetByIdAsync(organizationId, classGroupId, cancellationToken) is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(await classGroupUseCase.ListTeacherAssignmentsAsync(organizationId, classGroupId, cancellationToken));
+    }
+
     [HttpDelete("{classGroupId:guid}/teachers/{teacherId:guid}")]
+    [Authorize(Roles = "owner,admin")]
     public async Task<IActionResult> RemoveTeacherAssignmentAsync(
         Guid classGroupId,
         Guid teacherId,
@@ -227,13 +295,4 @@ public sealed class ClassGroupsController(OrganizationContext organizationContex
             organizationId, classGroupId, teacherId, startsAt, cancellationToken);
         return removed ? NoContent() : NotFound();
     }
-}
-
-public sealed class TeacherAssignmentRequest
-{
-    public bool IsPrimary { get; set; }
-
-    public DateOnly StartsAt { get; set; }
-
-    public DateOnly? EndsAt { get; set; }
 }

@@ -39,6 +39,10 @@ public abstract class FormDialogBase : ComponentBase
         {
             ErrorMessage = "Sessão expirada. Faça login novamente.";
         }
+        catch (ArgumentException exception)
+        {
+            ErrorMessage = exception.Message;
+        }
         catch (HttpRequestException exception)
         {
             ErrorMessage = exception.Message;

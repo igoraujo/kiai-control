@@ -1,0 +1,158 @@
+@page "/attendance/pending"
+@inject AdminApiClient Api
+@inject AdminSession Session
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>Check-ins pendentes | Kiai Control</PageTitle>
+
+<MudStack Spacing="3">
+    <div>
+        <MudText Typo="Typo.h4">Check-ins pendentes</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">Valide a presença informada pelos alunos ou abra a chamada da aula.</MudText>
+    </div>
+
+    @if (_isLoading)
+    {
+        <MudSkeleton Height="260px" />
+    }
+    else if (!string.IsNullOrWhiteSpace(_errorMessage))
+    {
+        <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">
+            @_errorMessage
+            <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="LoadAsync">Tentar novamente</MudButton>
+        </MudAlert>
+    }
+    else if (_pending.Count == 0)
+    {
+        <MudPaper Elevation="0" Class="empty-state-band">
+            <MudIcon Icon="@Icons.Material.Filled.TaskAlt" Color="Color.Success" Size="Size.Large" />
+            <MudText Typo="Typo.h6">Tudo validado</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">Não há check-ins aguardando revisão.</MudText>
+        </MudPaper>
+    }
+    else
+    {
+        <MudTable Items="_pending" Loading="_isSaving" Hover="true" Dense="true">
+            <HeaderContent>
+                <MudTh>Aluno</MudTh>
+                <MudTh>Turma</MudTh>
+                <MudTh>Aula</MudTh>
+                <MudTh>Check-in</MudTh>
+                <MudTh Style="text-align:right">Validação</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.ClientName</MudTd>
+                <MudTd>@ClassGroupNameForLesson(context.LessonId)</MudTd>
+                <MudTd>
+                    @if (LessonFor(context.LessonId) is { } lesson)
+                    {
+                        @lesson.StartsAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                    }
+                    else
+                    {
+                        @context.LessonId.ToString("N")[..8]
+                    }
+                </MudTd>
+                <MudTd>@context.AttendanceDate.ToLocalTime().ToString("HH:mm")</MudTd>
+                <MudTd Style="text-align:right">
+                    <MudIconButton Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" aria-label="Confirmar presença" Disabled="_isSaving" OnClick="() => ConfirmAsync(context)" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Schedule" Color="Color.Warning" aria-label="Marcar atraso" Disabled="_isSaving" OnClick="() => MarkLateAsync(context)" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Cancel" Color="Color.Error" aria-label="Recusar check-in" Disabled="_isSaving" OnClick="() => RejectAsync(context)" />
+                    <MudIconButton Icon="@Icons.Material.Filled.FactCheck" aria-label="Abrir chamada da aula" OnClick="() => OpenLessonAsync(context.LessonId)" />
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+</MudStack>
+
+@code {
+    private IReadOnlyList<AttendanceRecordResponse> _pending = [];
+    private IReadOnlyList<LessonResponse> _lessons = [];
+    private IReadOnlyList<ClassGroupResponse> _classGroups = [];
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Session.Current is null)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+        try
+        {
+            var pendingTask = Api.ListPendingCheckInsAsync();
+            var lessonsTask = Api.ListLessonsAsync();
+            var groupsTask = Api.ListAsync<ClassGroupResponse>("class-groups", pageSize: 200);
+            await Task.WhenAll(pendingTask, lessonsTask, groupsTask);
+            _pending = await pendingTask;
+            _lessons = await lessonsTask;
+            _classGroups = await groupsTask;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            Session.Clear();
+            Navigation.NavigateTo("/login");
+        }
+        catch (HttpRequestException exception)
+        {
+            _errorMessage = exception.StatusCode == System.Net.HttpStatusCode.Forbidden
+                ? "Seu perfil não tem permissão para validar check-ins."
+                : exception.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task ValidateAsync(AttendanceRecordResponse record, string status, string message)
+    {
+        _isSaving = true;
+        try
+        {
+            await Api.ValidateCheckInAsync(record.Id, status);
+            Snackbar.Add(message, Severity.Success);
+            await LoadAsync();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            Session.Clear();
+            Navigation.NavigateTo("/login");
+        }
+        catch (HttpRequestException exception)
+        {
+            Snackbar.Add(exception.Message, Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private Task ConfirmAsync(AttendanceRecordResponse record) => ValidateAsync(record, "present", "Presença confirmada.");
+
+    private Task MarkLateAsync(AttendanceRecordResponse record) => ValidateAsync(record, "late", "Presença confirmada como atraso.");
+
+    private Task RejectAsync(AttendanceRecordResponse record) => ValidateAsync(record, "absent", "Check-in recusado; falta registrada.");
+
+    private LessonResponse? LessonFor(Guid lessonId) => _lessons.FirstOrDefault(lesson => lesson.Id == lessonId);
+
+    private string ClassGroupNameForLesson(Guid lessonId)
+    {
+        var classGroupId = LessonFor(lessonId)?.ClassGroupId;
+        return _classGroups.FirstOrDefault(group => group.Id == classGroupId)?.Name ?? "Turma";
+    }
+
+    private void OpenLessonAsync(Guid lessonId) => Navigation.NavigateTo($"/lessons/{lessonId}/attendance");
+}

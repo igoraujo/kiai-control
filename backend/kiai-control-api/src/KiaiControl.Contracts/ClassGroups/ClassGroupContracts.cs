@@ -80,6 +80,15 @@ public sealed class CreateEnrollmentRequest
     public Guid ClientId { get; set; }
 }
 
+public sealed class AssignClassGroupTeacherRequest
+{
+    public bool IsPrimary { get; set; }
+
+    public DateOnly StartsAt { get; set; }
+
+    public DateOnly? EndsAt { get; set; }
+}
+
 public sealed class EnrollmentResponse
 {
     public Guid Id { get; init; }
@@ -90,9 +99,28 @@ public sealed class EnrollmentResponse
 
     public Guid ClientId { get; init; }
 
+    public string ClientName { get; init; } = string.Empty;
+
     public DateTimeOffset EnrolledAt { get; init; }
 
     public DateTimeOffset? EndedAt { get; init; }
 
     public string Status { get; init; } = string.Empty;
+}
+
+public sealed class TeacherAssignmentResponse
+{
+    public Guid Id { get; init; }
+
+    public Guid ClassGroupId { get; init; }
+
+    public Guid TeacherId { get; init; }
+
+    public string TeacherName { get; init; } = string.Empty;
+
+    public bool IsPrimary { get; init; }
+
+    public DateOnly StartsAt { get; init; }
+
+    public DateOnly? EndsAt { get; init; }
 }

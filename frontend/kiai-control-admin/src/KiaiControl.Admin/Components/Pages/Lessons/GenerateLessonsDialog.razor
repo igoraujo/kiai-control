@@ -1,0 +1,55 @@
+@inherits FormDialogBase
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="Form">
+            <MudStack Spacing="2">
+                @if (ErrorMessage is not null)
+                {
+                    <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">@ErrorMessage</MudAlert>
+                }
+                <MudSelect T="Guid" @bind-Value="_classGroupId" Label="Turma" Required="true" RequiredError="Selecione a turma" Variant="Variant.Outlined">
+                    @foreach (var group in ClassGroups.Where(item => item.Status == "active"))
+                    {
+                        <MudSelectItem Value="@group.Id">@group.Name</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudDatePicker @bind-Date="_startDate" Label="Gerar a partir de" Required="true" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" />
+                <MudDatePicker @bind-Date="_endDate" Label="Gerar até" Required="true" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" />
+                <MudText Typo="Typo.caption" Color="Color.Secondary">As aulas serão criadas conforme os horários semanais cadastrados para a turma.</MudText>
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Disabled="IsSaving">Cancelar</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SubmitAsync" Disabled="IsSaving">Gerar aulas</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter] public IReadOnlyList<ClassGroupResponse> ClassGroups { get; set; } = [];
+
+    private Guid _classGroupId;
+    private DateTime? _startDate = DateTime.Today;
+    private DateTime? _endDate = DateTime.Today.AddDays(13);
+
+    protected override async Task SaveCoreAsync()
+    {
+        if (_classGroupId == Guid.Empty || _startDate is null || _endDate is null)
+        {
+            throw new ArgumentException("Selecione a turma e o período.");
+        }
+
+        if (_endDate.Value.Date < _startDate.Value.Date)
+        {
+            throw new ArgumentException("A data final deve ser igual ou posterior à inicial.");
+        }
+
+        await Api.GenerateLessonsAsync(new GenerateLessonsRequest
+        {
+            ClassGroupId = _classGroupId,
+            StartDate = DateOnly.FromDateTime(_startDate.Value),
+            EndDate = DateOnly.FromDateTime(_endDate.Value)
+        });
+    }
+}

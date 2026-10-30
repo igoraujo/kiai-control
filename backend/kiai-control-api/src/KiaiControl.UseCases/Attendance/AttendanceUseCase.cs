@@ -8,32 +8,25 @@ public sealed class AttendanceUseCase(IAttendanceRepository attendanceRepository
 {
     private static readonly string[] AllowedStatuses = ["present", "absent", "justified_absence", "late"];
 
-    public async Task<AttendanceRecordResponse> CreateAsync(CreateAttendanceRequest request, CancellationToken cancellationToken)
+    public async Task<AttendanceRecordResponse?> CreateAsync(
+        CreateAttendanceRequest request,
+        Guid validatorPersonId,
+        CancellationToken cancellationToken)
     {
         Validate(request.OrganizationId, request.ClientId, request.LessonId, request.Status);
-
-        var attendance = new AttendanceRecord
-        {
-            OrganizationId = request.OrganizationId,
-            LessonId = request.LessonId,
-            ClientId = request.ClientId,
-            AttendanceDate = request.AttendanceDate,
-            Status = request.Status
-        };
-
-        var created = await attendanceRepository.CreateAsync(attendance, cancellationToken);
-
-        return new AttendanceRecordResponse
-        {
-            Id = created.Id,
-            OrganizationId = created.OrganizationId,
-            LessonId = created.LessonId,
-            ClientId = created.ClientId,
-            AttendanceDate = created.AttendanceDate,
-            Status = created.Status,
-            CreatedAt = created.CreatedAt,
-            UpdatedAt = created.UpdatedAt
-        };
+        ValidateValidator(validatorPersonId);
+        var saved = await attendanceRepository.SaveLessonCallAsync(
+            request.OrganizationId,
+            request.LessonId,
+            validatorPersonId,
+            [new AttendanceRecord
+            {
+                ClientId = request.ClientId,
+                AttendanceDate = request.AttendanceDate,
+                Status = request.Status.Trim().ToLowerInvariant()
+            }],
+            cancellationToken);
+        return saved?.FirstOrDefault() is { } record ? ToResponse(record) : null;
     }
 
     public async Task<IReadOnlyList<AttendanceRecordResponse>> ListAsync(Guid organizationId, int page, int pageSize, CancellationToken cancellationToken)
@@ -46,8 +39,11 @@ public sealed class AttendanceUseCase(IAttendanceRepository attendanceRepository
             OrganizationId = record.OrganizationId,
             LessonId = record.LessonId,
             ClientId = record.ClientId,
+            ClientName = record.ClientName,
             AttendanceDate = record.AttendanceDate,
             Status = record.Status,
+            ValidatedAt = record.ValidatedAt,
+            ValidatedByPersonId = record.ValidatedByPersonId,
             CreatedAt = record.CreatedAt,
             UpdatedAt = record.UpdatedAt
         }).ToList();
@@ -67,16 +63,26 @@ public sealed class AttendanceUseCase(IAttendanceRepository attendanceRepository
             OrganizationId = attendance.OrganizationId,
             LessonId = attendance.LessonId,
             ClientId = attendance.ClientId,
+            ClientName = attendance.ClientName,
             AttendanceDate = attendance.AttendanceDate,
             Status = attendance.Status,
+            ValidatedAt = attendance.ValidatedAt,
+            ValidatedByPersonId = attendance.ValidatedByPersonId,
             CreatedAt = attendance.CreatedAt,
             UpdatedAt = attendance.UpdatedAt
         };
     }
 
-    public async Task<AttendanceRecordResponse?> UpdateAsync(Guid organizationId, Guid id, UpdateAttendanceRequest request, CancellationToken cancellationToken)
+    public async Task<AttendanceRecordResponse?> UpdateAsync(
+        Guid organizationId,
+        Guid id,
+        UpdateAttendanceRequest request,
+        Guid validatorPersonId,
+        CancellationToken cancellationToken)
     {
         Validate(organizationId, request.ClientId, request.LessonId, request.Status);
+        ValidateValidator(validatorPersonId);
+        var validatedAt = DateTimeOffset.UtcNow;
 
         var attendance = new AttendanceRecord
         {
@@ -85,7 +91,9 @@ public sealed class AttendanceUseCase(IAttendanceRepository attendanceRepository
             LessonId = request.LessonId,
             ClientId = request.ClientId,
             AttendanceDate = request.AttendanceDate,
-            Status = request.Status
+            Status = request.Status.Trim().ToLowerInvariant(),
+            ValidatedAt = validatedAt,
+            ValidatedByPersonId = validatorPersonId
         };
 
         var updated = await attendanceRepository.UpdateAsync(attendance, cancellationToken);
@@ -100,8 +108,11 @@ public sealed class AttendanceUseCase(IAttendanceRepository attendanceRepository
             OrganizationId = updated.OrganizationId,
             LessonId = updated.LessonId,
             ClientId = updated.ClientId,
+            ClientName = updated.ClientName,
             AttendanceDate = updated.AttendanceDate,
             Status = updated.Status,
+            ValidatedAt = updated.ValidatedAt,
+            ValidatedByPersonId = updated.ValidatedByPersonId,
             CreatedAt = updated.CreatedAt,
             UpdatedAt = updated.UpdatedAt
         };
@@ -126,9 +137,67 @@ public sealed class AttendanceUseCase(IAttendanceRepository attendanceRepository
         return records.Select(ToResponse).ToList();
     }
 
+    public async Task<AttendanceRecordResponse?> CheckInAsync(
+        Guid organizationId,
+        Guid personId,
+        Guid lessonId,
+        DateTimeOffset checkedInAt,
+        CancellationToken cancellationToken)
+    {
+        if (organizationId == Guid.Empty || personId == Guid.Empty || lessonId == Guid.Empty)
+        {
+            throw new ArgumentException("OrganizationId, PersonId and LessonId are required.");
+        }
+
+        var record = await attendanceRepository.CreateCheckInAsync(organizationId, personId, lessonId, checkedInAt, cancellationToken);
+        return record is null ? null : ToResponse(record);
+    }
+
+    public async Task<IReadOnlyList<AttendanceRecordResponse>> ListPendingAsync(
+        Guid organizationId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken)
+    {
+        if (organizationId == Guid.Empty)
+        {
+            throw new ArgumentException("OrganizationId is required.");
+        }
+
+        var records = await attendanceRepository.ListPendingByOrganizationAsync(organizationId, page, pageSize, cancellationToken);
+        return records.Select(ToResponse).ToList();
+    }
+
+    public async Task<AttendanceRecordResponse?> ValidateCheckInAsync(
+        Guid organizationId,
+        Guid attendanceId,
+        Guid validatorPersonId,
+        string status,
+        DateTimeOffset validatedAt,
+        CancellationToken cancellationToken)
+    {
+        if (organizationId == Guid.Empty || attendanceId == Guid.Empty)
+        {
+            throw new ArgumentException("OrganizationId and AttendanceId are required.");
+        }
+
+        ValidateValidator(validatorPersonId);
+        ValidateStatus(status);
+        var finalStatus = status.Trim().ToLowerInvariant();
+        if (finalStatus == "justified_absence")
+        {
+            throw new ArgumentException("A check-in must be confirmed as present or late, or rejected as absent.");
+        }
+
+        var record = await attendanceRepository.ValidateCheckInAsync(
+            organizationId, attendanceId, validatorPersonId, finalStatus, validatedAt, cancellationToken);
+        return record is null ? null : ToResponse(record);
+    }
+
     public async Task<IReadOnlyList<AttendanceRecordResponse>?> SaveLessonCallAsync(
         Guid organizationId,
         Guid lessonId,
+        Guid validatorPersonId,
         SaveAttendanceCallRequest request,
         CancellationToken cancellationToken)
     {
@@ -136,6 +205,8 @@ public sealed class AttendanceUseCase(IAttendanceRepository attendanceRepository
         {
             throw new ArgumentException("OrganizationId and LessonId are required.");
         }
+
+        ValidateValidator(validatorPersonId);
 
         if (request.Entries.Count == 0)
         {
@@ -161,10 +232,13 @@ public sealed class AttendanceUseCase(IAttendanceRepository attendanceRepository
         {
             ClientId = entry.ClientId,
             AttendanceDate = entry.AttendanceDate,
-            Status = entry.Status.Trim().ToLowerInvariant()
+            Status = entry.Status.Trim().ToLowerInvariant(),
+            ValidatedAt = DateTimeOffset.UtcNow,
+            ValidatedByPersonId = validatorPersonId
         }).ToList();
 
-        var saved = await attendanceRepository.SaveLessonCallAsync(organizationId, lessonId, records, cancellationToken);
+        var saved = await attendanceRepository.SaveLessonCallAsync(
+            organizationId, lessonId, validatorPersonId, records, cancellationToken);
         return saved?.Select(ToResponse).ToList();
     }
 
@@ -196,6 +270,14 @@ public sealed class AttendanceUseCase(IAttendanceRepository attendanceRepository
         }
     }
 
+    private static void ValidateValidator(Guid validatorPersonId)
+    {
+        if (validatorPersonId == Guid.Empty)
+        {
+            throw new UnauthorizedAccessException("A validator person context is required.");
+        }
+    }
+
     private static AttendanceRecordResponse ToResponse(AttendanceRecord record)
     {
         return new AttendanceRecordResponse
@@ -204,8 +286,11 @@ public sealed class AttendanceUseCase(IAttendanceRepository attendanceRepository
             OrganizationId = record.OrganizationId,
             LessonId = record.LessonId,
             ClientId = record.ClientId,
+            ClientName = record.ClientName,
             AttendanceDate = record.AttendanceDate,
             Status = record.Status,
+            ValidatedAt = record.ValidatedAt,
+            ValidatedByPersonId = record.ValidatedByPersonId,
             CreatedAt = record.CreatedAt,
             UpdatedAt = record.UpdatedAt
         };
