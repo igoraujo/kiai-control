@@ -1,4 +1,5 @@
 using System.Text;
+using KiaiControl.Contracts.Auth;
 using KiaiControl.Api.Configuration;
 using KiaiControl.Core.Common;
 using KiaiControl.Repositories.DependencyInjection;
@@ -6,13 +7,17 @@ using KiaiControl.Services.DependencyInjection;
 using KiaiControl.UseCases.DependencyInjection;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
 
 namespace KiaiControl.Api.Extensions;
 
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddKiaiApi(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddKiaiApi(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        IHostEnvironment environment)
     {
         var cacheOptions = configuration.GetSection(CacheOptions.SectionName).Get<CacheOptions>() ?? new CacheOptions();
         var connectionStrings = configuration.GetSection(DatabaseOptions.SectionName).Get<DatabaseOptions>() ?? new DatabaseOptions();
@@ -27,27 +32,40 @@ public static class ServiceCollectionExtensions
         services.AddControllers();
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen();
-        services.AddAuthorization();
+        services.AddAuthorization(options =>
+        {
+            foreach (var permissionCode in PermissionCodes.All)
+            {
+                options.AddPolicy(permissionCode, policy => policy
+                    .RequireAuthenticatedUser()
+                    .RequireClaim(PermissionCodes.ClaimType, permissionCode));
+            }
+        });
         services.AddScoped<OrganizationContext>();
 
-        var signingKey = string.IsNullOrWhiteSpace(jwtOptions.SigningKey)
-            ? "development-signing-key-change-before-production-123456"
-            : jwtOptions.SigningKey;
+        jwtOptions.Validate();
+        var signingKey = jwtOptions.ResolveSigningKey(environment.IsDevelopment());
 
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(options =>
             {
-                options.RequireHttpsMetadata = false;
+                options.RequireHttpsMetadata = !environment.IsDevelopment();
+                options.MapInboundClaims = false;
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuer = true,
                     ValidIssuer = jwtOptions.Issuer,
                     ValidateAudience = true,
                     ValidAudience = jwtOptions.Audience,
+                    RequireSignedTokens = true,
                     ValidateIssuerSigningKey = true,
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey)),
                     ValidateLifetime = true,
-                    ClockSkew = TimeSpan.FromMinutes(1)
+                    RequireExpirationTime = true,
+                    ValidAlgorithms = [SecurityAlgorithms.HmacSha256],
+                    RoleClaimType = "role",
+                    NameClaimType = "sub",
+                    ClockSkew = TimeSpan.FromSeconds(30)
                 };
             });
 

@@ -1,0 +1,108 @@
+name: Backend and Admin CI
+
+on:
+  pull_request:
+    paths:
+      - "backend/kiai-control-api/**"
+      - "frontend/kiai-control-admin/**"
+      - ".github/workflows/backend-api-ci.yml"
+  push:
+    paths:
+      - "backend/kiai-control-api/**"
+      - "frontend/kiai-control-admin/**"
+      - ".github/workflows/backend-api-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore API
+        run: dotnet restore backend/kiai-control-api/KiaiControl.Api.slnx
+
+      - name: Restore Admin
+        run: dotnet restore frontend/kiai-control-admin/KiaiControl.Admin.slnx
+
+      - name: Build API
+        run: dotnet build backend/kiai-control-api/KiaiControl.Api.slnx --no-restore
+
+      - name: Build Admin
+        run: dotnet build frontend/kiai-control-admin/KiaiControl.Admin.slnx --no-restore
+
+      - name: Test API unit tests
+        run: >-
+          dotnet test backend/kiai-control-api/tests/KiaiControl.UnitTests/KiaiControl.UnitTests.csproj
+          --no-build --no-restore
+          --logger "trx;LogFileName=unit.trx"
+          --results-directory backend/kiai-control-api/TestResults/unit
+
+      - name: Test API integration tests
+        run: >-
+          dotnet test backend/kiai-control-api/tests/KiaiControl.IntegrationTests/KiaiControl.IntegrationTests.csproj
+          --no-build --no-restore
+          --logger "trx;LogFileName=integration.trx"
+          --results-directory backend/kiai-control-api/TestResults/integration
+
+      - name: Test API architecture tests
+        run: >-
+          dotnet test backend/kiai-control-api/tests/KiaiControl.ArchitectureTests/KiaiControl.ArchitectureTests.csproj
+          --no-build --no-restore
+          --logger "trx;LogFileName=architecture.trx"
+          --results-directory backend/kiai-control-api/TestResults/architecture
+
+      - name: Test Admin unit tests
+        run: >-
+          dotnet test frontend/kiai-control-admin/tests/KiaiControl.Admin.UnitTests/KiaiControl.Admin.UnitTests.csproj
+          --no-build --no-restore
+          --logger "trx;LogFileName=admin.trx"
+          --results-directory frontend/kiai-control-admin/TestResults/admin
+
+      - name: Verify test reports are non-empty
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import sys
+          import xml.etree.ElementTree as ET
+
+            reports = [
+              Path("backend/kiai-control-api/TestResults/unit/unit.trx"),
+              Path("backend/kiai-control-api/TestResults/integration/integration.trx"),
+              Path("backend/kiai-control-api/TestResults/architecture/architecture.trx"),
+              Path("frontend/kiai-control-admin/TestResults/admin/admin.trx"),
+            ]
+            missing = [str(report) for report in reports if not report.is_file()]
+            if missing:
+              sys.exit(f"Missing TRX reports: {missing}")
+
+          for report in reports:
+              root = ET.parse(report).getroot()
+              counters = next((node for node in root.iter() if node.tag.rsplit("}", 1)[-1] == "Counters"), None)
+              total = int(counters.get("total", "0")) if counters is not None else 0
+              failed = int(counters.get("failed", "0")) if counters is not None else 0
+              if total == 0 or failed != 0:
+                  sys.exit(f"Invalid test result in {report}: total={total}, failed={failed}")
+
+              print(f"{report.name}: {total} tests, {failed} failures")
+          PY
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            backend/kiai-control-api/TestResults/**/*.trx
+            frontend/kiai-control-admin/TestResults/**/*.trx
+          if-no-files-found: warn
+          retention-days: 14

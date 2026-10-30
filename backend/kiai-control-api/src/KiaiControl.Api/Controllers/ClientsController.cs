@@ -1,3 +1,4 @@
+using KiaiControl.Contracts.Auth;
 using KiaiControl.Contracts.Common;
 using KiaiControl.Contracts.Clients;
 using KiaiControl.Core.Common;
@@ -10,6 +11,7 @@ namespace KiaiControl.Api.Controllers;
 
 [ApiController]
 [Authorize(Roles = "owner,admin,reception")]
+[Authorize(Policy = PermissionCodes.ClientsManage)]
 [Route("api/v1/clients")]
 public sealed class ClientsController(
     OrganizationContext organizationContext,

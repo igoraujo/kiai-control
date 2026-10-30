@@ -1,3 +1,4 @@
+using KiaiControl.Contracts.Auth;
 using KiaiControl.Contracts.Organizations;
 using KiaiControl.Core.Common;
 using KiaiControl.UseCases.Organizations;
@@ -8,6 +9,7 @@ namespace KiaiControl.Api.Controllers;
 
 [ApiController]
 [Authorize(Roles = "owner,admin")]
+[Authorize(Policy = PermissionCodes.OrganizationsManage)]
 [Route("api/v1/organizations")]
 public sealed class OrganizationsController(
     OrganizationContext organizationContext,

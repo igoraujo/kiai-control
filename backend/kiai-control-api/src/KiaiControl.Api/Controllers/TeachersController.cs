@@ -1,3 +1,4 @@
+using KiaiControl.Contracts.Auth;
 using KiaiControl.Contracts.Common;
 using KiaiControl.Contracts.Teachers;
 using KiaiControl.Core.Common;
@@ -9,6 +10,7 @@ namespace KiaiControl.Api.Controllers;
 
 [ApiController]
 [Authorize(Roles = "owner,admin")]
+[Authorize(Policy = PermissionCodes.TeachersManage)]
 [Route("api/v1/teachers")]
 public sealed class TeachersController(OrganizationContext organizationContext, TeacherUseCase teacherUseCase) : ControllerBase
 {

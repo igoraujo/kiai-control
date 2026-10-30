@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using KiaiControl.Contracts.Auth;
 using KiaiControl.Contracts.Fitness;
 using KiaiControl.Core.Common;
 using KiaiControl.UseCases.Fitness;
@@ -9,6 +10,7 @@ namespace KiaiControl.Api.Controllers;
 
 [ApiController]
 [Authorize(Roles = "owner,admin,teacher")]
+[Authorize(Policy = PermissionCodes.FitnessManage)]
 [Route("api/v1/fitness-goals")]
 public sealed class FitnessController(OrganizationContext organizationContext, FitnessUseCase fitnessUseCase) : ControllerBase
 {

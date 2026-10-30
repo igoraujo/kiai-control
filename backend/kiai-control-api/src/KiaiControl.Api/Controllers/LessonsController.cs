@@ -1,3 +1,4 @@
+using KiaiControl.Contracts.Auth;
 using KiaiControl.Contracts.Common;
 using KiaiControl.Contracts.Lessons;
 using KiaiControl.Contracts.Attendance;
@@ -12,6 +13,7 @@ namespace KiaiControl.Api.Controllers;
 
 [ApiController]
 [Authorize]
+[Authorize(Policy = PermissionCodes.LessonsManage)]
 [Route("api/v1/lessons")]
 public sealed class LessonsController(
     OrganizationContext organizationContext,

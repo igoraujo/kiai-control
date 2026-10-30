@@ -1,5 +1,7 @@
 # Checkpoint de Desenvolvimento - Kiai Control API
 
+> **Snapshot historico de 2026-10-08.** Nao representa o estado verificado atual e nao deve ser usado para declarar cobertura ou conclusao. Consulte [PROJECT_IMPLEMENTATION_PLAN.md](PROJECT_IMPLEMENTATION_PLAN.md) para o inventario e checklist vigentes.
+
 ## Data
 2026-10-08
 

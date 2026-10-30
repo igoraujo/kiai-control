@@ -1,3 +1,4 @@
+using KiaiControl.Contracts.Auth;
 using KiaiControl.Contracts.Audit;
 using KiaiControl.Core.Common;
 using KiaiControl.UseCases.Audit;
@@ -8,6 +9,7 @@ namespace KiaiControl.Api.Controllers;
 
 [ApiController]
 [Authorize(Roles = "owner,admin")]
+[Authorize(Policy = PermissionCodes.AuditRead)]
 [Route("api/v1/audit-logs")]
 public sealed class AuditController(OrganizationContext organizationContext, AuditLogUseCase auditLogUseCase) : ControllerBase
 {

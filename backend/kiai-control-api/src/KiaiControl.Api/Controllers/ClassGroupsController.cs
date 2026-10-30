@@ -1,3 +1,4 @@
+using KiaiControl.Contracts.Auth;
 using KiaiControl.Contracts.ClassGroups;
 using KiaiControl.Contracts.Common;
 using KiaiControl.Core.Common;
@@ -9,6 +10,7 @@ namespace KiaiControl.Api.Controllers;
 
 [ApiController]
 [Authorize]
+[Authorize(Policy = PermissionCodes.ClassGroupsManage)]
 [Route("api/v1/class-groups")]
 public sealed class ClassGroupsController(OrganizationContext organizationContext, ClassGroupUseCase classGroupUseCase) : ControllerBase
 {

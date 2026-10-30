@@ -10,6 +10,7 @@ namespace KiaiControl.Api.Controllers;
 
 [ApiController]
 [Authorize(Roles = "owner,admin")]
+[Authorize(Policy = PermissionCodes.AccessManage)]
 [Route("api/v1/access")]
 public sealed class AccessControlController(
     OrganizationContext organizationContext,
@@ -23,6 +24,7 @@ public sealed class AccessControlController(
 
     [HttpGet("permissions")]
     [Authorize(Roles = "owner")]
+    [Authorize(Policy = PermissionCodes.AccessPermissionsManage)]
     public async Task<ActionResult<IReadOnlyList<PermissionResponse>>> ListPermissionsAsync(CancellationToken cancellationToken)
     {
         return Ok(await accessControlUseCase.ListPermissionsAsync(cancellationToken));
@@ -108,6 +110,7 @@ public sealed class AccessControlController(
 
     [HttpGet("roles/{roleCode}/permissions")]
     [Authorize(Roles = "owner")]
+    [Authorize(Policy = PermissionCodes.AccessPermissionsManage)]
     public async Task<ActionResult<IReadOnlyList<PermissionResponse>>> ListRolePermissionsAsync(string roleCode, CancellationToken cancellationToken)
     {
         try
@@ -126,6 +129,7 @@ public sealed class AccessControlController(
 
     [HttpPut("roles/{roleCode}/permissions")]
     [Authorize(Roles = "owner")]
+    [Authorize(Policy = PermissionCodes.AccessPermissionsManage)]
     public async Task<IActionResult> GrantPermissionAsync(
         string roleCode,
         [FromBody] SetRolePermissionRequest request,
@@ -144,6 +148,7 @@ public sealed class AccessControlController(
 
     [HttpDelete("roles/{roleCode}/permissions/{permissionCode}")]
     [Authorize(Roles = "owner")]
+    [Authorize(Policy = PermissionCodes.AccessPermissionsManage)]
     public async Task<IActionResult> RevokePermissionAsync(string roleCode, string permissionCode, CancellationToken cancellationToken)
     {
         try

@@ -30,6 +30,10 @@ public sealed class JwtAuthTokenService(
             .Where(role => !string.IsNullOrWhiteSpace(role))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Select(role => new Claim(ClaimTypes.Role, role)));
+        claims.AddRange(user.Permissions
+            .Where(permission => !string.IsNullOrWhiteSpace(permission))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Select(permission => new Claim("permission", permission)));
 
         var tokenDescriptor = new SecurityTokenDescriptor
         {

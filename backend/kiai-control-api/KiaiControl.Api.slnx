@@ -10,7 +10,6 @@
   <Folder Name="/tests/">
     <Project Path="tests/KiaiControl.ArchitectureTests/KiaiControl.ArchitectureTests.csproj" />
     <Project Path="tests/KiaiControl.IntegrationTests/KiaiControl.IntegrationTests.csproj" />
-    <Project Path="tests/KiaiControl.PerformanceTests/KiaiControl.PerformanceTests.csproj" />
     <Project Path="tests/KiaiControl.UnitTests/KiaiControl.UnitTests.csproj" />
   </Folder>
 </Solution>

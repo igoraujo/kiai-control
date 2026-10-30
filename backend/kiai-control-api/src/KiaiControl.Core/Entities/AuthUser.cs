@@ -15,4 +15,6 @@ public sealed class AuthUser
     public bool IsActive { get; set; }
 
     public string[] Roles { get; set; } = [];
+
+    public string[] Permissions { get; set; } = [];
 }

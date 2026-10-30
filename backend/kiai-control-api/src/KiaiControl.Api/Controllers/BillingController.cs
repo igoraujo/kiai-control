@@ -1,3 +1,4 @@
+using KiaiControl.Contracts.Auth;
 using KiaiControl.Contracts.Billing;
 using KiaiControl.Contracts.Common;
 using KiaiControl.Core.Common;
@@ -9,6 +10,7 @@ namespace KiaiControl.Api.Controllers;
 
 [ApiController]
 [Authorize(Roles = "owner,admin,financial")]
+[Authorize(Policy = PermissionCodes.BillingManage)]
 [Route("api/v1/billing")]
 public sealed class BillingController(
     OrganizationContext organizationContext,

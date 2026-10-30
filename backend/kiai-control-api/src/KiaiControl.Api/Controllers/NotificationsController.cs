@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using KiaiControl.Contracts.Auth;
 using KiaiControl.Contracts.Notifications;
 using KiaiControl.Core.Common;
 using KiaiControl.UseCases.Notifications;
@@ -9,6 +10,7 @@ namespace KiaiControl.Api.Controllers;
 
 [ApiController]
 [Authorize]
+[Authorize(Policy = PermissionCodes.NotificationsManage)]
 [Route("api/v1/notifications")]
 public sealed class NotificationsController(
     OrganizationContext organizationContext,

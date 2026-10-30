@@ -21,8 +21,10 @@ dotnet run --project frontend/kiai-control-admin/src/KiaiControl.Admin/KiaiContr
 
 ## Como testar
 ```bash
+dotnet build frontend/kiai-control-admin/KiaiControl.Admin.slnx
 dotnet test frontend/kiai-control-admin/KiaiControl.Admin.slnx
 ```
+O projeto `KiaiControl.Admin.UnitTests` cobre refresh de sessao, propagacao de erros HTTP e validacao do formulario de pessoa. O plano de evolucao esta em [PROJECT_IMPLEMENTATION_PLAN.md](../../PROJECT_IMPLEMENTATION_PLAN.md).
 
 ## Variaveis de ambiente
 - ASPNETCORE_ENVIRONMENT

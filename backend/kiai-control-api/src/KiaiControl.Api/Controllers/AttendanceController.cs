@@ -1,5 +1,6 @@
 using KiaiControl.Contracts.Attendance;
 using KiaiControl.Contracts.Common;
+using KiaiControl.Contracts.Auth;
 using KiaiControl.Core.Common;
 using KiaiControl.UseCases.Attendance;
 using System.Security.Claims;
@@ -10,6 +11,7 @@ namespace KiaiControl.Api.Controllers;
 
 [ApiController]
 [Authorize]
+[Authorize(Policy = PermissionCodes.AttendanceManage)]
 [Route("api/v1/attendance")]
 public sealed class AttendanceController(OrganizationContext organizationContext, AttendanceUseCase attendanceUseCase) : ControllerBase
 {

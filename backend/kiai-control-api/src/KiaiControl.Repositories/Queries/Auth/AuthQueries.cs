@@ -15,7 +15,14 @@ public static class AuthQueries
                 from person_roles pr
                 join roles r on r.id = pr.role_id
                 where pr.person_id = p.id
-            ), array[]::text[]) as Roles
+            ), array[]::text[]) as Roles,
+            coalesce((
+                select array_agg(distinct permission.code)
+                from person_roles pr
+                join role_permissions rp on rp.role_id = pr.role_id
+                join permissions permission on permission.id = rp.permission_id
+                where pr.person_id = p.id
+            ), array[]::text[]) as Permissions
         from user_accounts ua
         join persons p on p.id = ua.person_id
         where lower(ua.email) = lower(@Email)
@@ -36,7 +43,14 @@ public static class AuthQueries
                 from person_roles pr
                 join roles r on r.id = pr.role_id
                 where pr.person_id = p.id
-            ), array[]::text[]) as Roles
+            ), array[]::text[]) as Roles,
+            coalesce((
+                select array_agg(distinct permission.code)
+                from person_roles pr
+                join role_permissions rp on rp.role_id = pr.role_id
+                join permissions permission on permission.id = rp.permission_id
+                where pr.person_id = p.id
+            ), array[]::text[]) as Permissions
         from user_accounts ua
         join persons p on p.id = ua.person_id
         where ua.id = @UserId

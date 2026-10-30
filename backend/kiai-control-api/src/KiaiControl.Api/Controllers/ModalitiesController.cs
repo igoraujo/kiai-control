@@ -1,3 +1,4 @@
+using KiaiControl.Contracts.Auth;
 using KiaiControl.Contracts.Common;
 using KiaiControl.Contracts.Modalities;
 using KiaiControl.Core.Common;
@@ -9,6 +10,7 @@ namespace KiaiControl.Api.Controllers;
 
 [ApiController]
 [Authorize(Roles = "owner,admin")]
+[Authorize(Policy = PermissionCodes.ModalitiesManage)]
 [Route("api/v1/modalities")]
 public sealed class ModalitiesController(OrganizationContext organizationContext, ModalityUseCase modalityUseCase) : ControllerBase
 {
