@@ -251,6 +251,18 @@ public sealed class InMemoryModalityRepository : IModalityRepository
         return Task.FromResult(true);
     }
 
+    public Task<IReadOnlyList<Modality>> ListClientModalitiesAsync(Guid organizationId, Guid clientId, CancellationToken cancellationToken = default)
+    {
+        IReadOnlyList<Modality> modalities = _clientModalities
+            .Where(link => link.OrganizationId == organizationId && link.ClientId == clientId)
+            .Select(link => _modalities.FirstOrDefault(modality => modality.OrganizationId == organizationId && modality.Id == link.ModalityId))
+            .Where(modality => modality is not null)
+            .Cast<Modality>()
+            .OrderBy(modality => modality.Name)
+            .ToList();
+        return Task.FromResult(modalities);
+    }
+
     public Task<bool> LinkClientAsync(
         Guid organizationId,
         Guid clientId,
@@ -974,6 +986,24 @@ public sealed class InMemoryBillingCatalogRepository : IBillingCatalogRepository
         subscription.CreatedAt = DateTimeOffset.UtcNow;
         _subscriptions.Add(subscription);
         return Task.FromResult<ClientPlanSubscription?>(subscription);
+    }
+
+    public Task<IReadOnlyList<ClientPlanSubscription>> ListSubscriptionsAsync(
+        Guid organizationId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        var safePage = page < 1 ? 1 : page;
+        var safePageSize = pageSize is < 1 or > 200 ? 50 : pageSize;
+        IReadOnlyList<ClientPlanSubscription> subscriptions = _subscriptions
+            .Where(item => item.OrganizationId == organizationId)
+            .OrderByDescending(item => item.IsActive)
+            .ThenByDescending(item => item.StartsAt)
+            .Skip((safePage - 1) * safePageSize)
+            .Take(safePageSize)
+            .ToList();
+        return Task.FromResult(subscriptions);
     }
 
     public Task<ClientPlanSubscription?> CancelSubscriptionAsync(Guid organizationId, Guid subscriptionId, DateOnly endsAt, CancellationToken cancellationToken = default)

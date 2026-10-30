@@ -3,7 +3,9 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using KiaiControl.Contracts.Auth;
 using KiaiControl.Contracts.Attendance;
+using KiaiControl.Contracts.Billing;
 using KiaiControl.Contracts.Lessons;
+using KiaiControl.Contracts.Modalities;
 using KiaiControl.Contracts.Reports;
 
 namespace KiaiControl.Admin.Services;
@@ -35,6 +37,100 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
             $"api/v1/reports/dashboard?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}");
         return await response.Content.ReadFromJsonAsync<DashboardReportResponse>()
             ?? throw new HttpRequestException("The API returned an empty dashboard response.");
+    }
+
+    public Task<IReadOnlyList<ModalityResponse>> ListAssignableClientModalitiesAsync() =>
+        ListAsync<ModalityResponse>("clients/modalities", page: 1, pageSize: 200);
+
+    public Task<IReadOnlyList<ModalityResponse>> ListClientModalitiesAsync(Guid clientId) =>
+        ListAsync<ModalityResponse>($"clients/{clientId}/modalities", page: 1, pageSize: 200);
+
+    public async Task LinkClientModalityAsync(Guid clientId, Guid modalityId)
+    {
+        using var response = await SendAuthorizedAsync(HttpMethod.Post, $"api/v1/clients/{clientId}/modalities/{modalityId}");
+    }
+
+    public Task UnlinkClientModalityAsync(Guid clientId, Guid modalityId) =>
+        DeleteAsync($"clients/{clientId}/modalities", modalityId);
+
+    public Task<IReadOnlyList<BillingPlanResponse>> ListBillingPlansAsync(int page = 1, int pageSize = 100) =>
+        ListAsync<BillingPlanResponse>("billing/plans", page, pageSize);
+
+    public Task<BillingPlanResponse> CreateBillingPlanAsync(CreateBillingPlanRequest request) =>
+        CreateAsync<CreateBillingPlanRequest, BillingPlanResponse>("billing/plans", request);
+
+    public Task<BillingPlanResponse> UpdateBillingPlanAsync(Guid planId, UpdateBillingPlanRequest request) =>
+        UpdateAsync<UpdateBillingPlanRequest, BillingPlanResponse>("billing/plans", planId, request);
+
+    public Task DeactivateBillingPlanAsync(Guid planId) => DeleteAsync("billing/plans", planId);
+
+    public Task<IReadOnlyList<ClientPlanSubscriptionResponse>> ListClientSubscriptionsAsync(int page = 1, int pageSize = 100) =>
+        ListAsync<ClientPlanSubscriptionResponse>("billing/subscriptions", page, pageSize);
+
+    public Task<ClientPlanSubscriptionResponse> CreateClientSubscriptionAsync(Guid clientId, CreateClientSubscriptionRequest request) =>
+        CreateAsync<CreateClientSubscriptionRequest, ClientPlanSubscriptionResponse>($"billing/clients/{clientId}/subscriptions", request);
+
+    public async Task<ClientPlanSubscriptionResponse> CancelClientSubscriptionAsync(
+        Guid subscriptionId,
+        CancelClientSubscriptionRequest request)
+    {
+        using var response = await SendAuthorizedAsync(HttpMethod.Patch, $"api/v1/billing/subscriptions/{subscriptionId}/cancel", request);
+        return await response.Content.ReadFromJsonAsync<ClientPlanSubscriptionResponse>()
+            ?? throw new HttpRequestException("A API retornou uma resposta vazia.");
+    }
+
+    public Task<IReadOnlyList<BillingResponse>> ListInvoicesAsync(int page = 1, int pageSize = 100) =>
+        ListAsync<BillingResponse>("billing", page, pageSize);
+
+    public async Task<IReadOnlyList<BillingResponse>> GenerateInvoicesAsync(GenerateInvoicesRequest request)
+    {
+        using var response = await SendAuthorizedAsync(HttpMethod.Post, "api/v1/billing/invoices/generate", request);
+        return await response.Content.ReadFromJsonAsync<List<BillingResponse>>() ?? [];
+    }
+
+    public async Task<PaymentResponse> RegisterInvoicePaymentAsync(Guid invoiceId, RegisterPaymentRequest request)
+    {
+        using var response = await SendAuthorizedAsync(HttpMethod.Post, $"api/v1/billing/{invoiceId}/payments", request);
+        return await response.Content.ReadFromJsonAsync<PaymentResponse>()
+            ?? throw new HttpRequestException("A API retornou uma resposta vazia.");
+    }
+
+    public Task<IReadOnlyList<PaymentResponse>> ListPaymentsAsync(int page = 1, int pageSize = 100) =>
+        ListAsync<PaymentResponse>("billing/payments", page, pageSize);
+
+    public async Task<IReadOnlyList<RoleResponse>> ListAccessRolesAsync()
+    {
+        using var response = await SendAuthorizedAsync(HttpMethod.Get, "api/v1/access/roles");
+        return await response.Content.ReadFromJsonAsync<List<RoleResponse>>() ?? [];
+    }
+
+    public async Task<IReadOnlyList<PermissionResponse>> ListAccessPermissionsAsync()
+    {
+        using var response = await SendAuthorizedAsync(HttpMethod.Get, "api/v1/access/permissions");
+        return await response.Content.ReadFromJsonAsync<List<PermissionResponse>>() ?? [];
+    }
+
+    public async Task<IReadOnlyList<PermissionResponse>> ListRolePermissionsAsync(string roleCode)
+    {
+        var escapedRoleCode = Uri.EscapeDataString(roleCode);
+        using var response = await SendAuthorizedAsync(HttpMethod.Get, $"api/v1/access/roles/{escapedRoleCode}/permissions");
+        return await response.Content.ReadFromJsonAsync<List<PermissionResponse>>() ?? [];
+    }
+
+    public async Task SetRolePermissionAsync(string roleCode, string permissionCode, bool isGranted)
+    {
+        var escapedRoleCode = Uri.EscapeDataString(roleCode);
+        var escapedPermissionCode = Uri.EscapeDataString(permissionCode);
+        if (isGranted)
+        {
+            await PutAsync($"access/roles/{escapedRoleCode}/permissions", new SetRolePermissionRequest
+            {
+                PermissionCode = permissionCode
+            });
+            return;
+        }
+
+        await DeleteAsync($"access/roles/{escapedRoleCode}/permissions/{escapedPermissionCode}", null);
     }
 
     public Task<IReadOnlyList<LessonResponse>> ListLessonsAsync(int page = 1, int pageSize = 200) =>

@@ -1,0 +1,73 @@
+@inherits FormDialogBase
+@using KiaiControl.Contracts.Billing
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="Form">
+            <MudStack Spacing="2">
+                @if (ErrorMessage is not null)
+                {
+                    <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">@ErrorMessage</MudAlert>
+                }
+                <MudText Typo="Typo.body2">Fatura de @Invoice.DueDate.ToString("dd/MM/yyyy")</MudText>
+                <MudText Typo="Typo.body2">Saldo restante: @RemainingAmount.ToString("C")</MudText>
+                <MudNumericField T="decimal" @bind-Value="_amount" Label="Valor recebido" Min="0.01m"
+                                 Adornment="Adornment.Start" AdornmentText="R$" Required="true" Variant="Variant.Outlined" />
+                <MudSelect T="string" @bind-Value="_method" Label="Forma de pagamento" Required="true" Variant="Variant.Outlined">
+                    @foreach (var method in PaymentMethods)
+                    {
+                        <MudSelectItem Value="@method.Code">@method.Label</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudDatePicker @bind-Date="_paidAt" Label="Data do pagamento" DateFormat="dd/MM/yyyy" Required="true" Variant="Variant.Outlined" />
+                <MudTextField @bind-Value="_externalReference" Label="Referência externa" Variant="Variant.Outlined" />
+                <MudTextField @bind-Value="_notes" Label="Observações" Lines="2" Variant="Variant.Outlined" />
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Disabled="IsSaving">Cancelar</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SubmitAsync" Disabled="IsSaving">Registrar pagamento</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter, EditorRequired] public BillingResponse Invoice { get; set; } = new();
+
+    private static readonly (string Code, string Label)[] PaymentMethods =
+    [
+        ("cash", "Dinheiro"),
+        ("pix", "Pix"),
+        ("bank_transfer", "Transferência bancária"),
+        ("credit_card", "Cartão de crédito"),
+        ("debit_card", "Cartão de débito"),
+        ("boleto", "Boleto"),
+        ("manual_adjustment", "Ajuste manual")
+    ];
+
+    private decimal _amount;
+    private string _method = "pix";
+    private DateTime? _paidAt = DateTime.Today;
+    private string? _externalReference;
+    private string? _notes;
+    private decimal RemainingAmount => Math.Max(0, Invoice.Amount - Invoice.PaidAmount);
+
+    protected override void OnInitialized() => _amount = RemainingAmount;
+
+    protected override async Task SaveCoreAsync()
+    {
+        if (_paidAt is null)
+        {
+            throw new ArgumentException("Informe a data do pagamento.");
+        }
+
+        await Api.RegisterInvoicePaymentAsync(Invoice.Id, new RegisterPaymentRequest
+        {
+            Amount = _amount,
+            Method = _method,
+            PaidAt = new DateTimeOffset(_paidAt.Value),
+            ExternalReference = _externalReference,
+            Notes = _notes
+        });
+    }
+}

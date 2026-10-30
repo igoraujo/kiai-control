@@ -70,7 +70,7 @@ public sealed class SqlAccessControlRepository(IDbConnectionFactory dbConnection
         return affected > 0;
     }
 
-    public async Task<IReadOnlyList<Permission>?> ListRolePermissionsAsync(string roleCode, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<Permission>?> ListRolePermissionsAsync(Guid organizationId, string roleCode, CancellationToken cancellationToken = default)
     {
         using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
         var exists = await connection.QuerySingleOrDefaultAsync<bool?>("select true from roles where code = @RoleCode::role_code;", new { RoleCode = roleCode });
@@ -79,29 +79,37 @@ public sealed class SqlAccessControlRepository(IDbConnectionFactory dbConnection
             return null;
         }
 
-        var permissions = await connection.QueryAsync<Permission>(AccessControlQueries.ListRolePermissions, new { RoleCode = roleCode });
+        var permissions = await connection.QueryAsync<Permission>(AccessControlQueries.ListRolePermissions, new
+        {
+            OrganizationId = organizationId,
+            RoleCode = roleCode
+        });
         return permissions.ToList();
     }
 
-    public async Task<bool> GrantRolePermissionAsync(string roleCode, string permissionCode, CancellationToken cancellationToken = default)
+    public async Task<bool> GrantRolePermissionAsync(Guid organizationId, string roleCode, string permissionCode, Guid actorUserId, CancellationToken cancellationToken = default)
     {
         using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
         var roleId = await connection.QuerySingleOrDefaultAsync<Guid?>(AccessControlQueries.GrantRolePermission, new
         {
+            OrganizationId = organizationId,
             RoleCode = roleCode,
-            PermissionCode = permissionCode
+            PermissionCode = permissionCode,
+            ActorUserId = actorUserId
         });
         return roleId is not null;
     }
 
-    public async Task<bool> RevokeRolePermissionAsync(string roleCode, string permissionCode, CancellationToken cancellationToken = default)
+    public async Task<bool> RevokeRolePermissionAsync(Guid organizationId, string roleCode, string permissionCode, Guid actorUserId, CancellationToken cancellationToken = default)
     {
         using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
-        var affected = await connection.ExecuteAsync(AccessControlQueries.RevokeRolePermission, new
+        var roleId = await connection.QuerySingleOrDefaultAsync<Guid?>(AccessControlQueries.RevokeRolePermission, new
         {
+            OrganizationId = organizationId,
             RoleCode = roleCode,
-            PermissionCode = permissionCode
+            PermissionCode = permissionCode,
+            ActorUserId = actorUserId
         });
-        return affected > 0;
+        return roleId is not null;
     }
 }

@@ -49,28 +49,44 @@ public static class AccessControlQueries
 
     public const string ListRolePermissions = @"
         select permission.id, permission.code, permission.name, permission.description
-        from role_permissions assignment
-        join roles role on role.id = assignment.role_id
-        join permissions permission on permission.id = assignment.permission_id
-        where role.code = @RoleCode::role_code
+      from roles role
+      cross join permissions permission
+      left join role_permissions base_grant
+        on base_grant.role_id = role.id and base_grant.permission_id = permission.id
+      left join organization_role_permissions organization_grant
+        on organization_grant.organization_id = @OrganizationId
+        and organization_grant.role_id = role.id
+        and organization_grant.permission_id = permission.id
+      where role.code = @RoleCode::role_code
+        and coalesce(organization_grant.is_granted, base_grant.role_id is not null)
         order by permission.code;
         ";
 
     public const string GrantRolePermission = @"
-        insert into role_permissions (role_id, permission_id, granted_at)
-        select role.id, permission.id, now()
+      insert into organization_role_permissions (
+        organization_id, role_id, permission_id, is_granted, changed_at, changed_by_user_account_id
+      )
+      select @OrganizationId, role.id, permission.id, true, now(), @ActorUserId
         from roles role cross join permissions permission
         where role.code = @RoleCode::role_code and permission.code = @PermissionCode
-        on conflict (role_id, permission_id) do nothing
+      on conflict (organization_id, role_id, permission_id) do update
+      set is_granted = true,
+        changed_at = now(),
+        changed_by_user_account_id = excluded.changed_by_user_account_id
         returning role_id;
         ";
 
     public const string RevokeRolePermission = @"
-        delete from role_permissions assignment
-        using roles role, permissions permission
-        where assignment.role_id = role.id
-          and assignment.permission_id = permission.id
-          and role.code = @RoleCode::role_code
-          and permission.code = @PermissionCode;
+      insert into organization_role_permissions (
+        organization_id, role_id, permission_id, is_granted, changed_at, changed_by_user_account_id
+      )
+      select @OrganizationId, role.id, permission.id, false, now(), @ActorUserId
+      from roles role cross join permissions permission
+      where role.code = @RoleCode::role_code and permission.code = @PermissionCode
+      on conflict (organization_id, role_id, permission_id) do update
+      set is_granted = false,
+        changed_at = now(),
+        changed_by_user_account_id = excluded.changed_by_user_account_id
+      returning role_id;
         ";
 }

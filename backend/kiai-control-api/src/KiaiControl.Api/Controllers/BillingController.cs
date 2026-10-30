@@ -265,6 +265,20 @@ public sealed class BillingController(
         }
     }
 
+    [HttpGet("subscriptions")]
+    public async Task<ActionResult<IReadOnlyList<ClientPlanSubscriptionResponse>>> ListSubscriptionsAsync(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50,
+        CancellationToken cancellationToken = default)
+    {
+        if (organizationContext.OrganizationId is not Guid organizationId)
+        {
+            return BadRequest("Organization context is required.");
+        }
+
+        return Ok(await billingCatalogUseCase.ListSubscriptionsAsync(organizationId, page, pageSize, cancellationToken));
+    }
+
     [HttpPatch("subscriptions/{subscriptionId:guid}/cancel")]
     public async Task<ActionResult<ClientPlanSubscriptionResponse>> CancelSubscriptionAsync(
         Guid subscriptionId,

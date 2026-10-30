@@ -42,6 +42,8 @@ public sealed class BillingResponse
 
     public decimal Amount { get; init; }
 
+    public decimal PaidAmount { get; init; }
+
     public string Status { get; init; } = string.Empty;
 
     public DateTimeOffset CreatedAt { get; init; }

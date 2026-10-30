@@ -92,6 +92,21 @@ public sealed class BillingCatalogUseCase(IBillingCatalogRepository repository)
         return subscription is null ? null : ToResponse(subscription);
     }
 
+    public async Task<IReadOnlyList<ClientPlanSubscriptionResponse>> ListSubscriptionsAsync(
+        Guid organizationId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken)
+    {
+        if (organizationId == Guid.Empty)
+        {
+            throw new ArgumentException("OrganizationId is required.");
+        }
+
+        var subscriptions = await repository.ListSubscriptionsAsync(organizationId, page, pageSize, cancellationToken);
+        return subscriptions.Select(ToResponse).ToList();
+    }
+
     public async Task<ClientPlanSubscriptionResponse?> CancelSubscriptionAsync(
         Guid organizationId,
         Guid id,
@@ -195,6 +210,7 @@ public sealed class BillingCatalogUseCase(IBillingCatalogRepository repository)
             ClientId = invoice.ClientId,
             DueDate = invoice.DueDate,
             Amount = invoice.Amount,
+            PaidAmount = invoice.PaidAmount,
             Status = invoice.Status,
             CreatedAt = invoice.CreatedAt,
             UpdatedAt = invoice.UpdatedAt

@@ -75,39 +75,64 @@ public sealed class AccessControlUseCase(IAccessControlRepository repository)
         return await repository.RevokePersonRoleAsync(organizationId, personId, roleCode, cancellationToken);
     }
 
-    public async Task<IReadOnlyList<PermissionResponse>> ListRolePermissionsAsync(string roleCode, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<PermissionResponse>> ListRolePermissionsAsync(Guid organizationId, string roleCode, CancellationToken cancellationToken)
     {
+        if (organizationId == Guid.Empty)
+        {
+            throw new ArgumentException("OrganizationId is required.");
+        }
+
         roleCode = NormalizeRoleCode(roleCode);
-        var permissions = await repository.ListRolePermissionsAsync(roleCode, cancellationToken);
+        var permissions = await repository.ListRolePermissionsAsync(organizationId, roleCode, cancellationToken);
         return permissions?.Select(ToResponse).ToList() ?? throw new KeyNotFoundException("Role was not found.");
     }
 
-    public async Task<bool> GrantRolePermissionAsync(string roleCode, string permissionCode, CancellationToken cancellationToken)
+    public async Task<bool> GrantRolePermissionAsync(Guid organizationId, string roleCode, string permissionCode, Guid actorUserId, CancellationToken cancellationToken)
     {
+        if (organizationId == Guid.Empty || actorUserId == Guid.Empty)
+        {
+            throw new ArgumentException("OrganizationId and ActorUserId are required.");
+        }
+
         roleCode = NormalizeRoleCode(roleCode);
+        EnsureRolePermissionsEditable(roleCode);
         if (string.IsNullOrWhiteSpace(permissionCode) || permissionCode.Trim().Length > 120)
         {
             throw new ArgumentException("PermissionCode is required and must not exceed 120 characters.");
         }
 
-        return await repository.GrantRolePermissionAsync(roleCode, permissionCode.Trim(), cancellationToken);
+        return await repository.GrantRolePermissionAsync(organizationId, roleCode, permissionCode.Trim(), actorUserId, cancellationToken);
     }
 
-    public async Task<bool> RevokeRolePermissionAsync(string roleCode, string permissionCode, CancellationToken cancellationToken)
+    public async Task<bool> RevokeRolePermissionAsync(Guid organizationId, string roleCode, string permissionCode, Guid actorUserId, CancellationToken cancellationToken)
     {
+        if (organizationId == Guid.Empty || actorUserId == Guid.Empty)
+        {
+            throw new ArgumentException("OrganizationId and ActorUserId are required.");
+        }
+
         roleCode = NormalizeRoleCode(roleCode);
+        EnsureRolePermissionsEditable(roleCode);
         if (string.IsNullOrWhiteSpace(permissionCode))
         {
             throw new ArgumentException("PermissionCode is required.");
         }
 
-        return await repository.RevokeRolePermissionAsync(roleCode, permissionCode.Trim(), cancellationToken);
+        return await repository.RevokeRolePermissionAsync(organizationId, roleCode, permissionCode.Trim(), actorUserId, cancellationToken);
     }
 
     private static string NormalizeRoleCode(string roleCode)
     {
         var normalized = roleCode.Trim().ToLowerInvariant();
         return RoleCodes.Contains(normalized) ? normalized : throw new ArgumentException("RoleCode is not supported.");
+    }
+
+    private static void EnsureRolePermissionsEditable(string roleCode)
+    {
+        if (roleCode == "owner")
+        {
+            throw new ArgumentException("The owner role permissions are managed by the system.");
+        }
     }
 
     private static void EnsureIds(Guid organizationId, Guid personId)

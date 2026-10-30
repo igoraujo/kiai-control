@@ -1,0 +1,77 @@
+@inherits FormDialogBase
+@using KiaiControl.Contracts.Billing
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="Form">
+            <MudStack Spacing="2">
+                @if (ErrorMessage is not null)
+                {
+                    <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">@ErrorMessage</MudAlert>
+                }
+                <MudTextField @bind-Value="_name" Label="Nome do plano" Required="true"
+                              RequiredError="Informe o nome do plano" Variant="Variant.Outlined" />
+                <MudTextField @bind-Value="_description" Label="Descrição" Lines="2" Variant="Variant.Outlined" />
+                <MudNumericField T="decimal" @bind-Value="_monthlyAmount" Label="Valor mensal" Min="0"
+                                 Adornment="Adornment.Start" AdornmentText="R$" Variant="Variant.Outlined" />
+                <MudNumericField T="int" @bind-Value="_dueDay" Label="Dia do vencimento" Min="1" Max="28"
+                                 Required="true" Variant="Variant.Outlined" />
+                @if (Item is not null)
+                {
+                    <MudSwitch T="bool" @bind-Value="_isActive" Color="Color.Primary" Label="Plano ativo" />
+                }
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Disabled="IsSaving">Cancelar</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SubmitAsync" Disabled="IsSaving">Salvar plano</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter] public BillingPlanResponse? Item { get; set; }
+
+    private string _name = string.Empty;
+    private string? _description;
+    private decimal _monthlyAmount;
+    private int _dueDay = 10;
+    private bool _isActive = true;
+
+    protected override void OnInitialized()
+    {
+        if (Item is not null)
+        {
+            _name = Item.Name;
+            _description = Item.Description;
+            _monthlyAmount = Item.MonthlyAmount;
+            _dueDay = Item.DueDay;
+            _isActive = Item.IsActive;
+        }
+    }
+
+    protected override async Task SaveCoreAsync()
+    {
+        if (Item is null)
+        {
+            await Api.CreateBillingPlanAsync(new CreateBillingPlanRequest
+            {
+                Name = _name,
+                Description = _description,
+                MonthlyAmount = _monthlyAmount,
+                DueDay = _dueDay
+            });
+        }
+        else
+        {
+            await Api.UpdateBillingPlanAsync(Item.Id, new UpdateBillingPlanRequest
+            {
+                Name = _name,
+                Description = _description,
+                MonthlyAmount = _monthlyAmount,
+                DueDay = _dueDay,
+                IsActive = _isActive
+            });
+        }
+    }
+}

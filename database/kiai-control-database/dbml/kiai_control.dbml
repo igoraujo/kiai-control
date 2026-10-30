@@ -277,6 +277,20 @@ Table role_permissions {
   }
 }
 
+Table organization_role_permissions {
+  organization_id uuid [not null, ref: > organizations.id]
+  role_id uuid [not null, ref: > roles.id]
+  permission_id uuid [not null, ref: > permissions.id]
+  is_granted boolean [not null]
+  changed_at timestamptz [not null, default: `now()`]
+  changed_by_user_account_id uuid [ref: > user_accounts.id]
+
+  Indexes {
+    (organization_id, role_id, permission_id) [pk]
+    (organization_id, role_id)
+  }
+}
+
 Table person_roles {
   person_id uuid [not null, ref: > persons.id]
   role_id uuid [not null, ref: > roles.id]

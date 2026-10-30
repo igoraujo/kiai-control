@@ -72,6 +72,28 @@ public static class ModalityQueries
         where organization_id = @OrganizationId and id = @Id and is_active = true;
         ";
 
+    public const string ListClientModalities = @"
+        select
+            modality.id,
+            modality.organization_id as OrganizationId,
+            modality.name,
+            modality.type::text as Type,
+            modality.description,
+            modality.is_active as IsActive,
+            modality.created_at as CreatedAt,
+            modality.updated_at as UpdatedAt
+        from clients client
+        join persons person on person.id = client.person_id
+            and person.organization_id = client.organization_id
+            and person.deleted_at is null
+        join person_modalities assignment on assignment.person_id = person.id
+        join modalities modality on modality.id = assignment.modality_id
+            and modality.organization_id = client.organization_id
+        where client.organization_id = @OrganizationId
+          and client.id = @ClientId
+        order by modality.name;
+        ";
+
         public const string LinkClient = @"
                 insert into person_modalities (person_id, modality_id, linked_at)
                 select p.id, m.id, now()

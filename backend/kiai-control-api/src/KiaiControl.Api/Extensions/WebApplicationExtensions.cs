@@ -16,6 +16,7 @@ public static class WebApplicationExtensions
         }
 
         app.UseHttpsRedirection();
+        app.UseRateLimiter();
         app.UseAuthentication();
         app.UseMiddleware<OrganizationContextMiddleware>();
         app.UseAuthorization();

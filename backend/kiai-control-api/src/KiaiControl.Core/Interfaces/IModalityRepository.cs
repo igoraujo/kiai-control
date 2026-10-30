@@ -18,6 +18,8 @@ public interface IModalityRepository
 
     Task<bool> DeactivateAsync(Guid organizationId, Guid id, CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<Modality>> ListClientModalitiesAsync(Guid organizationId, Guid clientId, CancellationToken cancellationToken = default);
+
     Task<bool> LinkClientAsync(
         Guid organizationId,
         Guid clientId,

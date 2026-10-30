@@ -40,4 +40,56 @@ public sealed class ModalityUseCaseTests
             Type = "combat_sport"
         }, CancellationToken.None));
     }
+
+    [Fact]
+    public async Task ListClientModalitiesAsync_ShouldReturnOnlyLinkedModalitiesWithinOrganization()
+    {
+        var repository = new InMemoryModalityRepository();
+        var useCase = new ModalityUseCase(repository);
+        var organizationId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var linked = await useCase.CreateAsync(organizationId, new CreateModalityRequest
+        {
+            Name = "Jiu-Jitsu",
+            Type = "martial_art"
+        }, CancellationToken.None);
+        await useCase.CreateAsync(organizationId, new CreateModalityRequest
+        {
+            Name = "Boxe",
+            Type = "martial_art"
+        }, CancellationToken.None);
+        await useCase.LinkClientAsync(organizationId, clientId, linked.Id, CancellationToken.None);
+
+        var modalities = await useCase.ListClientModalitiesAsync(organizationId, clientId, CancellationToken.None);
+
+        var modality = Assert.Single(modalities);
+        Assert.Equal(linked.Id, modality.Id);
+        Assert.Empty(await useCase.ListClientModalitiesAsync(Guid.NewGuid(), clientId, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task ListClientModalitiesAsync_ShouldReturnOnlyLinkedModalitiesForOrganization()
+    {
+        var repository = new InMemoryModalityRepository();
+        var useCase = new ModalityUseCase(repository);
+        var organizationId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var linkedModality = await useCase.CreateAsync(organizationId, new CreateModalityRequest
+        {
+            Name = "Jiu-Jitsu",
+            Type = "martial_art"
+        }, CancellationToken.None);
+        await useCase.CreateAsync(organizationId, new CreateModalityRequest
+        {
+            Name = "Boxe",
+            Type = "martial_art"
+        }, CancellationToken.None);
+        await useCase.LinkClientAsync(organizationId, clientId, linkedModality.Id, CancellationToken.None);
+
+        var linkedModalities = await useCase.ListClientModalitiesAsync(organizationId, clientId, CancellationToken.None);
+
+        var modality = Assert.Single(linkedModalities);
+        Assert.Equal(linkedModality.Id, modality.Id);
+        Assert.Empty(await useCase.ListClientModalitiesAsync(Guid.NewGuid(), clientId, CancellationToken.None));
+    }
 }

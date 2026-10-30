@@ -113,9 +113,14 @@ public sealed class AccessControlController(
     [Authorize(Policy = PermissionCodes.AccessPermissionsManage)]
     public async Task<ActionResult<IReadOnlyList<PermissionResponse>>> ListRolePermissionsAsync(string roleCode, CancellationToken cancellationToken)
     {
+        if (organizationContext.OrganizationId is not Guid organizationId)
+        {
+            return BadRequest("Organization context is required.");
+        }
+
         try
         {
-            return Ok(await accessControlUseCase.ListRolePermissionsAsync(roleCode, cancellationToken));
+            return Ok(await accessControlUseCase.ListRolePermissionsAsync(organizationId, roleCode, cancellationToken));
         }
         catch (ArgumentException exception)
         {
@@ -135,9 +140,15 @@ public sealed class AccessControlController(
         [FromBody] SetRolePermissionRequest request,
         CancellationToken cancellationToken)
     {
+        if (organizationContext.OrganizationId is not Guid organizationId || !TryGetUserId(out var actorUserId))
+        {
+            return Unauthorized();
+        }
+
         try
         {
-            var granted = await accessControlUseCase.GrantRolePermissionAsync(roleCode, request.PermissionCode, cancellationToken);
+            var granted = await accessControlUseCase.GrantRolePermissionAsync(
+                organizationId, roleCode, request.PermissionCode, actorUserId, cancellationToken);
             return granted ? NoContent() : NotFound("Role or permission code was not found.");
         }
         catch (ArgumentException exception)
@@ -151,9 +162,15 @@ public sealed class AccessControlController(
     [Authorize(Policy = PermissionCodes.AccessPermissionsManage)]
     public async Task<IActionResult> RevokePermissionAsync(string roleCode, string permissionCode, CancellationToken cancellationToken)
     {
+        if (organizationContext.OrganizationId is not Guid organizationId || !TryGetUserId(out var actorUserId))
+        {
+            return Unauthorized();
+        }
+
         try
         {
-            var revoked = await accessControlUseCase.RevokeRolePermissionAsync(roleCode, permissionCode, cancellationToken);
+            var revoked = await accessControlUseCase.RevokeRolePermissionAsync(
+                organizationId, roleCode, permissionCode, actorUserId, cancellationToken);
             return revoked ? NoContent() : NotFound();
         }
         catch (ArgumentException exception)

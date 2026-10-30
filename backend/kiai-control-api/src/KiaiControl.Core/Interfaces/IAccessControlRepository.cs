@@ -14,9 +14,9 @@ public interface IAccessControlRepository
 
     Task<bool> RevokePersonRoleAsync(Guid organizationId, Guid personId, string roleCode, CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<Permission>?> ListRolePermissionsAsync(string roleCode, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Permission>?> ListRolePermissionsAsync(Guid organizationId, string roleCode, CancellationToken cancellationToken = default);
 
-    Task<bool> GrantRolePermissionAsync(string roleCode, string permissionCode, CancellationToken cancellationToken = default);
+    Task<bool> GrantRolePermissionAsync(Guid organizationId, string roleCode, string permissionCode, Guid actorUserId, CancellationToken cancellationToken = default);
 
-    Task<bool> RevokeRolePermissionAsync(string roleCode, string permissionCode, CancellationToken cancellationToken = default);
+    Task<bool> RevokeRolePermissionAsync(Guid organizationId, string roleCode, string permissionCode, Guid actorUserId, CancellationToken cancellationToken = default);
 }

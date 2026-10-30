@@ -115,6 +115,23 @@ public static class BillingCatalogQueries
             updated_at as UpdatedAt;
         ";
 
+    public const string ListSubscriptions = @"
+        select
+            id,
+            organization_id as OrganizationId,
+            client_id as ClientId,
+            plan_id as PlanId,
+            starts_at as StartsAt,
+            ends_at as EndsAt,
+            is_active as IsActive,
+            created_at as CreatedAt,
+            updated_at as UpdatedAt
+        from client_plan_subscriptions
+        where organization_id = @OrganizationId
+        order by is_active desc, starts_at desc, created_at desc
+        offset @Offset rows fetch next @PageSize rows only;
+        ";
+
     public const string GenerateInvoices = @"
         insert into invoices (
             id, organization_id, client_plan_subscription_id, client_id, due_date,

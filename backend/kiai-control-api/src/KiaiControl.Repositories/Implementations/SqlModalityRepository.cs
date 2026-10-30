@@ -59,6 +59,20 @@ public sealed class SqlModalityRepository(IDbConnectionFactory dbConnectionFacto
         return affected > 0;
     }
 
+    public async Task<IReadOnlyList<Modality>> ListClientModalitiesAsync(
+        Guid organizationId,
+        Guid clientId,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
+        var modalities = await connection.QueryAsync<Modality>(ModalityQueries.ListClientModalities, new
+        {
+            OrganizationId = organizationId,
+            ClientId = clientId
+        });
+        return modalities.ToList();
+    }
+
     public async Task<bool> LinkClientAsync(
         Guid organizationId,
         Guid clientId,

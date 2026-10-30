@@ -2,6 +2,7 @@ using KiaiControl.Contracts.Auth;
 using KiaiControl.Contracts.Common;
 using KiaiControl.Contracts.Clients;
 using KiaiControl.Core.Common;
+using KiaiControl.Contracts.Modalities;
 using KiaiControl.UseCases.Clients;
 using KiaiControl.UseCases.Modalities;
 using Microsoft.AspNetCore.Authorization;
@@ -81,6 +82,34 @@ public sealed class ClientsController(
         var client = await clientUseCase.GetByIdAsync(organizationContext.OrganizationId.Value, id, cancellationToken);
 
         return client is null ? NotFound() : Ok(client);
+    }
+
+    [HttpGet("modalities")]
+    public async Task<ActionResult<IReadOnlyList<ModalityResponse>>> ListActiveModalitiesAsync(CancellationToken cancellationToken)
+    {
+        if (organizationContext.OrganizationId is not Guid organizationId)
+        {
+            return BadRequest("Organization context is required.");
+        }
+
+        var modalities = await modalityUseCase.ListAsync(organizationId, 1, 200, cancellationToken);
+        return Ok(modalities.Where(modality => modality.IsActive).ToList());
+    }
+
+    [HttpGet("{clientId:guid}/modalities")]
+    public async Task<ActionResult<IReadOnlyList<ModalityResponse>>> ListClientModalitiesAsync(Guid clientId, CancellationToken cancellationToken)
+    {
+        if (organizationContext.OrganizationId is not Guid organizationId)
+        {
+            return BadRequest("Organization context is required.");
+        }
+
+        if (await clientUseCase.GetByIdAsync(organizationId, clientId, cancellationToken) is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(await modalityUseCase.ListClientModalitiesAsync(organizationId, clientId, cancellationToken));
     }
 
     [HttpPut("{id:guid}")]

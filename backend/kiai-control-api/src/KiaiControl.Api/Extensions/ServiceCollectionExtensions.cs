@@ -1,4 +1,5 @@
 using System.Text;
+using System.Threading.RateLimiting;
 using KiaiControl.Contracts.Auth;
 using KiaiControl.Api.Configuration;
 using KiaiControl.Core.Common;
@@ -6,6 +7,7 @@ using KiaiControl.Repositories.DependencyInjection;
 using KiaiControl.Services.DependencyInjection;
 using KiaiControl.UseCases.DependencyInjection;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
@@ -40,6 +42,20 @@ public static class ServiceCollectionExtensions
                     .RequireAuthenticatedUser()
                     .RequireClaim(PermissionCodes.ClaimType, permissionCode));
             }
+        });
+        services.AddRateLimiter(options =>
+        {
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+            options.AddPolicy("auth-sensitive", context => RateLimitPartition.GetFixedWindowLimiter(
+                context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                _ => new FixedWindowRateLimiterOptions
+                {
+                    AutoReplenishment = true,
+                    PermitLimit = 10,
+                    Window = TimeSpan.FromMinutes(1),
+                    QueueLimit = 0,
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst
+                }));
         });
         services.AddScoped<OrganizationContext>();
 

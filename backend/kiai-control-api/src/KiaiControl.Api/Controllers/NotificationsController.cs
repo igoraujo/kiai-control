@@ -10,7 +10,7 @@ namespace KiaiControl.Api.Controllers;
 
 [ApiController]
 [Authorize]
-[Authorize(Policy = PermissionCodes.NotificationsManage)]
+[Authorize(Policy = PermissionCodes.NotificationsRead)]
 [Route("api/v1/notifications")]
 public sealed class NotificationsController(
     OrganizationContext organizationContext,
@@ -18,6 +18,7 @@ public sealed class NotificationsController(
 {
     [HttpPost]
     [Authorize(Roles = "owner,admin,teacher,reception")]
+    [Authorize(Policy = PermissionCodes.NotificationsManage)]
     public async Task<ActionResult<NotificationResponse>> CreateAsync(
         [FromBody] CreateNotificationRequest request,
         CancellationToken cancellationToken)

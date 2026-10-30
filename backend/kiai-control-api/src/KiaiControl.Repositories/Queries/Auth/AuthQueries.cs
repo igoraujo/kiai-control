@@ -17,11 +17,17 @@ public static class AuthQueries
                 where pr.person_id = p.id
             ), array[]::text[]) as Roles,
             coalesce((
-                select array_agg(distinct permission.code)
+                select array_agg(distinct permission.code::text)
                 from person_roles pr
-                join role_permissions rp on rp.role_id = pr.role_id
-                join permissions permission on permission.id = rp.permission_id
+                cross join permissions permission
+                left join role_permissions base_grant
+                    on base_grant.role_id = pr.role_id and base_grant.permission_id = permission.id
+                left join organization_role_permissions organization_grant
+                    on organization_grant.organization_id = p.organization_id
+                    and organization_grant.role_id = pr.role_id
+                    and organization_grant.permission_id = permission.id
                 where pr.person_id = p.id
+                  and coalesce(organization_grant.is_granted, base_grant.role_id is not null)
             ), array[]::text[]) as Permissions
         from user_accounts ua
         join persons p on p.id = ua.person_id
@@ -45,11 +51,17 @@ public static class AuthQueries
                 where pr.person_id = p.id
             ), array[]::text[]) as Roles,
             coalesce((
-                select array_agg(distinct permission.code)
+                select array_agg(distinct permission.code::text)
                 from person_roles pr
-                join role_permissions rp on rp.role_id = pr.role_id
-                join permissions permission on permission.id = rp.permission_id
+                cross join permissions permission
+                left join role_permissions base_grant
+                    on base_grant.role_id = pr.role_id and base_grant.permission_id = permission.id
+                left join organization_role_permissions organization_grant
+                    on organization_grant.organization_id = p.organization_id
+                    and organization_grant.role_id = pr.role_id
+                    and organization_grant.permission_id = permission.id
                 where pr.person_id = p.id
+                  and coalesce(organization_grant.is_granted, base_grant.role_id is not null)
             ), array[]::text[]) as Permissions
         from user_accounts ua
         join persons p on p.id = ua.person_id

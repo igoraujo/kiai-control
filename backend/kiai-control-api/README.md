@@ -43,7 +43,11 @@ O estado da validacao contra banco real esta registrado em [PROJECT_IMPLEMENTATI
 - `ConnectionStrings:Redis`
 - `Jwt:Issuer`
 - `Jwt:Audience`
-- `Jwt:SigningKey`
+- `Jwt:SigningKey` (obrigatoria fora de Development, minimo de 32 bytes para HS256)
+
+Permissoes efetivas combinam os defaults de `role_permissions` com overrides por organizacao em `organization_role_permissions`; elas sao adicionadas ao access JWT e exigidas por policies da API. Aplique `004_seed_role_permissions.sql` e `005_organization_role_permission_overrides.sql` depois das migrations `001`-`003` antes de usar endpoints protegidos por permission. A chave de desenvolvimento nao deve ser reutilizada em outros ambientes.
+
+Login, refresh, logout, change-password e recuperacao/reset estao limitados a 10 requisicoes por IP por minuto. A recuperacao retorna mensagem generica e nao expoe o token; a entrega do link depende de um provedor de e-mail ainda nao configurado.
 
 ## Estrutura interna
 - `src/KiaiControl.Api`: composicao HTTP, middlewares e controllers.

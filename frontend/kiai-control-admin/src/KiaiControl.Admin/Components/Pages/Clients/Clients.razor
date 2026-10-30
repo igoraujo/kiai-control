@@ -59,6 +59,7 @@
 
 @code {
     private IReadOnlyList<BranchResponse> _branches = [];
+    private IReadOnlyList<ModalityResponse> _modalities = [];
 
     protected override string Resource => "clients";
 
@@ -66,7 +67,11 @@
     {
         try
         {
-            _branches = await Api.ListAsync<BranchResponse>("branches");
+            var branchesTask = Api.ListAsync<BranchResponse>("branches");
+            var modalitiesTask = Api.ListAssignableClientModalitiesAsync();
+            await Task.WhenAll(branchesTask, modalitiesTask);
+            _branches = await branchesTask;
+            _modalities = await modalitiesTask;
         }
         catch (UnauthorizedAccessException)
         {
@@ -90,11 +95,37 @@
     private static bool Contains(string? value, string search) =>
         value?.Contains(search, StringComparison.OrdinalIgnoreCase) == true;
 
-    private Task EditAsync(ClientResponse? item) =>
-        OpenDialogAsync(item is null ? "Novo aluno" : "Editar aluno",
+    private async Task EditAsync(ClientResponse? item)
+    {
+        IReadOnlyList<Guid> selectedModalityIds = [];
+        if (item is not null)
+        {
+            try
+            {
+                selectedModalityIds = (await Api.ListClientModalitiesAsync(item.Id))
+                    .Select(modality => modality.Id)
+                    .ToList();
+            }
+            catch (UnauthorizedAccessException)
+            {
+                Session.Clear();
+                Navigation.NavigateTo("/login");
+                return;
+            }
+            catch (HttpRequestException exception)
+            {
+                Snackbar.Add($"Não foi possível carregar as modalidades do aluno: {exception.Message}", Severity.Error);
+                return;
+            }
+        }
+
+        await OpenDialogAsync(item is null ? "Novo aluno" : "Editar aluno",
             new DialogParameters<ClientDialog>
             {
                 { x => x.Item, item },
-                { x => x.Branches, _branches }
+                { x => x.Branches, _branches },
+                { x => x.Modalities, _modalities },
+                { x => x.SelectedModalityIds, selectedModalityIds }
             }, MaxWidth.Medium);
+    }
 }

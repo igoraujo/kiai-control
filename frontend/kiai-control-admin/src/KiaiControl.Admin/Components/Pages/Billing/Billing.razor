@@ -1,0 +1,413 @@
+@page "/billing"
+@using KiaiControl.Contracts.Auth
+@using KiaiControl.Contracts.Billing
+@using KiaiControl.Contracts.Clients
+@inject AdminSession Session
+@inject AdminApiClient Api
+@inject NavigationManager Navigation
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Financeiro | Kiai Control</PageTitle>
+
+<MudStack Spacing="3">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+        <div>
+            <MudText Typo="Typo.h4">Financeiro</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">Planos, assinaturas, faturas e pagamentos</MudText>
+        </div>
+        <MudIconButton Icon="@Icons.Material.Filled.Refresh" aria-label="Atualizar financeiro"
+                       OnClick="LoadAsync" Disabled="_isLoading" />
+    </MudStack>
+
+    @if (_errorMessage is not null)
+    {
+        <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">@_errorMessage</MudAlert>
+    }
+    @if (!_hasPermission)
+    {
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">
+            Seu perfil não tem permissão para acessar o financeiro.
+        </MudAlert>
+    }
+    else if (_isLoading)
+    {
+        <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+    }
+    else
+    {
+        <MudTabs Elevation="0" Rounded="false">
+            <MudTabPanel Text="Faturas">
+                <MudStack Spacing="2" Class="pt-3">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudDatePicker @bind-Date="_referenceMonth" Label="Competência" DateFormat="MM/yyyy"
+                                       OpenTo="OpenTo.Month" PickerVariant="PickerVariant.Inline" Variant="Variant.Outlined" />
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.ReceiptLong"
+                                   OnClick="GenerateInvoicesAsync" Disabled="_isSaving">
+                            Gerar faturas
+                        </MudButton>
+                    </MudStack>
+
+                    <MudTable Items="@FilteredInvoices" Loading="_isLoading" Hover="true" Dense="true">
+                        <ToolBarContent>
+                            <MudTextField @bind-Value="_search" Placeholder="Buscar aluno ou status" Adornment="Adornment.Start"
+                                          AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Margin="Margin.Dense" />
+                        </ToolBarContent>
+                        <HeaderContent>
+                            <MudTh>Aluno</MudTh>
+                            <MudTh>Vencimento</MudTh>
+                            <MudTh>Valor</MudTh>
+                            <MudTh>Pago</MudTh>
+                            <MudTh>Situação</MudTh>
+                            <MudTh Style="text-align:right">Ações</MudTh>
+                        </HeaderContent>
+                        <RowTemplate Context="invoice">
+                            <MudTd>@ClientName(invoice.ClientId)</MudTd>
+                            <MudTd>@invoice.DueDate.ToString("dd/MM/yyyy")</MudTd>
+                            <MudTd>@invoice.Amount.ToString("C")</MudTd>
+                            <MudTd>@invoice.PaidAmount.ToString("C")</MudTd>
+                            <MudTd><MudChip T="string" Size="Size.Small" Color="InvoiceStatusColor(invoice.Status)">@InvoiceStatusLabel(invoice.Status)</MudChip></MudTd>
+                            <MudTd Style="text-align:right">
+                                @if (invoice.Status is "pending" or "overdue" or "partially_paid")
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Filled.Payments" Size="Size.Small" aria-label="Registrar pagamento"
+                                                   OnClick="() => RegisterPaymentAsync(invoice)" Disabled="_isSaving" />
+                                }
+                            </MudTd>
+                        </RowTemplate>
+                        <NoRecordsContent><MudText>Nenhuma fatura encontrada.</MudText></NoRecordsContent>
+                    </MudTable>
+                </MudStack>
+            </MudTabPanel>
+
+            <MudTabPanel Text="Assinaturas">
+                <MudStack Spacing="2" Class="pt-3">
+                    <MudStack Row="true" Justify="Justify.FlexEnd">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+                                   OnClick="CreateSubscriptionAsync" Disabled="_isSaving">
+                            Nova assinatura
+                        </MudButton>
+                    </MudStack>
+                    <MudTable Items="_subscriptions" Loading="_isLoading" Hover="true" Dense="true">
+                        <HeaderContent>
+                            <MudTh>Aluno</MudTh>
+                            <MudTh>Plano</MudTh>
+                            <MudTh>Início</MudTh>
+                            <MudTh>Fim</MudTh>
+                            <MudTh>Situação</MudTh>
+                            <MudTh Style="text-align:right">Ações</MudTh>
+                        </HeaderContent>
+                        <RowTemplate Context="subscription">
+                            <MudTd>@ClientName(subscription.ClientId)</MudTd>
+                            <MudTd>@PlanName(subscription.PlanId)</MudTd>
+                            <MudTd>@subscription.StartsAt.ToString("dd/MM/yyyy")</MudTd>
+                            <MudTd>@(subscription.EndsAt?.ToString("dd/MM/yyyy") ?? "-")</MudTd>
+                            <MudTd><MudChip T="string" Size="Size.Small" Color="@(subscription.IsActive ? Color.Success : Color.Default)">@(subscription.IsActive ? "Ativa" : "Encerrada")</MudChip></MudTd>
+                            <MudTd Style="text-align:right">
+                                @if (subscription.IsActive)
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Filled.Cancel" Size="Size.Small" Color="Color.Error"
+                                                   aria-label="Encerrar assinatura" OnClick="() => CancelSubscriptionAsync(subscription)" Disabled="_isSaving" />
+                                }
+                            </MudTd>
+                        </RowTemplate>
+                        <NoRecordsContent><MudText>Nenhuma assinatura encontrada.</MudText></NoRecordsContent>
+                    </MudTable>
+                </MudStack>
+            </MudTabPanel>
+
+            <MudTabPanel Text="Planos">
+                <MudStack Spacing="2" Class="pt-3">
+                    <MudStack Row="true" Justify="Justify.FlexEnd">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+                                   OnClick="() => EditPlanAsync(null)" Disabled="_isSaving">
+                            Novo plano
+                        </MudButton>
+                    </MudStack>
+                    <MudTable Items="_plans" Loading="_isLoading" Hover="true" Dense="true">
+                        <HeaderContent>
+                            <MudTh>Plano</MudTh>
+                            <MudTh>Mensalidade</MudTh>
+                            <MudTh>Vencimento</MudTh>
+                            <MudTh>Situação</MudTh>
+                            <MudTh Style="text-align:right">Ações</MudTh>
+                        </HeaderContent>
+                        <RowTemplate Context="plan">
+                            <MudTd>
+                                <MudText Typo="Typo.body2">@plan.Name</MudText>
+                                @if (!string.IsNullOrWhiteSpace(plan.Description))
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@plan.Description</MudText>
+                                }
+                            </MudTd>
+                            <MudTd>@plan.MonthlyAmount.ToString("C")</MudTd>
+                            <MudTd>Dia @plan.DueDay</MudTd>
+                            <MudTd><MudChip T="string" Size="Size.Small" Color="@(plan.IsActive ? Color.Success : Color.Default)">@(plan.IsActive ? "Ativo" : "Inativo")</MudChip></MudTd>
+                            <MudTd Style="text-align:right">
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" aria-label="Editar plano"
+                                               OnClick="() => EditPlanAsync(plan)" Disabled="_isSaving" />
+                                @if (plan.IsActive)
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Filled.Block" Size="Size.Small" Color="Color.Error" aria-label="Desativar plano"
+                                                   OnClick="() => DeactivatePlanAsync(plan)" Disabled="_isSaving" />
+                                }
+                            </MudTd>
+                        </RowTemplate>
+                        <NoRecordsContent><MudText>Nenhum plano encontrado.</MudText></NoRecordsContent>
+                    </MudTable>
+                </MudStack>
+            </MudTabPanel>
+
+            <MudTabPanel Text="Pagamentos">
+                <MudStack Spacing="2" Class="pt-3">
+                    <MudTable Items="_payments" Loading="_isLoading" Hover="true" Dense="true">
+                        <HeaderContent>
+                            <MudTh>Aluno</MudTh>
+                            <MudTh>Data</MudTh>
+                            <MudTh>Forma</MudTh>
+                            <MudTh>Valor</MudTh>
+                            <MudTh>Referência</MudTh>
+                        </HeaderContent>
+                        <RowTemplate Context="payment">
+                            <MudTd>@ClientName(_invoices.FirstOrDefault(invoice => invoice.Id == payment.InvoiceId)?.ClientId ?? Guid.Empty)</MudTd>
+                            <MudTd>@payment.PaidAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
+                            <MudTd>@PaymentMethodLabel(payment.Method)</MudTd>
+                            <MudTd>@payment.Amount.ToString("C")</MudTd>
+                            <MudTd>@(payment.ExternalReference ?? "-")</MudTd>
+                        </RowTemplate>
+                        <NoRecordsContent><MudText>Nenhum pagamento encontrado.</MudText></NoRecordsContent>
+                    </MudTable>
+                </MudStack>
+            </MudTabPanel>
+        </MudTabs>
+    }
+</MudStack>
+
+@code {
+    private IReadOnlyList<BillingPlanResponse> _plans = [];
+    private IReadOnlyList<ClientPlanSubscriptionResponse> _subscriptions = [];
+    private IReadOnlyList<BillingResponse> _invoices = [];
+    private IReadOnlyList<PaymentResponse> _payments = [];
+    private IReadOnlyList<ClientResponse> _clients = [];
+    private string? _errorMessage;
+    private string _search = string.Empty;
+    private DateTime? _referenceMonth = new(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private bool _hasPermission;
+
+    private IEnumerable<BillingResponse> FilteredInvoices => _invoices.Where(invoice =>
+        string.IsNullOrWhiteSpace(_search)
+        || ClientName(invoice.ClientId).Contains(_search, StringComparison.OrdinalIgnoreCase)
+        || invoice.Status.Contains(_search, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Session.Current is null)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        _hasPermission = Session.Current.User.Permissions.Contains(PermissionCodes.BillingManage, StringComparer.OrdinalIgnoreCase);
+        if (_hasPermission)
+        {
+            await LoadAsync();
+        }
+        else
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+        try
+        {
+            var plansTask = Api.ListBillingPlansAsync();
+            var subscriptionsTask = Api.ListClientSubscriptionsAsync();
+            var invoicesTask = Api.ListInvoicesAsync();
+            var paymentsTask = Api.ListPaymentsAsync();
+            var clientsTask = Api.ListAsync<ClientResponse>("clients", pageSize: 200);
+            await Task.WhenAll(plansTask, subscriptionsTask, invoicesTask, paymentsTask, clientsTask);
+            _plans = await plansTask;
+            _subscriptions = await subscriptionsTask;
+            _invoices = await invoicesTask;
+            _payments = await paymentsTask;
+            _clients = await clientsTask;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            Session.Clear();
+            Navigation.NavigateTo("/login");
+        }
+        catch (HttpRequestException exception)
+        {
+            _errorMessage = exception.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task EditPlanAsync(BillingPlanResponse? item)
+    {
+        var dialog = await DialogService.ShowAsync<BillingPlanDialog>(item is null ? "Novo plano" : "Editar plano",
+            new DialogParameters<BillingPlanDialog> { { component => component.Item, item } },
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
+        if (await dialog.Result is { Canceled: false })
+        {
+            Snackbar.Add("Plano salvo.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+
+    private async Task CreateSubscriptionAsync()
+    {
+        if (_clients.Count == 0 || !_plans.Any(plan => plan.IsActive))
+        {
+            Snackbar.Add("Cadastre um aluno e um plano ativo antes de criar a assinatura.", Severity.Warning);
+            return;
+        }
+
+        var dialog = await DialogService.ShowAsync<ClientSubscriptionDialog>("Nova assinatura",
+            new DialogParameters<ClientSubscriptionDialog>
+            {
+                { component => component.Clients, _clients },
+                { component => component.Plans, _plans }
+            }, new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
+        if (await dialog.Result is { Canceled: false })
+        {
+            Snackbar.Add("Assinatura criada.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+
+    private async Task CancelSubscriptionAsync(ClientPlanSubscriptionResponse subscription)
+    {
+        var confirmed = await DialogService.ShowMessageBoxAsync("Encerrar assinatura",
+            $"Deseja encerrar o plano de {ClientName(subscription.ClientId)}?", yesText: "Encerrar", cancelText: "Manter");
+        if (confirmed != true)
+        {
+            return;
+        }
+
+        await RunOperationAsync(async () =>
+        {
+            await Api.CancelClientSubscriptionAsync(subscription.Id, new CancelClientSubscriptionRequest
+            {
+                EndsAt = DateOnly.FromDateTime(DateTime.Today)
+            });
+            Snackbar.Add("Assinatura encerrada.", Severity.Success);
+            await LoadAsync();
+        });
+    }
+
+    private async Task GenerateInvoicesAsync()
+    {
+        if (_referenceMonth is null)
+        {
+            Snackbar.Add("Selecione a competência.", Severity.Warning);
+            return;
+        }
+
+        await RunOperationAsync(async () =>
+        {
+            var month = new DateOnly(_referenceMonth.Value.Year, _referenceMonth.Value.Month, 1);
+            var generated = await Api.GenerateInvoicesAsync(new GenerateInvoicesRequest { ReferenceMonth = month });
+            Snackbar.Add($"{generated.Count} fatura(s) gerada(s).", Severity.Success);
+            await LoadAsync();
+        });
+    }
+
+    private async Task RegisterPaymentAsync(BillingResponse invoice)
+    {
+        var dialog = await DialogService.ShowAsync<InvoicePaymentDialog>("Registrar pagamento",
+            new DialogParameters<InvoicePaymentDialog> { { component => component.Invoice, invoice } },
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
+        if (await dialog.Result is { Canceled: false })
+        {
+            Snackbar.Add("Pagamento registrado.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+
+    private async Task DeactivatePlanAsync(BillingPlanResponse plan)
+    {
+        var confirmed = await DialogService.ShowMessageBoxAsync("Desativar plano",
+            $"Deseja desativar o plano {plan.Name}?", yesText: "Desativar", cancelText: "Manter ativo");
+        if (confirmed != true)
+        {
+            return;
+        }
+
+        await RunOperationAsync(async () =>
+        {
+            await Api.DeactivateBillingPlanAsync(plan.Id);
+            Snackbar.Add("Plano desativado.", Severity.Success);
+            await LoadAsync();
+        });
+    }
+
+    private async Task RunOperationAsync(Func<Task> operation)
+    {
+        _isSaving = true;
+        _errorMessage = null;
+        try
+        {
+            await operation();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            Session.Clear();
+            Navigation.NavigateTo("/login");
+        }
+        catch (HttpRequestException exception)
+        {
+            _errorMessage = exception.Message;
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private string ClientName(Guid clientId) => _clients.FirstOrDefault(client => client.Id == clientId)?.FullName ?? "Aluno removido";
+
+    private string PlanName(Guid planId) => _plans.FirstOrDefault(plan => plan.Id == planId)?.Name ?? "Plano indisponível";
+
+    private static string InvoiceStatusLabel(string status) => status switch
+    {
+        "pending" => "Pendente",
+        "paid" => "Paga",
+        "overdue" => "Vencida",
+        "canceled" => "Cancelada",
+        "exempt" => "Isenta",
+        "partially_paid" => "Parcial",
+        _ => status
+    };
+
+    private static Color InvoiceStatusColor(string status) => status switch
+    {
+        "paid" => Color.Success,
+        "overdue" => Color.Error,
+        "partially_paid" => Color.Warning,
+        "pending" => Color.Info,
+        _ => Color.Default
+    };
+
+    private static string PaymentMethodLabel(string method) => method switch
+    {
+        "cash" => "Dinheiro",
+        "pix" => "Pix",
+        "bank_transfer" => "Transferência bancária",
+        "credit_card" => "Cartão de crédito",
+        "debit_card" => "Cartão de débito",
+        "boleto" => "Boleto",
+        "manual_adjustment" => "Ajuste manual",
+        _ => method
+    };
+}

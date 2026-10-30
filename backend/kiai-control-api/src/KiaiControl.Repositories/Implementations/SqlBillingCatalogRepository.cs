@@ -62,6 +62,24 @@ public sealed class SqlBillingCatalogRepository(IDbConnectionFactory dbConnectio
         return await connection.QuerySingleOrDefaultAsync<ClientPlanSubscription>(BillingCatalogQueries.CreateSubscription, subscription);
     }
 
+    public async Task<IReadOnlyList<ClientPlanSubscription>> ListSubscriptionsAsync(
+        Guid organizationId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        var safePage = page < 1 ? 1 : page;
+        var safePageSize = pageSize is < 1 or > 200 ? 50 : pageSize;
+        using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
+        var subscriptions = await connection.QueryAsync<ClientPlanSubscription>(BillingCatalogQueries.ListSubscriptions, new
+        {
+            OrganizationId = organizationId,
+            Offset = (safePage - 1) * safePageSize,
+            PageSize = safePageSize
+        });
+        return subscriptions.ToList();
+    }
+
     public async Task<ClientPlanSubscription?> CancelSubscriptionAsync(
         Guid organizationId,
         Guid subscriptionId,

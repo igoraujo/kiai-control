@@ -39,9 +39,24 @@ public sealed class ApiBootstrapRegistrationTests
         [
             new Claim(PermissionCodes.ClaimType, PermissionCodes.ClientsManage)
         ], "test"));
+        var clientUser = new ClaimsPrincipal(new ClaimsIdentity(
+        [
+            new Claim(PermissionCodes.ClaimType, PermissionCodes.AttendanceCheckIn),
+            new Claim(PermissionCodes.ClaimType, PermissionCodes.NotificationsRead)
+        ], "test"));
+        var teacherUser = new ClaimsPrincipal(new ClaimsIdentity(
+        [
+            new Claim(PermissionCodes.ClaimType, PermissionCodes.ClassGroupsRead)
+        ], "test"));
 
         Assert.False((await authorization.AuthorizeAsync(authenticatedUser, PermissionCodes.ClientsManage)).Succeeded);
         Assert.True((await authorization.AuthorizeAsync(permittedUser, PermissionCodes.ClientsManage)).Succeeded);
+        Assert.True((await authorization.AuthorizeAsync(clientUser, PermissionCodes.AttendanceCheckIn)).Succeeded);
+        Assert.False((await authorization.AuthorizeAsync(clientUser, PermissionCodes.AttendanceManage)).Succeeded);
+        Assert.True((await authorization.AuthorizeAsync(clientUser, PermissionCodes.NotificationsRead)).Succeeded);
+        Assert.False((await authorization.AuthorizeAsync(clientUser, PermissionCodes.NotificationsManage)).Succeeded);
+        Assert.True((await authorization.AuthorizeAsync(teacherUser, PermissionCodes.ClassGroupsRead)).Succeeded);
+        Assert.False((await authorization.AuthorizeAsync(teacherUser, PermissionCodes.ClassGroupsManage)).Succeeded);
     }
 
     private sealed class TestHostEnvironment : IHostEnvironment

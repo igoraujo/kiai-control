@@ -33,6 +33,7 @@ public sealed class BillingUseCase(IBillingRepository billingRepository)
             ClientId = created.ClientId,
             DueDate = created.DueDate,
             Amount = created.Amount,
+            PaidAmount = created.PaidAmount,
             Status = created.Status,
             CreatedAt = created.CreatedAt,
             UpdatedAt = created.UpdatedAt
@@ -51,6 +52,7 @@ public sealed class BillingUseCase(IBillingRepository billingRepository)
             ClientId = item.ClientId,
             DueDate = item.DueDate,
             Amount = item.Amount,
+            PaidAmount = item.PaidAmount,
             Status = item.Status,
             CreatedAt = item.CreatedAt,
             UpdatedAt = item.UpdatedAt
@@ -73,6 +75,7 @@ public sealed class BillingUseCase(IBillingRepository billingRepository)
             ClientId = billing.ClientId,
             DueDate = billing.DueDate,
             Amount = billing.Amount,
+            PaidAmount = billing.PaidAmount,
             Status = billing.Status,
             CreatedAt = billing.CreatedAt,
             UpdatedAt = billing.UpdatedAt
@@ -108,6 +111,7 @@ public sealed class BillingUseCase(IBillingRepository billingRepository)
             ClientId = updated.ClientId,
             DueDate = updated.DueDate,
             Amount = updated.Amount,
+            PaidAmount = updated.PaidAmount,
             Status = updated.Status,
             CreatedAt = updated.CreatedAt,
             UpdatedAt = updated.UpdatedAt

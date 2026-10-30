@@ -1,0 +1,58 @@
+@inherits FormDialogBase
+@using KiaiControl.Contracts.Billing
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="Form">
+            <MudStack Spacing="2">
+                @if (ErrorMessage is not null)
+                {
+                    <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">@ErrorMessage</MudAlert>
+                }
+                <MudSelect T="Guid" @bind-Value="_clientId" Label="Aluno" Required="true"
+                           RequiredError="Selecione o aluno" Variant="Variant.Outlined">
+                    @foreach (var client in Clients)
+                    {
+                        <MudSelectItem Value="@client.Id">@client.FullName</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudSelect T="Guid" @bind-Value="_planId" Label="Plano" Required="true"
+                           RequiredError="Selecione o plano" Variant="Variant.Outlined">
+                    @foreach (var plan in Plans.Where(plan => plan.IsActive))
+                    {
+                        <MudSelectItem Value="@plan.Id">@plan.Name - @plan.MonthlyAmount.ToString("C")</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudDatePicker @bind-Date="_startsAt" Label="Início da assinatura" DateFormat="dd/MM/yyyy" Required="true"
+                               RequiredError="Informe a data inicial" Variant="Variant.Outlined" />
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Disabled="IsSaving">Cancelar</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SubmitAsync" Disabled="IsSaving">Assinar plano</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter] public IReadOnlyList<ClientResponse> Clients { get; set; } = [];
+    [Parameter] public IReadOnlyList<BillingPlanResponse> Plans { get; set; } = [];
+
+    private Guid _clientId;
+    private Guid _planId;
+    private DateTime? _startsAt = DateTime.Today;
+
+    protected override async Task SaveCoreAsync()
+    {
+        if (_clientId == Guid.Empty || _planId == Guid.Empty || _startsAt is null)
+        {
+            throw new ArgumentException("Selecione o aluno, o plano e a data de início.");
+        }
+
+        await Api.CreateClientSubscriptionAsync(_clientId, new CreateClientSubscriptionRequest
+        {
+            PlanId = _planId,
+            StartsAt = DateOnly.FromDateTime(_startsAt.Value)
+        });
+    }
+}

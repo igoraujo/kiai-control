@@ -10,7 +10,7 @@ namespace KiaiControl.Api.Controllers;
 
 [ApiController]
 [Authorize]
-[Authorize(Policy = PermissionCodes.ClassGroupsManage)]
+[Authorize(Policy = PermissionCodes.ClassGroupsRead)]
 [Route("api/v1/class-groups")]
 public sealed class ClassGroupsController(OrganizationContext organizationContext, ClassGroupUseCase classGroupUseCase) : ControllerBase
 {
@@ -23,6 +23,7 @@ public sealed class ClassGroupsController(OrganizationContext organizationContex
 
     [HttpPost]
     [Authorize(Roles = "owner,admin")]
+    [Authorize(Policy = PermissionCodes.ClassGroupsManage)]
     public async Task<ActionResult<ClassGroupResponse>> CreateAsync(
         [FromBody] CreateClassGroupRequest request,
         CancellationToken cancellationToken)
@@ -76,6 +77,7 @@ public sealed class ClassGroupsController(OrganizationContext organizationContex
 
     [HttpPut("{id:guid}")]
     [Authorize(Roles = "owner,admin")]
+    [Authorize(Policy = PermissionCodes.ClassGroupsManage)]
     public async Task<ActionResult<ClassGroupResponse>> UpdateAsync(
         Guid id,
         [FromBody] UpdateClassGroupRequest request,
@@ -99,6 +101,7 @@ public sealed class ClassGroupsController(OrganizationContext organizationContex
 
     [HttpDelete("{id:guid}")]
     [Authorize(Roles = "owner,admin")]
+    [Authorize(Policy = PermissionCodes.ClassGroupsManage)]
     public async Task<IActionResult> DeleteAsync(Guid id, CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
@@ -112,6 +115,7 @@ public sealed class ClassGroupsController(OrganizationContext organizationContex
 
     [HttpPost("{classGroupId:guid}/schedules")]
     [Authorize(Roles = "owner,admin")]
+    [Authorize(Policy = PermissionCodes.ClassGroupsManage)]
     public async Task<ActionResult<ClassScheduleResponse>> CreateScheduleAsync(
         Guid classGroupId,
         [FromBody] CreateClassScheduleRequest request,
@@ -156,6 +160,7 @@ public sealed class ClassGroupsController(OrganizationContext organizationContex
 
     [HttpDelete("{classGroupId:guid}/schedules/{scheduleId:guid}")]
     [Authorize(Roles = "owner,admin")]
+    [Authorize(Policy = PermissionCodes.ClassGroupsManage)]
     public async Task<IActionResult> DeleteScheduleAsync(
         Guid classGroupId,
         Guid scheduleId,
@@ -172,6 +177,7 @@ public sealed class ClassGroupsController(OrganizationContext organizationContex
 
     [HttpPost("{classGroupId:guid}/enrollments")]
     [Authorize(Roles = "owner,admin")]
+    [Authorize(Policy = PermissionCodes.ClassGroupsManage)]
     public async Task<ActionResult<EnrollmentResponse>> CreateEnrollmentAsync(
         Guid classGroupId,
         [FromBody] CreateEnrollmentRequest request,
@@ -216,6 +222,7 @@ public sealed class ClassGroupsController(OrganizationContext organizationContex
 
     [HttpDelete("{classGroupId:guid}/enrollments/{enrollmentId:guid}")]
     [Authorize(Roles = "owner,admin")]
+    [Authorize(Policy = PermissionCodes.ClassGroupsManage)]
     public async Task<IActionResult> CancelEnrollmentAsync(
         Guid classGroupId,
         Guid enrollmentId,
@@ -232,6 +239,7 @@ public sealed class ClassGroupsController(OrganizationContext organizationContex
 
     [HttpPut("{classGroupId:guid}/teachers/{teacherId:guid}")]
     [Authorize(Roles = "owner,admin")]
+    [Authorize(Policy = PermissionCodes.ClassGroupsManage)]
     public async Task<IActionResult> AssignTeacherAsync(
         Guid classGroupId,
         Guid teacherId,
@@ -282,6 +290,7 @@ public sealed class ClassGroupsController(OrganizationContext organizationContex
 
     [HttpDelete("{classGroupId:guid}/teachers/{teacherId:guid}")]
     [Authorize(Roles = "owner,admin")]
+    [Authorize(Policy = PermissionCodes.ClassGroupsManage)]
     public async Task<IActionResult> RemoveTeacherAssignmentAsync(
         Guid classGroupId,
         Guid teacherId,

@@ -11,7 +11,6 @@ namespace KiaiControl.Api.Controllers;
 
 [ApiController]
 [Authorize]
-[Authorize(Policy = PermissionCodes.AttendanceManage)]
 [Route("api/v1/attendance")]
 public sealed class AttendanceController(OrganizationContext organizationContext, AttendanceUseCase attendanceUseCase) : ControllerBase
 {
@@ -23,6 +22,7 @@ public sealed class AttendanceController(OrganizationContext organizationContext
     }
 
     [Authorize(Roles = "owner,admin,teacher,reception")]
+    [Authorize(Policy = PermissionCodes.AttendanceManage)]
     [HttpPost]
     public async Task<ActionResult<AttendanceRecordResponse>> CreateAsync([FromBody] CreateAttendanceRequest request, CancellationToken cancellationToken)
     {
@@ -62,6 +62,7 @@ public sealed class AttendanceController(OrganizationContext organizationContext
     }
 
     [Authorize(Roles = "client")]
+    [Authorize(Policy = PermissionCodes.AttendanceCheckIn)]
     [HttpPost("check-in")]
     public async Task<ActionResult<AttendanceRecordResponse>> CheckInAsync(
         [FromBody] CheckInRequest request,
@@ -88,6 +89,7 @@ public sealed class AttendanceController(OrganizationContext organizationContext
     }
 
     [Authorize(Roles = "owner,admin,teacher,reception")]
+    [Authorize(Policy = PermissionCodes.AttendanceManage)]
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<AttendanceRecordResponse>>> ListAsync(
         [FromQuery] int page = 1,
@@ -104,6 +106,7 @@ public sealed class AttendanceController(OrganizationContext organizationContext
     }
 
     [Authorize(Roles = "owner,admin,teacher,reception")]
+    [Authorize(Policy = PermissionCodes.AttendanceManage)]
     [HttpGet("pending")]
     public async Task<ActionResult<IReadOnlyList<AttendanceRecordResponse>>> ListPendingAsync(
         [FromQuery] int page = 1,
@@ -119,6 +122,7 @@ public sealed class AttendanceController(OrganizationContext organizationContext
     }
 
     [Authorize(Roles = "owner,admin,teacher,reception")]
+    [Authorize(Policy = PermissionCodes.AttendanceManage)]
     [HttpPatch("{id:guid}/validate")]
     public async Task<ActionResult<AttendanceRecordResponse>> ValidateCheckInAsync(
         Guid id,
@@ -143,6 +147,7 @@ public sealed class AttendanceController(OrganizationContext organizationContext
     }
 
     [Authorize(Roles = "owner,admin,teacher,reception")]
+    [Authorize(Policy = PermissionCodes.AttendanceManage)]
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<AttendanceRecordResponse>> GetById(Guid id, CancellationToken cancellationToken)
     {
@@ -156,6 +161,7 @@ public sealed class AttendanceController(OrganizationContext organizationContext
     }
 
     [Authorize(Roles = "owner,admin,teacher,reception")]
+    [Authorize(Policy = PermissionCodes.AttendanceManage)]
     [HttpPut("{id:guid}")]
     public async Task<ActionResult<AttendanceRecordResponse>> UpdateAsync(Guid id, [FromBody] UpdateAttendanceRequest request, CancellationToken cancellationToken)
     {
@@ -182,6 +188,7 @@ public sealed class AttendanceController(OrganizationContext organizationContext
     }
 
     [Authorize(Roles = "owner,admin,teacher,reception")]
+    [Authorize(Policy = PermissionCodes.AttendanceManage)]
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> DeleteAsync(Guid id, CancellationToken cancellationToken)
     {

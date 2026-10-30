@@ -19,6 +19,10 @@
         <MudText Typo="Typo.overline" Class="menu-kicker">Principal</MudText>
         <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.SpaceDashboard">Dashboard</MudNavLink>
     }
+    @if (HasPermission(PermissionCodes.BillingManage))
+    {
+        <MudNavLink Href="/billing" Icon="@Icons.Material.Filled.AccountBalanceWallet">Financeiro</MudNavLink>
+    }
 
     @if (HasPermission(PermissionCodes.ClientsManage)
         || HasPermission(PermissionCodes.BranchesManage))
@@ -35,7 +39,8 @@
     }
     @if (HasPermission(PermissionCodes.TeachersManage)
         || HasPermission(PermissionCodes.ModalitiesManage)
-        || HasPermission(PermissionCodes.ClassGroupsManage))
+        || HasPermission(PermissionCodes.ClassGroupsRead)
+        || HasPermission(PermissionCodes.AccessPermissionsManage))
     {
         <MudText Typo="Typo.overline" Class="menu-kicker">Gestão</MudText>
     }
@@ -47,9 +52,13 @@
     {
         <MudNavLink Href="/modalities" Icon="@Icons.Material.Filled.SportsMartialArts">Modalidades</MudNavLink>
     }
-    @if (HasPermission(PermissionCodes.ClassGroupsManage))
+    @if (HasPermission(PermissionCodes.ClassGroupsRead))
     {
         <MudNavLink Href="/class-groups" Icon="@Icons.Material.Filled.Class">Turmas</MudNavLink>
+    }
+    @if (HasPermission(PermissionCodes.AccessPermissionsManage))
+    {
+        <MudNavLink Href="/access" Icon="@Icons.Material.Filled.AdminPanelSettings">Acesso e permissões</MudNavLink>
     }
 
     @if (HasPermission(PermissionCodes.LessonsManage)
