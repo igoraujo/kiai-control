@@ -62,6 +62,24 @@ run_sql_file_docker() {
   docker exec -i "${PG_CONTAINER_NAME}" psql -U "${PGUSER}" -d "${db_name}" -v ON_ERROR_STOP=1 < "${file_path}"
 }
 
+apply_followup_migrations_local() {
+  local migration_file
+  for migration_file in "${ROOT_DIR}"/migrations/*.sql; do
+    [[ "${migration_file}" == "${MIGRATION_FILE}" ]] && continue
+    echo "Applying migration $(basename "${migration_file}")..."
+    run_sql_file_local "${DB_NAME}" "${migration_file}"
+  done
+}
+
+apply_followup_migrations_docker() {
+  local migration_file
+  for migration_file in "${ROOT_DIR}"/migrations/*.sql; do
+    [[ "${migration_file}" == "${MIGRATION_FILE}" ]] && continue
+    echo "Applying migration $(basename "${migration_file}")..."
+    run_sql_file_docker "${DB_NAME}" "${migration_file}"
+  done
+}
+
 if has_local_psql; then
   if ! check_db_exists_local; then
     echo "Creating database ${DB_NAME}..."
@@ -74,6 +92,8 @@ if has_local_psql; then
   else
     echo "Schema already exists in ${DB_NAME}; skipping initial migration."
   fi
+
+  apply_followup_migrations_local
 
   echo "Applying admin bootstrap..."
   run_sql_file_local "${DB_NAME}" "${SEED_FILE}"
@@ -89,6 +109,8 @@ else
   else
     echo "Schema already exists in ${DB_NAME}; skipping initial migration."
   fi
+
+  apply_followup_migrations_docker
 
   echo "Applying admin bootstrap..."
   run_sql_file_docker "${DB_NAME}" "${SEED_FILE}"

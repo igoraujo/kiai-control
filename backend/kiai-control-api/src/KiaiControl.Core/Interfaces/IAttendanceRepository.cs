@@ -6,6 +6,13 @@ public interface IAttendanceRepository
 {
     Task<AttendanceRecord> CreateAsync(AttendanceRecord attendance, CancellationToken cancellationToken = default);
 
+    Task<AttendanceRecord?> CreateCheckInAsync(
+        Guid organizationId,
+        Guid personId,
+        Guid lessonId,
+        DateTimeOffset checkedInAt,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<AttendanceRecord>> ListByOrganizationAsync(
         Guid organizationId,
         int page,
@@ -23,9 +30,24 @@ public interface IAttendanceRepository
         Guid lessonId,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<AttendanceRecord>> ListPendingByOrganizationAsync(
+        Guid organizationId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+
+    Task<AttendanceRecord?> ValidateCheckInAsync(
+        Guid organizationId,
+        Guid attendanceId,
+        Guid validatorPersonId,
+        string status,
+        DateTimeOffset validatedAt,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<AttendanceRecord>?> SaveLessonCallAsync(
         Guid organizationId,
         Guid lessonId,
+        Guid validatorPersonId,
         IReadOnlyList<AttendanceRecord> entries,
         CancellationToken cancellationToken = default);
 }

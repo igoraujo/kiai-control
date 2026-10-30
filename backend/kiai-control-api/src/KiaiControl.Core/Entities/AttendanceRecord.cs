@@ -10,9 +10,15 @@ public sealed class AttendanceRecord
 
     public Guid ClientId { get; set; }
 
+    public string ClientName { get; set; } = string.Empty;
+
     public DateTimeOffset AttendanceDate { get; set; }
 
     public string Status { get; set; } = "present";
+
+    public DateTimeOffset? ValidatedAt { get; set; }
+
+    public Guid? ValidatedByPersonId { get; set; }
 
     public DateTimeOffset CreatedAt { get; set; }
 

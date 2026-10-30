@@ -1,4 +1,6 @@
-﻿<MudNavMenu Class="nav-root">
+﻿@inject AdminSession Session
+
+<MudNavMenu Class="nav-root">
     <MudText Typo="Typo.overline" Class="menu-kicker">Navegação</MudText>
 
     <div class="menu-brand">
@@ -11,14 +13,36 @@
 
     <MudDivider Class="menu-divider" />
 
-    <MudText Typo="Typo.overline" Class="menu-kicker">Principal</MudText>
-    <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.SpaceDashboard">Dashboard</MudNavLink>
+    @if (HasRole("owner", "admin", "financial"))
+    {
+        <MudText Typo="Typo.overline" Class="menu-kicker">Principal</MudText>
+        <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.SpaceDashboard">Dashboard</MudNavLink>
+    }
 
-    <MudText Typo="Typo.overline" Class="menu-kicker">Cadastros</MudText>
-    <MudNavLink Href="/clients" Icon="@Icons.Material.Filled.Groups">Alunos</MudNavLink>
-    <MudNavLink Href="/teachers" Icon="@Icons.Material.Filled.School">Professores</MudNavLink>
-    <MudNavLink Href="/modalities" Icon="@Icons.Material.Filled.SportsMartialArts">Modalidades</MudNavLink>
-    <MudNavLink Href="/branches" Icon="@Icons.Material.Filled.Business">Unidades</MudNavLink>
-    <MudNavLink Href="/class-groups" Icon="@Icons.Material.Filled.Class">Turmas</MudNavLink>
+    @if (HasRole("owner", "admin", "reception"))
+    {
+        <MudText Typo="Typo.overline" Class="menu-kicker">Cadastros</MudText>
+        <MudNavLink Href="/clients" Icon="@Icons.Material.Filled.Groups">Alunos</MudNavLink>
+        <MudNavLink Href="/branches" Icon="@Icons.Material.Filled.Business">Unidades</MudNavLink>
+    }
+    @if (HasRole("owner", "admin"))
+    {
+        <MudText Typo="Typo.overline" Class="menu-kicker">Gestão</MudText>
+        <MudNavLink Href="/teachers" Icon="@Icons.Material.Filled.School">Professores</MudNavLink>
+        <MudNavLink Href="/modalities" Icon="@Icons.Material.Filled.SportsMartialArts">Modalidades</MudNavLink>
+        <MudNavLink Href="/class-groups" Icon="@Icons.Material.Filled.Class">Turmas</MudNavLink>
+    }
+
+    @if (HasRole("owner", "admin", "teacher", "reception"))
+    {
+        <MudText Typo="Typo.overline" Class="menu-kicker">Operação</MudText>
+        <MudNavLink Href="/lessons" Icon="@Icons.Material.Filled.CalendarMonth">Aulas</MudNavLink>
+        <MudNavLink Href="/attendance/pending" Icon="@Icons.Material.Filled.HowToReg">Check-ins pendentes</MudNavLink>
+    }
 </MudNavMenu>
+
+@code {
+    private bool HasRole(params string[] roles) =>
+        Session.Current?.User.Roles.Any(userRole => roles.Contains(userRole, StringComparer.OrdinalIgnoreCase)) == true;
+}
 

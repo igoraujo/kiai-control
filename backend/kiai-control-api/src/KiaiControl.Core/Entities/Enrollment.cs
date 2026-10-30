@@ -10,6 +10,8 @@ public sealed class Enrollment
 
     public Guid ClientId { get; set; }
 
+    public string ClientName { get; set; } = string.Empty;
+
     public DateTimeOffset EnrolledAt { get; set; }
 
     public DateTimeOffset? EndedAt { get; set; }

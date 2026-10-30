@@ -9,7 +9,7 @@ create type modality_type as enum ('martial_art', 'fitness', 'hybrid');
 create type class_group_status as enum ('active', 'inactive', 'archived');
 create type enrollment_status as enum ('active', 'paused', 'canceled', 'completed');
 create type lesson_status as enum ('scheduled', 'completed', 'canceled', 'rescheduled');
-create type attendance_status as enum ('present', 'absent', 'justified_absence', 'late');
+create type attendance_status as enum ('present', 'absent', 'justified_absence', 'late', 'pending_confirmation');
 create type invoice_status as enum ('pending', 'paid', 'overdue', 'canceled', 'exempt', 'partially_paid');
 create type payment_method as enum ('cash', 'pix', 'bank_transfer', 'credit_card', 'debit_card', 'boleto', 'manual_adjustment');
 create type graduation_event_type as enum ('promotion', 'demotion', 'correction');
@@ -328,6 +328,8 @@ create table attendances (
     status attendance_status not null,
     checked_in_at timestamptz,
     checked_by_teacher_id uuid references teachers(id),
+    validated_at timestamptz,
+    validated_by_person_id uuid references persons(id),
     notes varchar(255),
     created_at timestamptz not null default now(),
     updated_at timestamptz,

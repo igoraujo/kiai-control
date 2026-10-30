@@ -2,6 +2,8 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using KiaiControl.Contracts.Auth;
+using KiaiControl.Contracts.Attendance;
+using KiaiControl.Contracts.Lessons;
 using KiaiControl.Contracts.Reports;
 
 namespace KiaiControl.Admin.Services;
@@ -35,10 +37,88 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
             ?? throw new HttpRequestException("The API returned an empty dashboard response.");
     }
 
+    public Task<IReadOnlyList<LessonResponse>> ListLessonsAsync(int page = 1, int pageSize = 200) =>
+        ListAsync<LessonResponse>("lessons", page, pageSize);
+
+    public Task<LessonResponse> CreateLessonAsync(CreateLessonRequest request) =>
+        CreateAsync<CreateLessonRequest, LessonResponse>("lessons", request);
+
+    public async Task<IReadOnlyList<LessonResponse>> GenerateLessonsAsync(GenerateLessonsRequest request)
+    {
+        using var response = await SendAuthorizedAsync(HttpMethod.Post, "api/v1/lessons/generate", request);
+        return await response.Content.ReadFromJsonAsync<List<LessonResponse>>() ?? [];
+    }
+
+    public async Task<LessonResponse> CancelLessonAsync(Guid lessonId, CancelLessonRequest request)
+    {
+        using var response = await SendAuthorizedAsync(HttpMethod.Patch, $"api/v1/lessons/{lessonId}/cancel", request);
+        return await response.Content.ReadFromJsonAsync<LessonResponse>()
+            ?? throw new HttpRequestException("A API retornou uma resposta vazia.");
+    }
+
+    public async Task<LessonResponse> RescheduleLessonAsync(Guid lessonId, RescheduleLessonRequest request)
+    {
+        using var response = await SendAuthorizedAsync(HttpMethod.Patch, $"api/v1/lessons/{lessonId}/reschedule", request);
+        return await response.Content.ReadFromJsonAsync<LessonResponse>()
+            ?? throw new HttpRequestException("A API retornou uma resposta vazia.");
+    }
+
+    public async Task<IReadOnlyList<AttendanceRecordResponse>> GetLessonAttendanceAsync(Guid lessonId)
+    {
+        using var response = await SendAuthorizedAsync(HttpMethod.Get, $"api/v1/lessons/{lessonId}/attendances");
+        return await response.Content.ReadFromJsonAsync<List<AttendanceRecordResponse>>() ?? [];
+    }
+
+    public async Task<IReadOnlyList<AttendanceRecordResponse>> SaveLessonAttendanceAsync(
+        Guid lessonId,
+        SaveAttendanceCallRequest request)
+    {
+        using var response = await SendAuthorizedAsync(HttpMethod.Put, $"api/v1/lessons/{lessonId}/attendances", request);
+        return await response.Content.ReadFromJsonAsync<List<AttendanceRecordResponse>>() ?? [];
+    }
+
+    public Task<IReadOnlyList<AttendanceRecordResponse>> ListPendingCheckInsAsync(int page = 1, int pageSize = 100) =>
+        ListAsync<AttendanceRecordResponse>("attendance/pending", page, pageSize);
+
+    public async Task<AttendanceRecordResponse> ValidateCheckInAsync(Guid attendanceId, string status)
+    {
+        using var response = await SendAuthorizedAsync(HttpMethod.Patch, $"api/v1/attendance/{attendanceId}/validate", new ValidateCheckInRequest { Status = status });
+        return await response.Content.ReadFromJsonAsync<AttendanceRecordResponse>()
+            ?? throw new HttpRequestException("A API retornou uma resposta vazia.");
+    }
+
+    public async Task<AttendanceRecordResponse> CheckInAsync(Guid lessonId)
+    {
+        var client = httpClientFactory.CreateClient("KiaiApi");
+        var currentSession = session.Current ?? throw new UnauthorizedAccessException();
+        using var request = new HttpRequestMessage(HttpMethod.Post, "api/v1/attendance/check-in")
+        {
+            Content = JsonContent.Create(new CheckInRequest { LessonId = lessonId })
+        };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", currentSession.AccessToken);
+        request.Headers.Add("X-Organization-Id", currentSession.User.OrganizationId.ToString());
+        using var response = await client.SendAsync(request);
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            throw new UnauthorizedAccessException();
+        }
+
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<AttendanceRecordResponse>()
+            ?? throw new HttpRequestException("A API retornou uma resposta vazia.");
+    }
+
     public async Task<IReadOnlyList<T>> ListAsync<T>(string resource, int page = 1, int pageSize = 100)
     {
         using var response = await SendAuthorizedAsync(HttpMethod.Get, $"api/v1/{resource}?page={page}&pageSize={pageSize}");
         return await response.Content.ReadFromJsonAsync<List<T>>() ?? [];
+    }
+
+    public async Task<T> GetAsync<T>(string resource)
+    {
+        using var response = await SendAuthorizedAsync(HttpMethod.Get, $"api/v1/{resource}");
+        return await response.Content.ReadFromJsonAsync<T>()
+            ?? throw new HttpRequestException("A API retornou uma resposta vazia.");
     }
 
     public async Task<TResponse> CreateAsync<TRequest, TResponse>(string resource, TRequest body)
@@ -55,9 +135,41 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
             ?? throw new HttpRequestException("A API retornou uma resposta vazia.");
     }
 
+    public async Task PutAsync<TRequest>(string resource, TRequest body)
+    {
+        using var response = await SendAuthorizedAsync(HttpMethod.Put, $"api/v1/{resource}", body);
+    }
+
+    public async Task PatchAsync<TRequest>(string resource, TRequest body)
+    {
+        using var response = await SendAuthorizedAsync(HttpMethod.Patch, $"api/v1/{resource}", body);
+    }
+
     public async Task DeleteAsync(string resource, Guid id)
     {
-        using var response = await SendAuthorizedAsync(HttpMethod.Delete, $"api/v1/{resource}/{id}");
+        await DeleteAsync(resource, id, null);
+    }
+
+    public async Task DeleteAsync(string resource, Guid id, string? queryString)
+    {
+        var uri = $"api/v1/{resource}/{id}";
+        if (!string.IsNullOrWhiteSpace(queryString))
+        {
+            uri += queryString.StartsWith('?') ? queryString : $"?{queryString}";
+        }
+
+        using var response = await SendAuthorizedAsync(HttpMethod.Delete, uri);
+    }
+
+    public async Task DeleteAsync(string resource, string? queryString)
+    {
+        var uri = $"api/v1/{resource}";
+        if (!string.IsNullOrWhiteSpace(queryString))
+        {
+            uri += queryString.StartsWith('?') ? queryString : $"?{queryString}";
+        }
+
+        using var response = await SendAuthorizedAsync(HttpMethod.Delete, uri);
     }
 
     public async Task LogoutAsync()

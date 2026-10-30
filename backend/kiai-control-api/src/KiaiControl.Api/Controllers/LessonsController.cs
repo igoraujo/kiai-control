@@ -4,13 +4,14 @@ using KiaiControl.Contracts.Attendance;
 using KiaiControl.Core.Common;
 using KiaiControl.UseCases.Attendance;
 using KiaiControl.UseCases.Lessons;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace KiaiControl.Api.Controllers;
 
 [ApiController]
-[Authorize(Roles = "owner,admin,teacher")]
+[Authorize]
 [Route("api/v1/lessons")]
 public sealed class LessonsController(
     OrganizationContext organizationContext,
@@ -25,6 +26,7 @@ public sealed class LessonsController(
     }
 
     [HttpPost]
+    [Authorize(Roles = "owner,admin,teacher")]
     public async Task<ActionResult<LessonResponse>> CreateAsync(
         [FromBody] CreateLessonRequest request,
         CancellationToken cancellationToken)
@@ -48,6 +50,7 @@ public sealed class LessonsController(
     }
 
     [HttpPost("generate")]
+    [Authorize(Roles = "owner,admin,teacher")]
     public async Task<ActionResult<IReadOnlyList<LessonResponse>>> GenerateAsync(
         [FromBody] GenerateLessonsRequest request,
         CancellationToken cancellationToken)
@@ -71,6 +74,7 @@ public sealed class LessonsController(
     }
 
     [HttpGet]
+    [Authorize(Roles = "owner,admin,teacher,reception")]
     public async Task<ActionResult<IReadOnlyList<LessonResponse>>> ListAsync(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 50,
@@ -86,6 +90,7 @@ public sealed class LessonsController(
     }
 
     [HttpGet("{id:guid}")]
+    [Authorize(Roles = "owner,admin,teacher,reception")]
     public async Task<ActionResult<LessonResponse>> GetById(Guid id, CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
@@ -98,6 +103,7 @@ public sealed class LessonsController(
     }
 
     [HttpPut("{id:guid}")]
+    [Authorize(Roles = "owner,admin,teacher")]
     public async Task<ActionResult<LessonResponse>> UpdateAsync(
         Guid id,
         [FromBody] UpdateLessonRequest request,
@@ -120,6 +126,7 @@ public sealed class LessonsController(
     }
 
     [HttpPatch("{id:guid}/cancel")]
+    [Authorize(Roles = "owner,admin,teacher")]
     public async Task<ActionResult<LessonResponse>> CancelAsync(
         Guid id,
         [FromBody] CancelLessonRequest request,
@@ -142,6 +149,7 @@ public sealed class LessonsController(
     }
 
     [HttpPatch("{id:guid}/reschedule")]
+    [Authorize(Roles = "owner,admin,teacher")]
     public async Task<ActionResult<LessonResponse>> RescheduleAsync(
         Guid id,
         [FromBody] RescheduleLessonRequest request,
@@ -164,6 +172,7 @@ public sealed class LessonsController(
     }
 
     [HttpGet("{id:guid}/attendances")]
+    [Authorize(Roles = "owner,admin,teacher,reception")]
     public async Task<ActionResult<IReadOnlyList<AttendanceRecordResponse>>> GetAttendancesAsync(
         Guid id,
         CancellationToken cancellationToken)
@@ -184,6 +193,7 @@ public sealed class LessonsController(
     }
 
     [HttpPut("{id:guid}/attendances")]
+    [Authorize(Roles = "owner,admin,teacher,reception")]
     public async Task<ActionResult<IReadOnlyList<AttendanceRecordResponse>>> SaveAttendancesAsync(
         Guid id,
         [FromBody] SaveAttendanceCallRequest request,
@@ -199,9 +209,15 @@ public sealed class LessonsController(
             return NotFound();
         }
 
+        if (!Guid.TryParse(User.FindFirstValue("person_id"), out var validatorPersonId))
+        {
+            return Unauthorized();
+        }
+
         try
         {
-            var attendance = await attendanceUseCase.SaveLessonCallAsync(organizationId, id, request, cancellationToken);
+            var attendance = await attendanceUseCase.SaveLessonCallAsync(
+                organizationId, id, validatorPersonId, request, cancellationToken);
             return attendance is null
                 ? Conflict("The lesson is unavailable or one or more clients are not actively enrolled in its class group.")
                 : Ok(attendance);

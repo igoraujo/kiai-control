@@ -68,7 +68,7 @@ public sealed class SqlClassGroupRepository(IDbConnectionFactory dbConnectionFac
         schedule.CreatedAt = DateTimeOffset.UtcNow;
 
         using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
-        return await connection.QuerySingleOrDefaultAsync<ClassSchedule>(
+        var created = await connection.QuerySingleOrDefaultAsync<ClassScheduleRecord>(
             ClassGroupQueries.CreateSchedule,
             new
             {
@@ -76,10 +76,24 @@ public sealed class SqlClassGroupRepository(IDbConnectionFactory dbConnectionFac
                 schedule.Id,
                 schedule.ClassGroupId,
                 schedule.DayOfWeek,
-                schedule.StartsAt,
-                schedule.EndsAt,
+                StartsAt = schedule.StartsAt.ToString("HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture),
+                EndsAt = schedule.EndsAt.ToString("HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture),
                 schedule.CreatedAt
             });
+        if (created is null)
+        {
+            return null;
+        }
+
+        return new ClassSchedule
+        {
+            Id = created.Id,
+            ClassGroupId = created.ClassGroupId,
+            DayOfWeek = created.DayOfWeek,
+            StartsAt = TimeOnly.FromTimeSpan(created.StartsAt),
+            EndsAt = TimeOnly.FromTimeSpan(created.EndsAt),
+            CreatedAt = created.CreatedAt
+        };
     }
 
     public async Task<bool> DeleteScheduleAsync(
@@ -93,6 +107,20 @@ public sealed class SqlClassGroupRepository(IDbConnectionFactory dbConnectionFac
             ClassGroupQueries.DeleteSchedule,
             new { OrganizationId = organizationId, ClassGroupId = classGroupId, ScheduleId = scheduleId });
         return affected > 0;
+    }
+
+    public async Task<IReadOnlyList<ClassScheduleRecord>> ListSchedulesAsync(
+        Guid organizationId,
+        Guid classGroupId,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
+        var items = await connection.QueryAsync<ClassScheduleRecord>(ClassGroupQueries.ListSchedules, new
+        {
+            OrganizationId = organizationId,
+            ClassGroupId = classGroupId
+        });
+        return items.ToList();
     }
 
     public async Task<Enrollment?> CreateEnrollmentAsync(
@@ -161,6 +189,20 @@ public sealed class SqlClassGroupRepository(IDbConnectionFactory dbConnectionFac
         return affected > 0;
     }
 
+    public async Task<IReadOnlyList<Enrollment>> ListEnrollmentsAsync(
+        Guid organizationId,
+        Guid classGroupId,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
+        var items = await connection.QueryAsync<Enrollment>(ClassGroupQueries.ListEnrollments, new
+        {
+            OrganizationId = organizationId,
+            ClassGroupId = classGroupId
+        });
+        return items.ToList();
+    }
+
     public async Task<bool> AssignTeacherAsync(
         Guid organizationId,
         Guid classGroupId,
@@ -180,10 +222,24 @@ public sealed class SqlClassGroupRepository(IDbConnectionFactory dbConnectionFac
                 ClassGroupId = classGroupId,
                 TeacherId = teacherId,
                 IsPrimary = isPrimary,
-                StartsAt = startsAt,
-                EndsAt = endsAt
+                StartsAt = startsAt.ToDateTime(TimeOnly.MinValue),
+                EndsAt = endsAt?.ToDateTime(TimeOnly.MinValue)
             });
         return affected > 0;
+    }
+
+    public async Task<IReadOnlyList<ClassGroupTeacherAssignment>> ListTeacherAssignmentsAsync(
+        Guid organizationId,
+        Guid classGroupId,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
+        var items = await connection.QueryAsync<ClassGroupTeacherAssignment>(ClassGroupQueries.ListTeacherAssignments, new
+        {
+            OrganizationId = organizationId,
+            ClassGroupId = classGroupId
+        });
+        return items.ToList();
     }
 
     public async Task<bool> RemoveTeacherAssignmentAsync(
@@ -196,7 +252,13 @@ public sealed class SqlClassGroupRepository(IDbConnectionFactory dbConnectionFac
         using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
         var affected = await connection.ExecuteAsync(
             ClassGroupQueries.RemoveTeacherAssignment,
-            new { OrganizationId = organizationId, ClassGroupId = classGroupId, TeacherId = teacherId, StartsAt = startsAt });
+            new
+            {
+                OrganizationId = organizationId,
+                ClassGroupId = classGroupId,
+                TeacherId = teacherId,
+                StartsAt = startsAt.ToDateTime(TimeOnly.MinValue)
+            });
         return affected > 0;
     }
 }

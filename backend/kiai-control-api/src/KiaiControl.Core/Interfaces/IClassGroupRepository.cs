@@ -23,6 +23,11 @@ public interface IClassGroupRepository
         ClassSchedule schedule,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<ClassScheduleRecord>> ListSchedulesAsync(
+        Guid organizationId,
+        Guid classGroupId,
+        CancellationToken cancellationToken = default);
+
     Task<bool> DeleteScheduleAsync(
         Guid organizationId,
         Guid classGroupId,
@@ -31,6 +36,11 @@ public interface IClassGroupRepository
 
     Task<Enrollment?> CreateEnrollmentAsync(
         Enrollment enrollment,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<Enrollment>> ListEnrollmentsAsync(
+        Guid organizationId,
+        Guid classGroupId,
         CancellationToken cancellationToken = default);
 
     Task<bool> CancelEnrollmentAsync(
@@ -46,6 +56,11 @@ public interface IClassGroupRepository
         bool isPrimary,
         DateOnly startsAt,
         DateOnly? endsAt,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<ClassGroupTeacherAssignment>> ListTeacherAssignmentsAsync(
+        Guid organizationId,
+        Guid classGroupId,
         CancellationToken cancellationToken = default);
 
     Task<bool> RemoveTeacherAssignmentAsync(

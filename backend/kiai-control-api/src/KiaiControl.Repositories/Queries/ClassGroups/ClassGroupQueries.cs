@@ -103,7 +103,7 @@ public static class ClassGroupQueries
 
         public const string CreateSchedule = @"
                 insert into class_schedules (id, class_group_id, day_of_week, starts_at, ends_at, created_at)
-                select @Id, cg.id, @DayOfWeek, @StartsAt, @EndsAt, @CreatedAt
+                select @Id, cg.id, @DayOfWeek, @StartsAt::time, @EndsAt::time, @CreatedAt
                 from class_groups cg
                 where cg.id = @ClassGroupId
                     and cg.organization_id = @OrganizationId
@@ -125,6 +125,21 @@ public static class ClassGroupQueries
                     and s.class_group_id = @ClassGroupId
                     and cg.id = s.class_group_id
                     and cg.organization_id = @OrganizationId;
+                ";
+
+        public const string ListSchedules = @"
+                select
+                    s.id,
+                    s.class_group_id as ClassGroupId,
+                    s.day_of_week as DayOfWeek,
+                    s.starts_at as StartsAt,
+                    s.ends_at as EndsAt,
+                    s.created_at as CreatedAt
+                from class_schedules s
+                join class_groups cg on cg.id = s.class_group_id
+                where cg.organization_id = @OrganizationId
+                    and cg.id = @ClassGroupId
+                order by s.day_of_week, s.starts_at;
                 ";
 
         public const string LockEnrollmentTarget = @"
@@ -179,6 +194,28 @@ public static class ClassGroupQueries
                     and cg.organization_id = @OrganizationId;
                 ";
 
+        public const string ListEnrollments = @"
+                select
+                    e.id,
+                    e.organization_id as OrganizationId,
+                    e.class_group_id as ClassGroupId,
+                    e.client_id as ClientId,
+                    p.full_name as ClientName,
+                    e.enrolled_at as EnrolledAt,
+                    e.ended_at as EndedAt,
+                    e.status::text as Status
+                from enrollments e
+                join class_groups cg on cg.id = e.class_group_id
+                    and cg.organization_id = e.organization_id
+                join clients c on c.id = e.client_id
+                    and c.organization_id = e.organization_id
+                join persons p on p.id = c.person_id
+                where e.organization_id = @OrganizationId
+                    and e.class_group_id = @ClassGroupId
+                    and p.deleted_at is null
+                order by e.status = 'active' desc, p.full_name;
+                ";
+
         public const string AssignTeacher = @"
                 insert into class_group_teachers (
                         id, class_group_id, teacher_id, is_primary, starts_at, ends_at, created_at
@@ -203,5 +240,25 @@ public static class ClassGroupQueries
                     and cg.id = @ClassGroupId
                     and cgt.teacher_id = @TeacherId
                     and cgt.starts_at = @StartsAt;
+                ";
+
+        public const string ListTeacherAssignments = @"
+                select
+                    cgt.id,
+                    cgt.class_group_id as ClassGroupId,
+                    cgt.teacher_id as TeacherId,
+                    p.full_name as TeacherName,
+                    cgt.is_primary as IsPrimary,
+                    cgt.starts_at as StartsAt,
+                    cgt.ends_at as EndsAt
+                from class_group_teachers cgt
+                join class_groups cg on cg.id = cgt.class_group_id
+                join teachers t on t.id = cgt.teacher_id
+                    and t.organization_id = cg.organization_id
+                join persons p on p.id = t.person_id
+                where cg.organization_id = @OrganizationId
+                    and cg.id = @ClassGroupId
+                    and p.deleted_at is null
+                order by cgt.is_primary desc, cgt.starts_at desc, p.full_name;
                 ";
 }

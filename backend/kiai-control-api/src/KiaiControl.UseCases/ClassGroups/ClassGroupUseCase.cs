@@ -105,6 +105,23 @@ public sealed class ClassGroupUseCase(IClassGroupRepository classGroupRepository
         return created is null ? null : ToResponse(created);
     }
 
+    public async Task<IReadOnlyList<ClassScheduleResponse>> ListSchedulesAsync(
+        Guid organizationId,
+        Guid classGroupId,
+        CancellationToken cancellationToken)
+    {
+        var items = await classGroupRepository.ListSchedulesAsync(organizationId, classGroupId, cancellationToken);
+        return items.Select(item => new ClassScheduleResponse
+        {
+            Id = item.Id,
+            ClassGroupId = item.ClassGroupId,
+            DayOfWeek = item.DayOfWeek,
+            StartsAt = TimeOnly.FromTimeSpan(item.StartsAt),
+            EndsAt = TimeOnly.FromTimeSpan(item.EndsAt),
+            CreatedAt = item.CreatedAt
+        }).ToList();
+    }
+
     public Task<bool> DeleteScheduleAsync(
         Guid organizationId,
         Guid classGroupId,
@@ -134,6 +151,15 @@ public sealed class ClassGroupUseCase(IClassGroupRepository classGroupRepository
 
         var created = await classGroupRepository.CreateEnrollmentAsync(enrollment, cancellationToken);
         return created is null ? null : ToResponse(created);
+    }
+
+    public async Task<IReadOnlyList<EnrollmentResponse>> ListEnrollmentsAsync(
+        Guid organizationId,
+        Guid classGroupId,
+        CancellationToken cancellationToken)
+    {
+        var items = await classGroupRepository.ListEnrollmentsAsync(organizationId, classGroupId, cancellationToken);
+        return items.Select(ToResponse).ToList();
     }
 
     public Task<bool> CancelEnrollmentAsync(
@@ -166,6 +192,15 @@ public sealed class ClassGroupUseCase(IClassGroupRepository classGroupRepository
 
         return classGroupRepository.AssignTeacherAsync(
             organizationId, classGroupId, teacherId, isPrimary, startsAt, endsAt, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<TeacherAssignmentResponse>> ListTeacherAssignmentsAsync(
+        Guid organizationId,
+        Guid classGroupId,
+        CancellationToken cancellationToken)
+    {
+        var items = await classGroupRepository.ListTeacherAssignmentsAsync(organizationId, classGroupId, cancellationToken);
+        return items.Select(ToResponse).ToList();
     }
 
     public Task<bool> RemoveTeacherAssignmentAsync(
@@ -269,9 +304,24 @@ public sealed class ClassGroupUseCase(IClassGroupRepository classGroupRepository
             OrganizationId = enrollment.OrganizationId,
             ClassGroupId = enrollment.ClassGroupId,
             ClientId = enrollment.ClientId,
+            ClientName = enrollment.ClientName,
             EnrolledAt = enrollment.EnrolledAt,
             EndedAt = enrollment.EndedAt,
             Status = enrollment.Status
+        };
+    }
+
+    private static TeacherAssignmentResponse ToResponse(ClassGroupTeacherAssignment assignment)
+    {
+        return new TeacherAssignmentResponse
+        {
+            Id = assignment.Id,
+            ClassGroupId = assignment.ClassGroupId,
+            TeacherId = assignment.TeacherId,
+            TeacherName = assignment.TeacherName,
+            IsPrimary = assignment.IsPrimary,
+            StartsAt = DateOnly.FromDateTime(assignment.StartsAt),
+            EndsAt = assignment.EndsAt is null ? null : DateOnly.FromDateTime(assignment.EndsAt.Value)
         };
     }
 }

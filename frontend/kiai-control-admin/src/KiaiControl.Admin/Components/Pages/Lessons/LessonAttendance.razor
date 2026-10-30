@@ -1,0 +1,257 @@
+@page "/lessons/{LessonId:guid}/attendance"
+@inject AdminApiClient Api
+@inject AdminSession Session
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>Chamada | Kiai Control</PageTitle>
+
+<MudStack Spacing="3">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" aria-label="Voltar para aulas" OnClick="BackToLessons" />
+        <div>
+            <MudText Typo="Typo.h4">Chamada</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">@_classGroup?.Name · @_lesson?.StartsAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudText>
+        </div>
+    </MudStack>
+
+    @if (_isLoading)
+    {
+        <MudSkeleton Height="280px" />
+    }
+    else if (!string.IsNullOrWhiteSpace(_errorMessage))
+    {
+        <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">
+            @_errorMessage
+            <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="LoadAsync">Tentar novamente</MudButton>
+        </MudAlert>
+    }
+    else if (_lesson is not null)
+    {
+        <MudPaper Elevation="0" Class="attendance-summary">
+            <MudText Typo="Typo.body2">@_activeEnrollments.Count alunos ativos na turma</MudText>
+            <MudChip T="string" Color="Color.Warning" Variant="Variant.Outlined">@_pending.Count check-ins pendentes</MudChip>
+        </MudPaper>
+
+        <MudStack Spacing="2">
+            <MudText Typo="Typo.h6">Check-ins aguardando validação</MudText>
+            @if (_pending.Count == 0)
+            {
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Nenhum check-in aguardando validação.</MudText>
+            }
+            else
+            {
+                <MudTable Items="_pending" Dense="true" Hover="true">
+                    <HeaderContent><MudTh>Aluno</MudTh><MudTh>Check-in</MudTh><MudTh Style="text-align:right">Validar</MudTh></HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.ClientName</MudTd>
+                        <MudTd>@context.AttendanceDate.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
+                        <MudTd Style="text-align:right">
+                            <MudIconButton Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" aria-label="Confirmar presença" Disabled="_isSaving" OnClick="() => ConfirmCheckInAsync(context)" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Schedule" Color="Color.Warning" aria-label="Confirmar atraso" Disabled="_isSaving" OnClick="() => MarkCheckInLateAsync(context)" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Cancel" Color="Color.Error" aria-label="Recusar check-in" Disabled="_isSaving" OnClick="() => RejectCheckInAsync(context)" />
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+        </MudStack>
+
+        <MudDivider />
+
+        <MudStack Spacing="2">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="dashboard-heading">
+                <div>
+                    <MudText Typo="Typo.h6">Marcação manual</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">Use quando o aluno não realizou o check-in.</MudText>
+                </div>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save" Disabled="_isSaving || !_manualRows.Any(row => !string.IsNullOrWhiteSpace(row.Status))" OnClick="SaveManualCallAsync">Salvar chamada</MudButton>
+            </MudStack>
+
+            @if (_manualRows.Count == 0)
+            {
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Não há alunos ativos matriculados nesta turma.</MudText>
+            }
+            else
+            {
+                <MudTable Items="_manualRows" Dense="true" Hover="true">
+                    <HeaderContent><MudTh>Aluno</MudTh><MudTh>Presença</MudTh><MudTh>Registro</MudTh></HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.ClientName</MudTd>
+                        <MudTd>
+                            @if (context.IsPending)
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Warning">Check-in pendente</MudChip>
+                            }
+                            else
+                            {
+                                <MudSelect T="string" Value="context.Status" ValueChanged="status => context.Status = status" Label="Presença" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+                                    <MudSelectItem Value="@("present")">Presente</MudSelectItem>
+                                    <MudSelectItem Value="@("late")">Atrasado</MudSelectItem>
+                                    <MudSelectItem Value="@("absent")">Ausente</MudSelectItem>
+                                    <MudSelectItem Value="@("justified_absence")">Falta justificada</MudSelectItem>
+                                </MudSelect>
+                            }
+                        </MudTd>
+                        <MudTd>
+                            @if (context.Existing is not null && !context.IsPending)
+                            {
+                                <MudText Typo="Typo.caption">@AttendanceStatusLabel(context.Existing.Status)</MudText>
+                            }
+                            else
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">Sem marcação</MudText>
+                            }
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+        </MudStack>
+    }
+</MudStack>
+
+@code {
+    [Parameter] public Guid LessonId { get; set; }
+
+    private LessonResponse? _lesson;
+    private ClassGroupResponse? _classGroup;
+    private IReadOnlyList<EnrollmentResponse> _activeEnrollments = [];
+    private IReadOnlyList<AttendanceRecordResponse> _pending = [];
+    private List<ManualAttendanceRow> _manualRows = [];
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Session.Current is null)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+        try
+        {
+            _lesson = await Api.GetAsync<LessonResponse>($"lessons/{LessonId}");
+            _classGroup = await Api.GetAsync<ClassGroupResponse>($"class-groups/{_lesson.ClassGroupId}");
+            var enrollmentTask = Api.GetAsync<List<EnrollmentResponse>>($"class-groups/{_lesson.ClassGroupId}/enrollments");
+            var attendanceTask = Api.GetLessonAttendanceAsync(LessonId);
+            await Task.WhenAll(enrollmentTask, attendanceTask);
+
+            _activeEnrollments = (await enrollmentTask).Where(enrollment => enrollment.Status == "active").ToList();
+            var attendance = await attendanceTask;
+            _pending = attendance.Where(record => record.Status == "pending_confirmation").ToList();
+            _manualRows = _activeEnrollments.Select(enrollment =>
+            {
+                var existing = attendance.FirstOrDefault(record => record.ClientId == enrollment.ClientId);
+                return new ManualAttendanceRow
+                {
+                    ClientId = enrollment.ClientId,
+                    ClientName = enrollment.ClientName,
+                    Existing = existing,
+                    IsPending = existing?.Status == "pending_confirmation",
+                    Status = existing is null || existing.Status == "pending_confirmation" ? null : existing.Status
+                };
+            }).ToList();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            Session.Clear();
+            Navigation.NavigateTo("/login");
+        }
+        catch (HttpRequestException exception)
+        {
+            _errorMessage = exception.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task ValidateCheckInAsync(AttendanceRecordResponse checkIn, string status)
+    {
+        await RunAttendanceActionAsync(
+            () => Api.ValidateCheckInAsync(checkIn.Id, status),
+            status == "absent" ? "Check-in recusado e falta registrada." : "Check-in validado.");
+    }
+
+            private Task ConfirmCheckInAsync(AttendanceRecordResponse checkIn) => ValidateCheckInAsync(checkIn, "present");
+
+            private Task MarkCheckInLateAsync(AttendanceRecordResponse checkIn) => ValidateCheckInAsync(checkIn, "late");
+
+            private Task RejectCheckInAsync(AttendanceRecordResponse checkIn) => ValidateCheckInAsync(checkIn, "absent");
+
+    private async Task SaveManualCallAsync()
+    {
+        var entries = _manualRows
+            .Where(row => !row.IsPending && !string.IsNullOrWhiteSpace(row.Status))
+            .Select(row => new AttendanceCallEntryRequest
+            {
+                ClientId = row.ClientId,
+                AttendanceDate = _lesson!.StartsAt,
+                Status = row.Status!
+            })
+            .ToList();
+
+        if (entries.Count == 0)
+        {
+            Snackbar.Add("Selecione a presença de pelo menos um aluno.", Severity.Warning);
+            return;
+        }
+
+        await RunAttendanceActionAsync(
+            async () => await Api.SaveLessonAttendanceAsync(LessonId, new SaveAttendanceCallRequest { Entries = entries }),
+            "Chamada salva.");
+    }
+
+    private async Task RunAttendanceActionAsync<T>(Func<Task<T>> action, string message)
+    {
+        _isSaving = true;
+        try
+        {
+            await action();
+            Snackbar.Add(message, Severity.Success);
+            await LoadAsync();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            Session.Clear();
+            Navigation.NavigateTo("/login");
+        }
+        catch (HttpRequestException exception)
+        {
+            Snackbar.Add(exception.Message, Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private void BackToLessons() => Navigation.NavigateTo("/lessons");
+
+    private static string AttendanceStatusLabel(string status) => status switch
+    {
+        "present" => "Presente",
+        "late" => "Atrasado",
+        "absent" => "Ausente",
+        "justified_absence" => "Falta justificada",
+        _ => status
+    };
+
+    private sealed class ManualAttendanceRow
+    {
+        public Guid ClientId { get; init; }
+        public string ClientName { get; init; } = string.Empty;
+        public AttendanceRecordResponse? Existing { get; init; }
+        public bool IsPending { get; init; }
+        public string? Status { get; set; }
+    }
+}

@@ -277,7 +277,7 @@ public sealed class InMemoryClassGroupRepository : IClassGroupRepository
     private readonly List<ClassGroup> _classGroups = [];
     private readonly List<ClassSchedule> _schedules = [];
     private readonly List<Enrollment> _enrollments = [];
-    private readonly HashSet<(Guid OrganizationId, Guid ClassGroupId, Guid TeacherId, DateOnly StartsAt)> _teacherAssignments = [];
+    private readonly List<ClassGroupTeacherAssignment> _teacherAssignments = [];
 
     public Task<ClassGroup?> CreateAsync(ClassGroup classGroup, CancellationToken cancellationToken = default)
     {
@@ -375,6 +375,27 @@ public sealed class InMemoryClassGroupRepository : IClassGroupRepository
         return Task.FromResult(removed);
     }
 
+    public Task<IReadOnlyList<ClassScheduleRecord>> ListSchedulesAsync(
+        Guid organizationId,
+        Guid classGroupId,
+        CancellationToken cancellationToken = default)
+    {
+        var exists = _classGroups.Any(item => item.OrganizationId == organizationId && item.Id == classGroupId);
+        var schedules = exists
+            ? _schedules.Where(item => item.ClassGroupId == classGroupId).OrderBy(item => item.DayOfWeek).ThenBy(item => item.StartsAt).ToList()
+            : [];
+        var records = schedules.Select(item => new ClassScheduleRecord
+        {
+            Id = item.Id,
+            ClassGroupId = item.ClassGroupId,
+            DayOfWeek = item.DayOfWeek,
+            StartsAt = item.StartsAt.ToTimeSpan(),
+            EndsAt = item.EndsAt.ToTimeSpan(),
+            CreatedAt = item.CreatedAt
+        }).ToList();
+        return Task.FromResult<IReadOnlyList<ClassScheduleRecord>>(records);
+    }
+
     public Task<Enrollment?> CreateEnrollmentAsync(Enrollment enrollment, CancellationToken cancellationToken = default)
     {
         var classGroup = _classGroups.FirstOrDefault(item => item.OrganizationId == enrollment.OrganizationId
@@ -425,6 +446,19 @@ public sealed class InMemoryClassGroupRepository : IClassGroupRepository
         return Task.FromResult(true);
     }
 
+    public Task<IReadOnlyList<Enrollment>> ListEnrollmentsAsync(
+        Guid organizationId,
+        Guid classGroupId,
+        CancellationToken cancellationToken = default)
+    {
+        var enrollments = _enrollments
+            .Where(item => item.OrganizationId == organizationId && item.ClassGroupId == classGroupId)
+            .OrderBy(item => item.Status == "active" ? 0 : 1)
+            .ThenBy(item => item.ClientName)
+            .ToList();
+        return Task.FromResult<IReadOnlyList<Enrollment>>(enrollments);
+    }
+
     public Task<bool> AssignTeacherAsync(
         Guid organizationId,
         Guid classGroupId,
@@ -436,7 +470,43 @@ public sealed class InMemoryClassGroupRepository : IClassGroupRepository
     {
         var classGroupExists = _classGroups.Any(item => item.OrganizationId == organizationId
             && item.Id == classGroupId && item.Status == "active");
-        return Task.FromResult(classGroupExists && _teacherAssignments.Add((organizationId, classGroupId, teacherId, startsAt)));
+        if (!classGroupExists)
+        {
+            return Task.FromResult(false);
+        }
+
+        var existing = _teacherAssignments.FirstOrDefault(item => item.ClassGroupId == classGroupId
+            && item.TeacherId == teacherId
+            && DateOnly.FromDateTime(item.StartsAt) == startsAt);
+        if (existing is not null)
+        {
+            existing.IsPrimary = isPrimary;
+            existing.EndsAt = endsAt?.ToDateTime(TimeOnly.MinValue);
+            return Task.FromResult(true);
+        }
+
+        _teacherAssignments.Add(new ClassGroupTeacherAssignment
+        {
+            Id = Guid.NewGuid(),
+            ClassGroupId = classGroupId,
+            TeacherId = teacherId,
+            IsPrimary = isPrimary,
+            StartsAt = startsAt.ToDateTime(TimeOnly.MinValue),
+            EndsAt = endsAt?.ToDateTime(TimeOnly.MinValue)
+        });
+        return Task.FromResult(true);
+    }
+
+    public Task<IReadOnlyList<ClassGroupTeacherAssignment>> ListTeacherAssignmentsAsync(
+        Guid organizationId,
+        Guid classGroupId,
+        CancellationToken cancellationToken = default)
+    {
+        var exists = _classGroups.Any(item => item.OrganizationId == organizationId && item.Id == classGroupId);
+        var assignments = exists
+            ? _teacherAssignments.Where(item => item.ClassGroupId == classGroupId).OrderByDescending(item => item.IsPrimary).ToList()
+            : [];
+        return Task.FromResult<IReadOnlyList<ClassGroupTeacherAssignment>>(assignments);
     }
 
     public Task<bool> RemoveTeacherAssignmentAsync(
@@ -446,7 +516,10 @@ public sealed class InMemoryClassGroupRepository : IClassGroupRepository
         DateOnly startsAt,
         CancellationToken cancellationToken = default)
     {
-        return Task.FromResult(_teacherAssignments.Remove((organizationId, classGroupId, teacherId, startsAt)));
+        var removed = _teacherAssignments.RemoveAll(item => item.ClassGroupId == classGroupId
+            && item.TeacherId == teacherId
+            && DateOnly.FromDateTime(item.StartsAt) == startsAt) > 0;
+        return Task.FromResult(removed);
     }
 }
 
@@ -564,6 +637,34 @@ public sealed class InMemoryAttendanceRepository : IAttendanceRepository
         return Task.FromResult(attendance);
     }
 
+    public Task<AttendanceRecord?> CreateCheckInAsync(
+        Guid organizationId,
+        Guid personId,
+        Guid lessonId,
+        DateTimeOffset checkedInAt,
+        CancellationToken cancellationToken = default)
+    {
+        if (_attendance.Any(record => record.OrganizationId == organizationId
+            && record.LessonId == lessonId
+            && record.ClientId == personId))
+        {
+            return Task.FromResult<AttendanceRecord?>(null);
+        }
+
+        var record = new AttendanceRecord
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = organizationId,
+            LessonId = lessonId,
+            ClientId = personId,
+            AttendanceDate = checkedInAt,
+            Status = "pending_confirmation",
+            CreatedAt = checkedInAt
+        };
+        _attendance.Add(record);
+        return Task.FromResult<AttendanceRecord?>(record);
+    }
+
     public Task<IReadOnlyList<AttendanceRecord>> ListByOrganizationAsync(Guid organizationId, int page, int pageSize, CancellationToken cancellationToken = default)
     {
         var safePage = page < 1 ? 1 : page;
@@ -618,9 +719,50 @@ public sealed class InMemoryAttendanceRepository : IAttendanceRepository
         return Task.FromResult(items);
     }
 
+    public Task<IReadOnlyList<AttendanceRecord>> ListPendingByOrganizationAsync(
+        Guid organizationId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        var safePage = page < 1 ? 1 : page;
+        var safePageSize = pageSize is < 1 or > 200 ? 50 : pageSize;
+        var items = _attendance
+            .Where(record => record.OrganizationId == organizationId && record.Status == "pending_confirmation")
+            .OrderBy(record => record.AttendanceDate)
+            .Skip((safePage - 1) * safePageSize)
+            .Take(safePageSize)
+            .ToList();
+        return Task.FromResult<IReadOnlyList<AttendanceRecord>>(items);
+    }
+
+    public Task<AttendanceRecord?> ValidateCheckInAsync(
+        Guid organizationId,
+        Guid attendanceId,
+        Guid validatorPersonId,
+        string status,
+        DateTimeOffset validatedAt,
+        CancellationToken cancellationToken = default)
+    {
+        var record = _attendance.FirstOrDefault(item => item.OrganizationId == organizationId
+            && item.Id == attendanceId
+            && item.Status == "pending_confirmation");
+        if (record is null)
+        {
+            return Task.FromResult<AttendanceRecord?>(null);
+        }
+
+        record.Status = status;
+        record.ValidatedAt = validatedAt;
+        record.ValidatedByPersonId = validatorPersonId;
+        record.UpdatedAt = validatedAt;
+        return Task.FromResult<AttendanceRecord?>(record);
+    }
+
     public Task<IReadOnlyList<AttendanceRecord>?> SaveLessonCallAsync(
         Guid organizationId,
         Guid lessonId,
+        Guid validatorPersonId,
         IReadOnlyList<AttendanceRecord> entries,
         CancellationToken cancellationToken = default)
     {
@@ -635,6 +777,8 @@ public sealed class InMemoryAttendanceRepository : IAttendanceRepository
                 entry.OrganizationId = organizationId;
                 entry.LessonId = lessonId;
                 entry.CreatedAt = DateTimeOffset.UtcNow;
+                entry.ValidatedAt = entry.CreatedAt;
+                entry.ValidatedByPersonId = validatorPersonId;
                 _attendance.Add(entry);
                 savedEntries.Add(entry);
                 continue;
@@ -642,6 +786,8 @@ public sealed class InMemoryAttendanceRepository : IAttendanceRepository
 
             existing.AttendanceDate = entry.AttendanceDate;
             existing.Status = entry.Status;
+            existing.ValidatedAt = entry.ValidatedAt;
+            existing.ValidatedByPersonId = entry.ValidatedByPersonId;
             existing.UpdatedAt = DateTimeOffset.UtcNow;
             savedEntries.Add(existing);
         }

@@ -38,6 +38,7 @@
             <MudTd>@context.Capacity</MudTd>
             <MudTd><MudChip T="string" Size="Size.Small" Color="PersonStatus.Color(context.Status)">@PersonStatus.Label(context.Status)</MudChip></MudTd>
             <MudTd Style="text-align:right">
+                <MudIconButton Icon="@Icons.Material.Filled.Tune" Size="Size.Small" aria-label="Gerenciar horários, professores e matrículas" OnClick="() => ManageAsync(context)" />
                 <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" aria-label="Editar" OnClick="() => EditAsync(context)" />
                 <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" aria-label="Excluir" OnClick="() => DeleteAsync(context.Id, context.Name)" />
             </MudTd>
@@ -80,4 +81,6 @@
                 { x => x.Modalities, _modalities },
                 { x => x.Branches, _branches }
             });
+
+    private void ManageAsync(ClassGroupResponse item) => Navigation.NavigateTo($"/class-groups/{item.Id}");
 }

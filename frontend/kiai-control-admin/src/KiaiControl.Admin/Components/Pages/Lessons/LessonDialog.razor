@@ -1,0 +1,99 @@
+@inherits FormDialogBase
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="Form">
+            <MudStack Spacing="2">
+                @if (ErrorMessage is not null)
+                {
+                    <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">@ErrorMessage</MudAlert>
+                }
+                @if (Item is null)
+                {
+                    <MudSelect T="Guid" @bind-Value="_classGroupId" Label="Turma" Required="true" RequiredError="Selecione a turma" Variant="Variant.Outlined">
+                        @foreach (var group in ClassGroups.Where(item => item.Status == "active"))
+                        {
+                            <MudSelectItem Value="@group.Id">@group.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                }
+                else
+                {
+                    <MudText Typo="Typo.subtitle2">@ClassGroups.FirstOrDefault(group => group.Id == Item.ClassGroupId)?.Name</MudText>
+                }
+                <MudDatePicker @bind-Date="_date" Label="Data" Required="true" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" />
+                <MudGrid Spacing="2">
+                    <MudItem xs="6"><MudTextField T="string" @bind-Value="_startsAt" Label="Início" InputType="InputType.Time" Required="true" Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="6"><MudTextField T="string" @bind-Value="_endsAt" Label="Término" InputType="InputType.Time" Required="true" Variant="Variant.Outlined" /></MudItem>
+                </MudGrid>
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Disabled="IsSaving">Cancelar</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SubmitAsync" Disabled="IsSaving">Salvar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter] public LessonResponse? Item { get; set; }
+    [Parameter] public IReadOnlyList<ClassGroupResponse> ClassGroups { get; set; } = [];
+    [Parameter] public bool RescheduleOnly { get; set; }
+
+    private Guid _classGroupId;
+    private DateTime? _date = DateTime.Today;
+    private string _startsAt = "18:00";
+    private string _endsAt = "19:00";
+
+    protected override void OnInitialized()
+    {
+        if (Item is null)
+        {
+            return;
+        }
+
+        var start = Item.StartsAt.ToLocalTime();
+        var end = Item.EndsAt.ToLocalTime();
+        _classGroupId = Item.ClassGroupId;
+        _date = start.Date;
+        _startsAt = start.ToString("HH:mm");
+        _endsAt = end.ToString("HH:mm");
+    }
+
+    protected override async Task SaveCoreAsync()
+    {
+        if (_date is null || !TimeOnly.TryParse(_startsAt, out var startsAt) || !TimeOnly.TryParse(_endsAt, out var endsAt) || endsAt <= startsAt)
+        {
+            throw new ArgumentException("Informe data e horários válidos; o término deve ser posterior ao início.");
+        }
+
+        var startLocal = _date.Value.Date.Add(startsAt.ToTimeSpan());
+        var endLocal = _date.Value.Date.Add(endsAt.ToTimeSpan());
+        var startOffset = TimeZoneInfo.Local.GetUtcOffset(startLocal);
+        var endOffset = TimeZoneInfo.Local.GetUtcOffset(endLocal);
+        var startsAtOffset = new DateTimeOffset(startLocal, startOffset);
+        var endsAtOffset = new DateTimeOffset(endLocal, endOffset);
+
+        if (Item is not null && RescheduleOnly)
+        {
+            await Api.RescheduleLessonAsync(Item.Id, new RescheduleLessonRequest
+            {
+                StartsAt = startsAtOffset,
+                EndsAt = endsAtOffset
+            });
+            return;
+        }
+
+        if (_classGroupId == Guid.Empty)
+        {
+            throw new ArgumentException("Selecione uma turma.");
+        }
+
+        await Api.CreateLessonAsync(new CreateLessonRequest
+        {
+            ClassGroupId = _classGroupId,
+            StartsAt = startsAtOffset,
+            EndsAt = endsAtOffset
+        });
+    }
+}
