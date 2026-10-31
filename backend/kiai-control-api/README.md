@@ -30,13 +30,19 @@ dotnet build backend/kiai-control-api/KiaiControl.Api.slnx
 dotnet test backend/kiai-control-api/KiaiControl.Api.slnx
 ```
 
-Os testes de integracao PostgreSQL usam Testcontainers e exigem um daemon Docker acessivel. Nesta maquina, sem Docker ou PostgreSQL local, execute os testes unitarios sem tentar abrir conexoes:
+Os testes de integracao PostgreSQL usam Testcontainers e exigem um daemon Docker acessivel. Para executar a suite completa, incluindo migrations e integracao real:
+
+```bash
+dotnet test backend/kiai-control-api/KiaiControl.Api.slnx
+```
+
+Para executar somente os testes unitarios, sem iniciar PostgreSQL:
 
 ```bash
 dotnet test backend/kiai-control-api/tests/KiaiControl.UnitTests/KiaiControl.UnitTests.csproj
 ```
 
-O estado da validacao contra banco real esta registrado em [PROJECT_IMPLEMENTATION_PLAN.md](../../PROJECT_IMPLEMENTATION_PLAN.md); compilar o harness nao conta como teste de conexao aprovado.
+O workflow de CI executa separadamente as suites unitarias, de integracao, arquitetura e Admin. O estado da validacao contra banco real esta registrado em [PROJECT_IMPLEMENTATION_PLAN.md](../../PROJECT_IMPLEMENTATION_PLAN.md); compilar o harness nao conta como teste de conexao aprovado.
 
 ## Variaveis e configuracao
 - `ConnectionStrings:PostgreSql`

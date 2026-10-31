@@ -75,14 +75,14 @@ jobs:
           import sys
           import xml.etree.ElementTree as ET
 
-            reports = [
+          reports = [
               Path("backend/kiai-control-api/TestResults/unit/unit.trx"),
               Path("backend/kiai-control-api/TestResults/integration/integration.trx"),
               Path("backend/kiai-control-api/TestResults/architecture/architecture.trx"),
               Path("frontend/kiai-control-admin/TestResults/admin/admin.trx"),
-            ]
-            missing = [str(report) for report in reports if not report.is_file()]
-            if missing:
+          ]
+          missing = [str(report) for report in reports if not report.is_file()]
+          if missing:
               sys.exit(f"Missing TRX reports: {missing}")
 
           for report in reports:

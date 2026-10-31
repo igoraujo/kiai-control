@@ -23,7 +23,8 @@ public sealed class LayeringTests
             var projectFile = Path.Combine(apiRoot, "src", projectName, $"{projectName}.csproj");
             var actualReferences = XDocument.Load(projectFile)
                 .Descendants("ProjectReference")
-                .Select(reference => Path.GetFileNameWithoutExtension((string?)reference.Attribute("Include") ?? string.Empty))
+                .Select(reference => Path.GetFileNameWithoutExtension(
+                    ((string?)reference.Attribute("Include") ?? string.Empty).Replace('\\', '/')))
                 .OrderBy(reference => reference, StringComparer.Ordinal);
             var orderedExpectedReferences = expectedReferences.OrderBy(reference => reference, StringComparer.Ordinal);
 

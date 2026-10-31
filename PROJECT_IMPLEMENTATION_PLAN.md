@@ -1,6 +1,6 @@
 # Kiai Control - Plano Geral de Implementacao
 
-**Estado verificado em:** 2026-10-30  
+**Estado verificado em:** 2026-10-31
 **Escopo:** API, painel Admin, banco de dados, testes, seguranca, operacao e mobile.  
 **Objetivo:** ser a fonte de planejamento de evolucao do projeto e a checklist compartilhada pelos agentes.
 
@@ -15,11 +15,11 @@
 
 ## Resumo do Estado
 
-O backend ja tem uma base ampla de API e modulos de negocio. O Admin cobre uma parte dos fluxos operacionais. O banco tem schema inicial, duas migrations incrementais e script de bootstrap. A principal lacuna nao e a ausencia de todos os modulos: e a falta de verificacao ponta a ponta contra PostgreSQL, de cobertura automatizada real em alguns projetos e de paridade do painel com as capacidades existentes da API.
+O backend ja tem uma base ampla de API e modulos de negocio. O Admin cobre uma parte dos fluxos operacionais. O banco tem schema inicial, migrations `001`-`005` e script de bootstrap. A principal lacuna nao e a ausencia de todos os modulos: e a falta de verificacao completa dos fluxos contra PostgreSQL, de cobertura automatizada em algumas areas e de paridade do painel com as capacidades existentes da API.
 
-O workspace atual nao contem projetos mobile, infraestrutura/deploy ou workflows CI. Nao considere o produto pronto para producao com base apenas em build ou em controllers existentes.
+O workspace atual nao contem projeto mobile nem infraestrutura/deploy. Ha um workflow CI parcial; nao considere o produto pronto para producao com base apenas em build, testes locais ou controllers existentes.
 
-### Atualizacao de Implementacao (2026-10-30)
+### Atualizacao de Implementacao (2026-10-31)
 
 Esta atualizacao prevalece sobre itens de status conflitantes nas tabelas abaixo:
 
@@ -27,8 +27,8 @@ Esta atualizacao prevalece sobre itens de status conflitantes nas tabelas abaixo
 - Claims de permissions sao carregadas no login/refresh e exigidas por policies nos controllers, em conjunto com as roles existentes.
 - Migrations `004` e `005` definem grants globais por role e overrides por organizacao; os endpoints de alteracao usam tenant/ator do token, e a role `owner` nao pode perder suas permissions pela API.
 - Login, refresh, logout e operacoes de senha usam limite de 10 requisicoes por IP/minuto. Recuperacao nao expoe token e retorna mensagem generica; envio por e-mail continua pendente.
-- Admin tem paginas `/access` e `/billing`, navega por permissions e oferece vinculo de modalidades no formulario do aluno; o projeto passou build/test localmente.
-- Em 2026-10-30 passaram 49 testes unitarios da API e 6 testes do Admin; tambem passaram testes de policy/bootstrap sem banco. Nao foram executadas conexoes PostgreSQL por ausencia de Docker e database local.
+- Admin tem paginas `/access` e `/billing`, navega por permissions e oferece vinculo de modalidades no formulario do aluno; em 2026-10-31 passaram o build e 15 testes unitarios locais, incluindo restauracao de sessao protegida, refresh e estados da tela `/access`.
+- Em 2026-10-31 passaram os testes completos da solution da API com Docker: 50 unitarios, 1 arquitetural e 4 de integracao PostgreSQL; a fixture executou migrations `001`-`005`. No Admin passaram 15 testes unitarios. Nao houve validacao de deploy, banco de desenvolvimento ou servicos externos.
 
 ## Inventario Verificado
 
@@ -36,14 +36,14 @@ Esta atualizacao prevalece sobre itens de status conflitantes nas tabelas abaixo
 |---|---|---|
 | API e arquitetura | Presente, validacao operacional incompleta | Projetos Api, Core, Contracts, UseCases, Repositories e Services; controllers para autenticacao, organizacoes, unidades, clientes, professores, modalidades, turmas, aulas, presenca, financeiro, fitness, graduacao, ranking, notificacoes, relatorios, auditoria e controle de acesso. A existencia das camadas/rotas nao comprova queries e fluxos em PostgreSQL real. |
 | Autenticacao | Melhorada; entrega de reset pendente | Access JWT valida issuer/audience, assinatura obrigatoria HS256, expiracao e role claim explicita; chave de 32 bytes e fallback somente em Development. Roles/permissoes efetivas entram no JWT no login/refresh. Login, refresh, logout e fluxos de senha tem rate limit de 10/IP/minuto. Recuperacao responde com mensagem generica sem token, mas nao entrega link por e-mail. |
-| Tenant e autorizacao | Policies e overrides por tenant implementados; schema pendente | Middleware prioriza a organizacao do token sobre `X-Organization-Id`. Controllers combinam roles e permission claims; `role_permissions` define defaults globais e `organization_role_permissions` overrides locais. Owner nao pode ter suas permissions alteradas pela API. `persons` ainda representa uma organizacao por conta. Migrations `004` e `005` ainda nao foram executadas em PostgreSQL. |
+| Tenant e autorizacao | Policies e overrides por tenant implementados; integracao parcial | Middleware prioriza a organizacao do token sobre `X-Organization-Id`. Controllers combinam roles e permission claims; `role_permissions` define defaults globais e `organization_role_permissions` overrides locais. Owner nao pode ter suas permissions alteradas pela API. Migrations `001`-`005` executaram na fixture PostgreSQL; falta validar fluxos completos e autorizacao real de cada role. `persons` ainda representa uma organizacao por conta. |
 | Auditoria | Parcial | Middleware e endpoint de consulta existem. A gravacao ocorre depois da resposta da mutacao e falhas sao capturadas; assim, uma operacao pode concluir sem auditoria persistida. Integridade/atomicidade nao foi comprovada. |
-| Banco de dados | Base presente, execucao real nao comprovada | `001_initial_api_schema.sql`, migrations `002`-`005`, seed administrativo e `create_database.sh`. Nao foi encontrado ledger/registro de migrations nem teste de repositorio executado contra PostgreSQL. |
-| Testes do backend | Unitarios validados; integracao PostgreSQL pendente | Em 2026-10-30, 49 testes unitarios passaram; middleware e bootstrap/policy foram validados sem banco. O projeto IntegrationTests inclui round-trip DateOnly e isolamento de overrides por tenant em Testcontainers; nenhum deles foi executado porque esta maquina nao tem Docker/PostgreSQL. A fixture aplica migrations `001`-`005`. `PerformanceTests` segue fora da solution ate existir benchmark real. |
+| Banco de dados | Integracao PostgreSQL inicial validada; operacao ainda pendente | `001_initial_api_schema.sql`, migrations `002`-`005`, seed administrativo e `create_database.sh`. Em 2026-10-31 a fixture Testcontainers aplicou as migrations `001`-`005` e 4 testes de integracao passaram localmente. Ledger de migrations, seed/login em banco vazio e fluxos completos ainda nao foram validados. |
+| Testes do backend | Unitarios, arquitetura e integracao PostgreSQL validados localmente | Em 2026-10-31 passaram 50 testes unitarios, 1 teste arquitetural e 4 testes de integracao em Docker/PostgreSQL. A fixture executou migrations `001`-`005`; `PerformanceTests` segue fora da solution ate existir benchmark real. |
 | Admin | Parcial | Paginas existentes: dashboard, clientes, professores, unidades, modalidades, turmas, aulas, check-ins pendentes, acesso/permissoes e financeiro (planos, assinaturas, faturas e pagamentos). O formulario de aluno sincroniza modalidades e a tela de turma matricula alunos; a jornada continua distribuida entre essas telas. Ainda faltam fitness, graduacao, ranking/medalhas, notificacoes, auditoria e relatorios operacionais. |
-| Testes do Admin | Cobertura inicial validada | `KiaiControl.Admin.UnitTests` possui 6 testes aprovados: refresh/retry com tenant, erro HTTP, nome obrigatorio, navegacao por permissions e bloqueio de `/access` sem permission. Faltam testes autorizados da tela de acesso, financeiro, vinculo de modalidades e fluxos E2E. |
+| Testes do Admin | Cobertura inicial validada | `KiaiControl.Admin.UnitTests` possui 15 testes aprovados, cobrindo refresh/retry com tenant, erros HTTP, persistencia/restauracao de sessao, nome obrigatorio, navegacao por permissions e estados autorizado, carregando, erro e sem permission na tela `/access`. Faltam testes de financeiro, vinculo de modalidades e fluxos E2E. |
 | Mobile | Fora do workspace | Nao ha pasta/projeto Flutter presente, embora esteja no escopo de `SYSTEM_DESIGN.md`. |
-| Infraestrutura e CI/CD | CI parcial presente | Workflow GitHub Actions compila API/Admin, executa testes e publica TRX; integration tests usam Docker/Testcontainers. Nao foram encontrados Dockerfiles, Compose, deploy manifests ou configuracao de observabilidade. A primeira execucao remota ainda nao foi confirmada. |
+| Infraestrutura e CI/CD | CI parcial presente; execucao remota falhou | Workflow GitHub Actions compila API/Admin e publica um artifact TRX. A execucao `41162725604` publicou `test-results`, mas falhou no teste arquitetural devido a separadores Windows/Unix; a correcao local passou na solution. Ainda falta uma execucao remota bem-sucedida com todos os TRX. Nao foram encontrados Dockerfiles, Compose, deploy manifests ou configuracao de observabilidade. |
 | Health e observabilidade | Parcial | Correlation ID e logging de falha de auditoria existem. Ha `/health/live` e `/health/ready`, mas o registro usa `AddHealthChecks()` sem checks de PostgreSQL/Redis. Nao foi encontrada integracao OpenTelemetry/Prometheus/Grafana. |
 
 ## Alinhamento dos Documentos
@@ -58,23 +58,24 @@ Esta atualizacao prevalece sobre itens de status conflitantes nas tabelas abaixo
 
 ### Fase 0 - Linha de Base Confiavel (P0)
 
-- [ ] Revalidar a solution completa da API em runner com Docker depois da migration `005`; localmente passaram 46 unit tests e o bootstrap/policy isolado.
+- [x] Revalidar a solution completa da API com Docker depois da migration `005`; em 2026-10-31 passaram 50 testes unitarios, 1 arquitetural e 4 de integracao PostgreSQL. Foi corrigido o teste arquitetural para normalizar separadores Windows/Unix nos `ProjectReference`.
 - [x] Gerar e validar localmente um TRX independente por projeto ativo: API em `backend/kiai-control-api/TestResults/{unit,integration,architecture}` e Admin em `frontend/kiai-control-admin/TestResults/admin`.
-- [ ] Confirmar que a pipeline publica os TRX como artifact apos sua primeira execucao no GitHub Actions.
+- [x] Confirmar que a pipeline publica os TRX como artifact apos sua primeira execucao no GitHub Actions; a execucao `41162725604` publicou `test-results` (artifact `13027836463`), embora o job tenha falhado no teste arquitetural.
 - [x] Substituir os smoke tests `Assert.True(true)` por verificacoes reais ou removê-los ate existir comportamento testavel. O teste de arquitetura compara `ProjectReference` com o grafo permitido; o teste de bootstrap resolve repositorios registrados no DI; placeholders sem comportamento foram removidos.
-- [x] Criar workflow de CI para restore/build da API e Admin, testes por projeto e falha quando TRX esperado estiver ausente, vazio ou com falhas. Os comandos de teste e os caminhos TRX foram executados localmente; publicacao do artifact aguarda a primeira execucao no runner GitHub.
-- [ ] Confirmar a primeira execucao do workflow em runner limpo e a publicacao dos tres artifacts TRX.
-- [x] Criar projeto de testes do Admin e cobrir refresh, tenant, nome obrigatorio, erro HTTP, navegacao por permissions e bloqueio de `/access` sem permission; 6 testes passaram localmente e nao ha pacote vulneravel no projeto.
-- [ ] Cobrir a tela de gestao de permissions, estados de erro/carregamento e fluxos E2E criticos.
-- [ ] Atualizar a matriz de estado deste documento quando uma validacao mudar o status de uma area.
+- [x] Criar workflow de CI para restore/build da API e Admin, testes por projeto e falha quando TRX esperado estiver ausente, vazio ou com falhas. Comandos e validacao dos quatro TRX passaram localmente; o GitHub Actions ja publicou um artifact na execucao `41162725604`, que falhou depois no teste arquitetural.
+- [ ] Confirmar uma execucao bem-sucedida do workflow em runner limpo e a publicacao dos TRX de todos os projetos; a execucao `41162725604` falhou no teste arquitetural, corrigido localmente em 2026-10-31. Tambem foi corrigida localmente a indentacao do script de verificacao TRX. A nova execucao depende de commit/push das correcoes.
+- [x] Criar projeto de testes do Admin e cobrir refresh, tenant, nome obrigatorio, erro HTTP, navegacao por permissions e bloqueio de `/access` sem permission; 15 testes passaram localmente em 2026-10-31, incluindo persistencia/restauracao, refresh e estados da tela de acesso.
+- [x] Cobrir a tela de gestao de permissions e os estados de erro/carregamento; em 2026-10-31 passaram 4 testes de componente, incluindo usuario autorizado, carregamento, erro HTTP e bloqueio sem permission.
+- [ ] Cobrir fluxos E2E criticos de login, criar/editar aluno, matricular, registrar presenca, validar check-in e registrar pagamento.
+- [x] Atualizar a matriz de estado deste documento quando uma validacao mudar o status de uma area; evidencia local e resultado do runner registrados em 2026-10-31.
 
 **Aceite:** pipeline reproduzivel em ambiente limpo, relatorios TRX preservados por projeto, contagem de testes visivel, nenhum placeholder contado como cobertura e documentos sem afirmacoes contraditas pelo codigo.
 
 ### Fase 1 - PostgreSQL, Migrations e Integracao (P0)
 
 - [x] Implementar fixture Testcontainers com PostgreSQL 17 que aplica migrations `001`-`005` em ordem e descarte a instancia ao final; harness compilado localmente.
-- [ ] Executar a fixture em runner com Docker e validar a conexao real, migrations e round-trip de `DateOnly`. Esta maquina nao tem Docker/PostgreSQL; build nao satisfaz este aceite.
-- [ ] Documentar o comando de execucao em ambiente com Docker e configurar o runner de CI para executar o teste de integracao.
+- [x] Executar a fixture em runner com Docker e validar a conexao real, migrations e round-trip de `DateOnly`; o passo de integracao PostgreSQL passou no GitHub Actions run `41162725604` e os 4 testes passaram localmente em 2026-10-31.
+- [x] Documentar o comando de execucao em ambiente com Docker e configurar o runner de CI para executar o teste de integracao; comando em `backend/kiai-control-api/README.md` e passo de integracao em `.github/workflows/backend-api-ci.yml`.
 - [ ] Aplicar as cinco migrations e o seed em banco vazio; validar schema, bootstrap e login administrativo.
 - [ ] Definir controle de versao/aplicacao de migrations (ledger ou ferramenta escolhida), ordem, rollback e comportamento em banco existente.
 - [ ] Adicionar testes de integracao para os repositorios Dapper: CRUD, constraints, datas `DateOnly`, transacoes e isolamento entre organizacoes.
