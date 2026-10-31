@@ -162,7 +162,7 @@
         }
         catch (UnauthorizedAccessException)
         {
-            Session.Clear();
+            await Session.ClearAsync();
             Navigation.NavigateTo("/login");
         }
         catch (HttpRequestException exception)
@@ -222,7 +222,7 @@
         }
         catch (UnauthorizedAccessException)
         {
-            Session.Clear();
+            await Session.ClearAsync();
             Navigation.NavigateTo("/login");
         }
         catch (HttpRequestException exception)

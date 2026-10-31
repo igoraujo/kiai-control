@@ -67,7 +67,7 @@ public sealed class LessonsController(
             var created = await lessonUseCase.GenerateFromSchedulesAsync(organizationId, request, cancellationToken);
             return created is null
                 ? NotFound("The class group is unavailable in this organization.")
-                : CreatedAtAction(nameof(ListAsync), new { page = 1, pageSize = Math.Max(created.Count, 1) }, created);
+                : CreatedAtAction("List", new { page = 1, pageSize = Math.Max(created.Count, 1) }, created);
         }
         catch (ArgumentException exception)
         {

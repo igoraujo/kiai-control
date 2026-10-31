@@ -184,11 +184,15 @@ public sealed class BillingController(
         try
         {
             var plan = await billingCatalogUseCase.CreatePlanAsync(organizationId, request, cancellationToken);
-            return CreatedAtAction(nameof(ListPlansAsync), new { page = 1, pageSize = 50 }, plan);
+            return CreatedAtAction("ListPlans", new { page = 1, pageSize = 50 }, plan);
         }
         catch (ArgumentException exception)
         {
             return BadRequest(exception.Message);
+        }
+        catch (ConflictException exception)
+        {
+            return Conflict(exception.Message);
         }
     }
 
@@ -226,6 +230,10 @@ public sealed class BillingController(
         catch (ArgumentException exception)
         {
             return BadRequest(exception.Message);
+        }
+        catch (ConflictException exception)
+        {
+            return Conflict(exception.Message);
         }
     }
 

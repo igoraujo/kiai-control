@@ -120,7 +120,7 @@
                 <MudStack Spacing="2" Class="pt-3">
                     <MudStack Row="true" Justify="Justify.FlexEnd">
                         <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
-                                   OnClick="() => EditPlanAsync(null)" Disabled="_isSaving">
+                                   OnClick="() => EditPlanAsync(null)" Disabled="_isSaving || _isPlanDialogOpen">
                             Novo plano
                         </MudButton>
                     </MudStack>
@@ -145,11 +145,11 @@
                             <MudTd><MudChip T="string" Size="Size.Small" Color="@(plan.IsActive ? Color.Success : Color.Default)">@(plan.IsActive ? "Ativo" : "Inativo")</MudChip></MudTd>
                             <MudTd Style="text-align:right">
                                 <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" aria-label="Editar plano"
-                                               OnClick="() => EditPlanAsync(plan)" Disabled="_isSaving" />
+                                               OnClick="() => EditPlanAsync(plan)" Disabled="_isSaving || _isPlanDialogOpen" />
                                 @if (plan.IsActive)
                                 {
                                     <MudIconButton Icon="@Icons.Material.Filled.Block" Size="Size.Small" Color="Color.Error" aria-label="Desativar plano"
-                                                   OnClick="() => DeactivatePlanAsync(plan)" Disabled="_isSaving" />
+                                                   OnClick="() => DeactivatePlanAsync(plan)" Disabled="_isSaving || _isPlanDialogOpen" />
                                 }
                             </MudTd>
                         </RowTemplate>
@@ -194,6 +194,7 @@
     private DateTime? _referenceMonth = new(DateTime.Today.Year, DateTime.Today.Month, 1);
     private bool _isLoading = true;
     private bool _isSaving;
+    private bool _isPlanDialogOpen;
     private bool _hasPermission;
 
     private IEnumerable<BillingResponse> FilteredInvoices => _invoices.Where(invoice =>
@@ -240,7 +241,7 @@
         }
         catch (UnauthorizedAccessException)
         {
-            Session.Clear();
+            await Session.ClearAsync();
             Navigation.NavigateTo("/login");
         }
         catch (HttpRequestException exception)
@@ -255,13 +256,26 @@
 
     private async Task EditPlanAsync(BillingPlanResponse? item)
     {
-        var dialog = await DialogService.ShowAsync<BillingPlanDialog>(item is null ? "Novo plano" : "Editar plano",
-            new DialogParameters<BillingPlanDialog> { { component => component.Item, item } },
-            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
-        if (await dialog.Result is { Canceled: false })
+        if (_isPlanDialogOpen)
         {
-            Snackbar.Add("Plano salvo.", Severity.Success);
-            await LoadAsync();
+            return;
+        }
+
+        _isPlanDialogOpen = true;
+        try
+        {
+            var dialog = await DialogService.ShowAsync<BillingPlanDialog>(item is null ? "Novo plano" : "Editar plano",
+                new DialogParameters<BillingPlanDialog> { { component => component.Item, item } },
+                new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
+            if (await dialog.Result is { Canceled: false })
+            {
+                Snackbar.Add("Plano salvo.", Severity.Success);
+                await LoadAsync();
+            }
+        }
+        finally
+        {
+            _isPlanDialogOpen = false;
         }
     }
 
@@ -362,7 +376,7 @@
         }
         catch (UnauthorizedAccessException)
         {
-            Session.Clear();
+            await Session.ClearAsync();
             Navigation.NavigateTo("/login");
         }
         catch (HttpRequestException exception)

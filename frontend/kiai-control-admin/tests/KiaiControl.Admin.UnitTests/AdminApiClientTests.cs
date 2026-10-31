@@ -14,7 +14,7 @@ public sealed class AdminApiClientTests
     {
         var organizationId = Guid.NewGuid();
         var session = new AdminSession();
-        session.Set(CreateSession("expired-access", "refresh-token", organizationId));
+        await session.SetAsync(CreateSession("expired-access", "refresh-token", organizationId));
         var refreshedSession = CreateSession("new-access", "new-refresh-token", organizationId);
         var handler = new QueueHttpMessageHandler(
             new HttpResponseMessage(HttpStatusCode.Unauthorized),
@@ -38,6 +38,73 @@ public sealed class AdminApiClientTests
     }
 
     [Fact]
+    public async Task ValidateRestoredSessionAsync_ShouldRefreshExpiredAccessAndValidateUser()
+    {
+        var organizationId = Guid.NewGuid();
+        var session = new AdminSession();
+        var persistedSession = CreateSession(
+            "expired-access",
+            "refresh-token",
+            organizationId,
+            DateTimeOffset.UtcNow.AddSeconds(-1));
+        await session.SetAsync(persistedSession);
+        var refreshedSession = CreateSession("new-access", "new-refresh-token", organizationId);
+        var handler = new QueueHttpMessageHandler(
+            JsonResponse(refreshedSession),
+            JsonResponse(new AuthUserProfileResponse
+            {
+                UserId = refreshedSession.User.UserId,
+                PersonId = refreshedSession.User.PersonId,
+                OrganizationId = organizationId,
+                Email = refreshedSession.User.Email
+            }));
+        var api = CreateClient(handler, session);
+
+        var isValid = await api.ValidateRestoredSessionAsync();
+
+        Assert.True(isValid);
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.Equal("api/v1/auth/refresh", handler.Requests[0].RequestUri!.PathAndQuery.TrimStart('/'));
+        Assert.Equal("new-access", handler.Requests[1].AccessToken);
+        Assert.Equal(organizationId.ToString(), handler.Requests[1].OrganizationId);
+        Assert.Equal("new-refresh-token", session.Current!.RefreshToken);
+    }
+
+    [Fact]
+    public async Task ListAsync_ShouldKeepSessionWhenRefreshFailsTemporarily()
+    {
+        var session = new AdminSession();
+        await session.SetAsync(CreateSession("expired-access", "refresh-token", Guid.NewGuid()));
+        var handler = new QueueHttpMessageHandler(
+            new HttpResponseMessage(HttpStatusCode.Unauthorized),
+            new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)
+            {
+                Content = new StringContent("API temporarily unavailable")
+            });
+        var api = CreateClient(handler, session);
+
+        var exception = await Assert.ThrowsAsync<HttpRequestException>(() => api.ListAsync<string>("clients"));
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, exception.StatusCode);
+        Assert.Equal("refresh-token", session.Current!.RefreshToken);
+    }
+
+    [Fact]
+    public async Task ListAsync_ShouldClearSessionWhenRefreshTokenIsRejected()
+    {
+        var session = new AdminSession();
+        await session.SetAsync(CreateSession("expired-access", "revoked-refresh-token", Guid.NewGuid()));
+        var handler = new QueueHttpMessageHandler(
+            new HttpResponseMessage(HttpStatusCode.Unauthorized),
+            new HttpResponseMessage(HttpStatusCode.Unauthorized));
+        var api = CreateClient(handler, session);
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => api.ListAsync<string>("clients"));
+
+        Assert.Null(session.Current);
+    }
+
+    [Fact]
     public async Task ListAsync_ShouldPreserveHttpStatusAndErrorMessage()
     {
         var handler = new QueueHttpMessageHandler(
@@ -46,7 +113,7 @@ public sealed class AdminApiClientTests
                 Content = new StringContent("Access denied")
             });
         var session = new AdminSession();
-        session.Set(CreateSession("access-token", "refresh-token", Guid.NewGuid()));
+        await session.SetAsync(CreateSession("access-token", "refresh-token", Guid.NewGuid()));
         var api = CreateClient(handler, session);
 
         var exception = await Assert.ThrowsAsync<HttpRequestException>(() => api.ListAsync<string>("clients"));
@@ -58,10 +125,14 @@ public sealed class AdminApiClientTests
     private static AdminApiClient CreateClient(QueueHttpMessageHandler handler, AdminSession session) =>
         new(new StubHttpClientFactory(handler), session);
 
-    private static SessionTokenResponse CreateSession(string accessToken, string refreshToken, Guid organizationId) => new()
+    private static SessionTokenResponse CreateSession(
+        string accessToken,
+        string refreshToken,
+        Guid organizationId,
+        DateTimeOffset? accessTokenExpiresAt = null) => new()
     {
         AccessToken = accessToken,
-        AccessTokenExpiresAt = DateTimeOffset.UtcNow.AddMinutes(15),
+        AccessTokenExpiresAt = accessTokenExpiresAt ?? DateTimeOffset.UtcNow.AddMinutes(15),
         RefreshToken = refreshToken,
         RefreshTokenExpiresAt = DateTimeOffset.UtcNow.AddDays(1),
         User = new AuthUserProfileResponse

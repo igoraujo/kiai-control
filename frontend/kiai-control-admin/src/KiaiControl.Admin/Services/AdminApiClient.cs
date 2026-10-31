@@ -12,6 +12,8 @@ namespace KiaiControl.Admin.Services;
 
 public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSession session)
 {
+    private readonly SemaphoreSlim _refreshLock = new(1, 1);
+
     public async Task<SessionTokenResponse> LoginAsync(string email, string password)
     {
         var client = httpClientFactory.CreateClient("KiaiApi");
@@ -29,6 +31,30 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<SessionTokenResponse>()
             ?? throw new HttpRequestException("The API returned an empty session response.");
+    }
+
+    public async Task<bool> ValidateRestoredSessionAsync()
+    {
+        var currentSession = session.Current;
+        if (currentSession is null)
+        {
+            return false;
+        }
+
+        if (currentSession.RefreshTokenExpiresAt <= DateTimeOffset.UtcNow)
+        {
+            await session.ClearAsync();
+            return false;
+        }
+
+        if (currentSession.AccessTokenExpiresAt <= DateTimeOffset.UtcNow.AddSeconds(30)
+            && !await RefreshSessionAsync(currentSession))
+        {
+            return false;
+        }
+
+        using var response = await SendAuthorizedAsync(HttpMethod.Get, "api/v1/auth/me");
+        return response.IsSuccessStatusCode;
     }
 
     public async Task<DashboardReportResponse> GetDashboardAsync(DateOnly from, DateOnly to)
@@ -185,21 +211,10 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
 
     public async Task<AttendanceRecordResponse> CheckInAsync(Guid lessonId)
     {
-        var client = httpClientFactory.CreateClient("KiaiApi");
-        var currentSession = session.Current ?? throw new UnauthorizedAccessException();
-        using var request = new HttpRequestMessage(HttpMethod.Post, "api/v1/attendance/check-in")
-        {
-            Content = JsonContent.Create(new CheckInRequest { LessonId = lessonId })
-        };
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", currentSession.AccessToken);
-        request.Headers.Add("X-Organization-Id", currentSession.User.OrganizationId.ToString());
-        using var response = await client.SendAsync(request);
-        if (response.StatusCode == HttpStatusCode.Unauthorized)
-        {
-            throw new UnauthorizedAccessException();
-        }
-
-        response.EnsureSuccessStatusCode();
+        using var response = await SendAuthorizedAsync(
+            HttpMethod.Post,
+            "api/v1/attendance/check-in",
+            new CheckInRequest { LessonId = lessonId });
         return await response.Content.ReadFromJsonAsync<AttendanceRecordResponse>()
             ?? throw new HttpRequestException("A API retornou uma resposta vazia.");
     }
@@ -273,16 +288,23 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
         var currentSession = session.Current;
         if (currentSession is null)
         {
+            await session.ClearAsync();
             return;
         }
 
-        var client = httpClientFactory.CreateClient("KiaiApi");
-        using var response = await client.PostAsJsonAsync("api/v1/auth/logout", new LogoutRequest
+        try
         {
-            RefreshToken = currentSession.RefreshToken
-        });
-        response.EnsureSuccessStatusCode();
-        session.Clear();
+            var client = httpClientFactory.CreateClient("KiaiApi");
+            using var response = await client.PostAsJsonAsync("api/v1/auth/logout", new LogoutRequest
+            {
+                RefreshToken = currentSession.RefreshToken
+            });
+            response.EnsureSuccessStatusCode();
+        }
+        finally
+        {
+            await session.ClearAsync();
+        }
     }
 
     private async Task<HttpResponseMessage> SendAuthorizedAsync(HttpMethod method, string requestUri, object? body = null, bool allowRefresh = true)
@@ -301,19 +323,19 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
         if (response.StatusCode == HttpStatusCode.Unauthorized && allowRefresh)
         {
             response.Dispose();
-            if (await RefreshSessionAsync())
+            if (await RefreshSessionAsync(currentSession))
             {
                 return await SendAuthorizedAsync(method, requestUri, body, allowRefresh: false);
             }
 
-            session.Clear();
+            await session.ClearAsync();
             throw new UnauthorizedAccessException();
         }
 
         if (response.StatusCode == HttpStatusCode.Unauthorized)
         {
             response.Dispose();
-            session.Clear();
+            await session.ClearAsync();
             throw new UnauthorizedAccessException();
         }
 
@@ -328,32 +350,57 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
         return response;
     }
 
-    private async Task<bool> RefreshSessionAsync()
+    private async Task<bool> RefreshSessionAsync(SessionTokenResponse observedSession)
     {
-        var currentSession = session.Current;
-        if (currentSession is null || currentSession.RefreshTokenExpiresAt <= DateTimeOffset.UtcNow)
+        await _refreshLock.WaitAsync();
+        try
         {
-            return false;
+            var currentSession = session.Current;
+            if (currentSession is null)
+            {
+                return false;
+            }
+
+            if (!string.Equals(currentSession.RefreshToken, observedSession.RefreshToken, StringComparison.Ordinal))
+            {
+                return currentSession.AccessTokenExpiresAt > DateTimeOffset.UtcNow;
+            }
+
+            if (currentSession.RefreshTokenExpiresAt <= DateTimeOffset.UtcNow)
+            {
+                await session.ClearAsync();
+                return false;
+            }
+
+            var client = httpClientFactory.CreateClient("KiaiApi");
+            using var response = await client.PostAsJsonAsync("api/v1/auth/refresh", new RefreshTokenRequest
+            {
+                RefreshToken = currentSession.RefreshToken
+            });
+
+            if (response.StatusCode == HttpStatusCode.Unauthorized)
+            {
+                await session.ClearAsync();
+                return false;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var detail = (await response.Content.ReadAsStringAsync()).Trim().Trim('"');
+                throw new HttpRequestException(
+                    string.IsNullOrWhiteSpace(detail) ? $"Erro {(int)response.StatusCode} ao renovar a sessão." : detail,
+                    null,
+                    response.StatusCode);
+            }
+
+            var refreshed = await response.Content.ReadFromJsonAsync<SessionTokenResponse>()
+                ?? throw new HttpRequestException("A API retornou uma sessão vazia ao renovar os tokens.");
+            await session.SetAsync(refreshed);
+            return true;
         }
-
-        var client = httpClientFactory.CreateClient("KiaiApi");
-        using var response = await client.PostAsJsonAsync("api/v1/auth/refresh", new RefreshTokenRequest
+        finally
         {
-            RefreshToken = currentSession.RefreshToken
-        });
-
-        if (!response.IsSuccessStatusCode)
-        {
-            return false;
+            _refreshLock.Release();
         }
-
-        var refreshed = await response.Content.ReadFromJsonAsync<SessionTokenResponse>();
-        if (refreshed is null)
-        {
-            return false;
-        }
-
-        session.Set(refreshed);
-        return true;
     }
 }

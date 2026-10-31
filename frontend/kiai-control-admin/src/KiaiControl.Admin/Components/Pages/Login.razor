@@ -56,7 +56,7 @@
         try
         {
             var session = await Api.LoginAsync(_form.Email, _form.Password);
-            Session.Set(session);
+            await Session.SetAsync(session);
             Navigation.NavigateTo("/");
         }
         catch (UnauthorizedAccessException)

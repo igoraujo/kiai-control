@@ -43,6 +43,27 @@ public sealed class LessonUseCaseTests
         Assert.NotNull(rescheduled);
         Assert.Equal("rescheduled", rescheduled.Status);
         Assert.Equal(originalStartsAt.AddDays(1), rescheduled.StartsAt);
+        Assert.Equal(TimeSpan.Zero, rescheduled.StartsAt.Offset);
+        Assert.Equal(TimeSpan.Zero, rescheduled.EndsAt.Offset);
+    }
+
+    [Fact]
+    public async Task CreateAsync_ShouldNormalizeTimesToUtc()
+    {
+        var useCase = new LessonUseCase(new InMemoryLessonRepository());
+        var startsAt = DateTimeOffset.Parse("2026-10-03T19:00:00-03:00");
+
+        var created = await useCase.CreateAsync(Guid.NewGuid(), new CreateLessonRequest
+        {
+            ClassGroupId = Guid.NewGuid(),
+            StartsAt = startsAt,
+            EndsAt = startsAt.AddHours(1)
+        }, CancellationToken.None);
+
+        Assert.NotNull(created);
+        Assert.Equal(startsAt, created.StartsAt);
+        Assert.Equal(TimeSpan.Zero, created.StartsAt.Offset);
+        Assert.Equal(TimeSpan.Zero, created.EndsAt.Offset);
     }
 
     [Fact]

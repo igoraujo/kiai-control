@@ -17,8 +17,8 @@ public sealed class LessonUseCase(ILessonRepository lessonRepository)
         {
             OrganizationId = organizationId,
             ClassGroupId = request.ClassGroupId,
-            StartsAt = request.StartsAt,
-            EndsAt = request.EndsAt,
+            StartsAt = request.StartsAt.ToUniversalTime(),
+            EndsAt = request.EndsAt.ToUniversalTime(),
             Status = "scheduled"
         };
 
@@ -54,8 +54,8 @@ public sealed class LessonUseCase(ILessonRepository lessonRepository)
         {
             Id = id,
             OrganizationId = organizationId,
-            StartsAt = request.StartsAt,
-            EndsAt = request.EndsAt
+            StartsAt = request.StartsAt.ToUniversalTime(),
+            EndsAt = request.EndsAt.ToUniversalTime()
         }, cancellationToken);
 
         return updated is null ? null : ToResponse(updated);
@@ -96,8 +96,8 @@ public sealed class LessonUseCase(ILessonRepository lessonRepository)
         var rescheduled = await lessonRepository.RescheduleAsync(
             organizationId,
             id,
-            request.StartsAt,
-            request.EndsAt,
+            request.StartsAt.ToUniversalTime(),
+            request.EndsAt.ToUniversalTime(),
             cancellationToken);
         return rescheduled is null ? null : ToResponse(rescheduled);
     }

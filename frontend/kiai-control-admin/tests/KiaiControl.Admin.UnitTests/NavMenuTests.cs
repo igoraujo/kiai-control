@@ -15,7 +15,7 @@ public sealed class NavMenuTests
         await using var context = new BunitContext();
         context.Services.AddMudServices();
         var session = new AdminSession();
-        session.Set(new SessionTokenResponse
+        await session.SetAsync(new SessionTokenResponse
         {
             AccessToken = "test-access-token",
             RefreshToken = "test-refresh-token",

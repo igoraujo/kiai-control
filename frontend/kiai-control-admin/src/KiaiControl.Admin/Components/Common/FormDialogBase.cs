@@ -19,19 +19,24 @@ public abstract class FormDialogBase : ComponentBase
 
     protected async Task SubmitAsync()
     {
-        if (Form is not null)
+        if (IsSaving)
         {
-            await Form.ValidateAsync();
-            if (!Form.IsValid)
-            {
-                return;
-            }
+            return;
         }
 
         IsSaving = true;
         ErrorMessage = null;
         try
         {
+            if (Form is not null)
+            {
+                await Form.ValidateAsync();
+                if (!Form.IsValid)
+                {
+                    return;
+                }
+            }
+
             await SaveCoreAsync();
             MudDialog.Close(DialogResult.Ok(true));
         }

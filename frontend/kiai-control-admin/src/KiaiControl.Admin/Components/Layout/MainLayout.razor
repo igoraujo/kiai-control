@@ -2,6 +2,7 @@
 @inject AdminSession Session
 @inject AdminApiClient Api
 @inject NavigationManager Navigation
+@inject IDialogService DialogService
 
 <MudThemeProvider Theme="_theme" />
 <MudPopoverProvider />
@@ -95,13 +96,23 @@
 
     private async Task LogoutAsync()
     {
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Sair do painel",
+            "Tem certeza de que deseja encerrar sua sessão?",
+            yesText: "Sair",
+            cancelText: "Cancelar");
+        if (confirmed != true)
+        {
+            return;
+        }
+
         try
         {
             await Api.LogoutAsync();
         }
         catch (HttpRequestException)
         {
-            Session.Clear();
+            await Session.ClearAsync();
         }
 
         Navigation.NavigateTo("/login");

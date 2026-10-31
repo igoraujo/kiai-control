@@ -43,7 +43,7 @@ public abstract class CrudPageBase<T> : ComponentBase
         }
         catch (UnauthorizedAccessException)
         {
-            Session.Clear();
+            await Session.ClearAsync();
             Navigation.NavigateTo("/login");
         }
         catch (HttpRequestException exception)
@@ -91,7 +91,7 @@ public abstract class CrudPageBase<T> : ComponentBase
         }
         catch (UnauthorizedAccessException)
         {
-            Session.Clear();
+            await Session.ClearAsync();
             Navigation.NavigateTo("/login");
         }
         catch (HttpRequestException exception)

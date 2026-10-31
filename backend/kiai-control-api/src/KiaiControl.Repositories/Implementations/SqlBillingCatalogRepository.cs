@@ -1,7 +1,9 @@
 using Dapper;
+using KiaiControl.Core.Common;
 using KiaiControl.Core.Entities;
 using KiaiControl.Core.Interfaces;
 using KiaiControl.Repositories.Queries.Billing;
+using Npgsql;
 
 namespace KiaiControl.Repositories.Implementations;
 
@@ -12,7 +14,14 @@ public sealed class SqlBillingCatalogRepository(IDbConnectionFactory dbConnectio
         plan.Id = Guid.NewGuid();
         plan.CreatedAt = DateTimeOffset.UtcNow;
         using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
-        return await connection.QuerySingleAsync<BillingPlan>(BillingCatalogQueries.InsertPlan, plan);
+        try
+        {
+            return await connection.QuerySingleAsync<BillingPlan>(BillingCatalogQueries.InsertPlan, plan);
+        }
+        catch (PostgresException exception) when (exception.SqlState == PostgresErrorCodes.UniqueViolation)
+        {
+            throw PostgresConflictMapper.ToConflict(exception);
+        }
     }
 
     public async Task<IReadOnlyList<BillingPlan>> ListPlansAsync(
@@ -37,7 +46,14 @@ public sealed class SqlBillingCatalogRepository(IDbConnectionFactory dbConnectio
     {
         plan.UpdatedAt = DateTimeOffset.UtcNow;
         using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
-        return await connection.QuerySingleOrDefaultAsync<BillingPlan>(BillingCatalogQueries.UpdatePlan, plan);
+        try
+        {
+            return await connection.QuerySingleOrDefaultAsync<BillingPlan>(BillingCatalogQueries.UpdatePlan, plan);
+        }
+        catch (PostgresException exception) when (exception.SqlState == PostgresErrorCodes.UniqueViolation)
+        {
+            throw PostgresConflictMapper.ToConflict(exception);
+        }
     }
 
     public async Task<bool> DeactivatePlanAsync(Guid organizationId, Guid planId, CancellationToken cancellationToken = default)

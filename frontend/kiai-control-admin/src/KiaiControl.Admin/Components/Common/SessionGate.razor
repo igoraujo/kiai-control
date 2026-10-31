@@ -1,0 +1,47 @@
+@inject AdminSession Session
+@inject AdminApiClient Api
+@inject ILogger<SessionGate> Logger
+
+@if (_isInitialized)
+{
+    @ChildContent
+}
+else
+{
+    <div class="d-flex justify-content-center align-items-center" style="min-height: 60vh">
+        <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+    </div>
+}
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private bool _isInitialized;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        await Session.InitializeAsync();
+        if (Session.Current is not null)
+        {
+            try
+            {
+                if (!await Api.ValidateRestoredSessionAsync())
+                {
+                    await Session.ClearAsync();
+                }
+            }
+            catch (HttpRequestException exception)
+            {
+                Logger.LogWarning(exception, "Could not validate the restored admin session because the API is unavailable.");
+            }
+        }
+
+        _isInitialized = true;
+        StateHasChanged();
+    }
+}
