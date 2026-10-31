@@ -15,9 +15,13 @@
 
 ## Resumo do Estado
 
-O backend ja tem uma base ampla de API e modulos de negocio. O Admin cobre uma parte dos fluxos operacionais. O banco tem schema inicial, migrations `001`-`005` e script de bootstrap. A principal lacuna nao e a ausencia de todos os modulos: e a falta de verificacao completa dos fluxos contra PostgreSQL, de cobertura automatizada em algumas areas e de paridade do painel com as capacidades existentes da API.
+O backend ja tem uma base ampla de API e modulos de negocio. O Admin cobre uma parte dos fluxos operacionais. O banco tem schema inicial, migrations `001`-`007` e script de bootstrap com ledger para evitar reaplicacao. A principal lacuna nao e a ausencia de todos os modulos: e a falta de verificacao completa dos fluxos contra PostgreSQL, de cobertura automatizada em algumas areas e de paridade do painel com as capacidades existentes da API.
 
 O workspace atual nao contem projeto mobile nem infraestrutura/deploy. Ha um workflow CI parcial; nao considere o produto pronto para producao com base apenas em build, testes locais ou controllers existentes.
+
+### Decisao de operacao de aulas
+
+O fluxo e modalidade → horarios recorrentes por unidade (professor opcional) → aulas por data → chamada. Um aluno ativo vinculado a modalidade pode frequentar qualquer horario dela; nao ha vinculo fixo a horario. A migration `007_remove_class_groups.sql` remove tabelas, endpoints e telas de turma/matricula fixa; aulas e ciclos de ranking sao associados a modalidade e matriculas ativas sao transferidas para `person_modalities`.
 
 ### Atualizacao de Implementacao (2026-10-31)
 
@@ -28,19 +32,19 @@ Esta atualizacao prevalece sobre itens de status conflitantes nas tabelas abaixo
 - Migrations `004` e `005` definem grants globais por role e overrides por organizacao; os endpoints de alteracao usam tenant/ator do token, e a role `owner` nao pode perder suas permissions pela API.
 - Login, refresh, logout e operacoes de senha usam limite de 10 requisicoes por IP/minuto. Recuperacao nao expoe token e retorna mensagem generica; envio por e-mail continua pendente.
 - Admin tem paginas `/access` e `/billing`, navega por permissions e oferece vinculo de modalidades no formulario do aluno; em 2026-10-31 passaram o build e 15 testes unitarios locais, incluindo restauracao de sessao protegida, refresh e estados da tela `/access`.
-- Em 2026-10-31 passaram os testes completos da solution da API com Docker: 50 unitarios, 1 arquitetural e 4 de integracao PostgreSQL; a fixture executou migrations `001`-`005`. No Admin passaram 15 testes unitarios. Nao houve validacao de deploy, banco de desenvolvimento ou servicos externos.
+- Na validacao da remocao do modelo de turmas, a fixture PostgreSQL executa as migrations `001`-`007`; os testes verificam ausencia das tabelas e campos de turma, alem do fluxo aberto de aula. API: 47 unitarios, 1 arquitetural e 6 de integracao PostgreSQL; Admin: build e 15 testes aprovados. Em 2026-10-31 o bootstrap aplicou as migrations `002`-`007` e o seed no banco local `dev`; a tabela `modality_schedules` existe e as tabelas de turma nao. Deploy e servicos externos nao foram validados.
 
 ## Inventario Verificado
 
 | Area | Estado atual | Evidencia e limite |
 |---|---|---|
-| API e arquitetura | Presente, validacao operacional incompleta | Projetos Api, Core, Contracts, UseCases, Repositories e Services; controllers para autenticacao, organizacoes, unidades, clientes, professores, modalidades, turmas, aulas, presenca, financeiro, fitness, graduacao, ranking, notificacoes, relatorios, auditoria e controle de acesso. A existencia das camadas/rotas nao comprova queries e fluxos em PostgreSQL real. |
+| API e arquitetura | Presente, validacao operacional incompleta | Projetos Api, Core, Contracts, UseCases, Repositories e Services; controllers para autenticacao, organizacoes, unidades, clientes, professores, modalidades, aulas, presenca, financeiro, fitness, graduacao, ranking, notificacoes, relatorios, auditoria e controle de acesso. A existencia das camadas/rotas nao comprova queries e fluxos em PostgreSQL real. |
 | Autenticacao | Melhorada; entrega de reset pendente | Access JWT valida issuer/audience, assinatura obrigatoria HS256, expiracao e role claim explicita; chave de 32 bytes e fallback somente em Development. Roles/permissoes efetivas entram no JWT no login/refresh. Login, refresh, logout e fluxos de senha tem rate limit de 10/IP/minuto. Recuperacao responde com mensagem generica sem token, mas nao entrega link por e-mail. |
-| Tenant e autorizacao | Policies e overrides por tenant implementados; integracao parcial | Middleware prioriza a organizacao do token sobre `X-Organization-Id`. Controllers combinam roles e permission claims; `role_permissions` define defaults globais e `organization_role_permissions` overrides locais. Owner nao pode ter suas permissions alteradas pela API. Migrations `001`-`005` executaram na fixture PostgreSQL; falta validar fluxos completos e autorizacao real de cada role. `persons` ainda representa uma organizacao por conta. |
+| Tenant e autorizacao | Policies e overrides por tenant implementados; integracao parcial | Middleware prioriza a organizacao do token sobre `X-Organization-Id`. Controllers combinam roles e permission claims; `role_permissions` define defaults globais e `organization_role_permissions` overrides locais. Owner nao pode ter suas permissions alteradas pela API. Migrations `001`-`007` executaram na fixture PostgreSQL; falta validar fluxos completos e autorizacao real de cada role. `persons` ainda representa uma organizacao por conta. |
 | Auditoria | Parcial | Middleware e endpoint de consulta existem. A gravacao ocorre depois da resposta da mutacao e falhas sao capturadas; assim, uma operacao pode concluir sem auditoria persistida. Integridade/atomicidade nao foi comprovada. |
-| Banco de dados | Integracao PostgreSQL inicial validada; operacao ainda pendente | `001_initial_api_schema.sql`, migrations `002`-`005`, seed administrativo e `create_database.sh`. Em 2026-10-31 a fixture Testcontainers aplicou as migrations `001`-`005` e 4 testes de integracao passaram localmente. Ledger de migrations, seed/login em banco vazio e fluxos completos ainda nao foram validados. |
-| Testes do backend | Unitarios, arquitetura e integracao PostgreSQL validados localmente | Em 2026-10-31 passaram 50 testes unitarios, 1 teste arquitetural e 4 testes de integracao em Docker/PostgreSQL. A fixture executou migrations `001`-`005`; `PerformanceTests` segue fora da solution ate existir benchmark real. |
-| Admin | Parcial | Paginas existentes: dashboard, clientes, professores, unidades, modalidades, turmas, aulas, check-ins pendentes, acesso/permissoes e financeiro (planos, assinaturas, faturas e pagamentos). O formulario de aluno sincroniza modalidades e a tela de turma matricula alunos; a jornada continua distribuida entre essas telas. Ainda faltam fitness, graduacao, ranking/medalhas, notificacoes, auditoria e relatorios operacionais. |
+| Banco de dados | Integracao PostgreSQL inicial validada; operacao ainda pendente | `001_initial_api_schema.sql`, migrations `002`-`007`, seed administrativo e `create_database.sh`. A migration `007` associa aulas e ciclos de ranking a modalidade, transfere matriculas ativas para `person_modalities` e remove tabelas, campos e permissoes de turma fixa; teste de integracao confirma que o schema final nao conserva essas estruturas. O bootstrap foi executado no banco local `dev`, onde `modality_schedules` existe e as tabelas antigas foram removidas. Falta validar banco vazio e login administrativo. |
+| Testes do backend | Unitarios, arquitetura e integracao PostgreSQL validados localmente | A solution tem 54 testes unitarios, 1 teste arquitetural e 5 testes de integracao PostgreSQL. O novo teste valida geracao sem duplicidade, atribuicao do professor, roster por vinculo ativo da modalidade e preservacao das aulas ao desativar horario. `PerformanceTests` segue fora da solution ate existir benchmark real. |
+| Admin | Parcial | Inclui agenda por modalidade/unidade/professor, geracao de aulas e chamada com alunos ativos vinculados a modalidade; nao ha telas de turma ou matricula fixa. Ainda faltam testes E2E do novo fluxo, fitness, graduacao, ranking/medalhas, notificacoes, auditoria e relatorios operacionais. |
 | Testes do Admin | Cobertura inicial validada | `KiaiControl.Admin.UnitTests` possui 15 testes aprovados, cobrindo refresh/retry com tenant, erros HTTP, persistencia/restauracao de sessao, nome obrigatorio, navegacao por permissions e estados autorizado, carregando, erro e sem permission na tela `/access`. Faltam testes de financeiro, vinculo de modalidades e fluxos E2E. |
 | Mobile | Fora do workspace | Nao ha pasta/projeto Flutter presente, embora esteja no escopo de `SYSTEM_DESIGN.md`. |
 | Infraestrutura e CI/CD | CI parcial presente; execucao remota falhou | Workflow GitHub Actions compila API/Admin e publica um artifact TRX. A execucao `41162725604` publicou `test-results`, mas falhou no teste arquitetural devido a separadores Windows/Unix; a correcao local passou na solution. Ainda falta uma execucao remota bem-sucedida com todos os TRX. Nao foram encontrados Dockerfiles, Compose, deploy manifests ou configuracao de observabilidade. |
@@ -59,6 +63,8 @@ Esta atualizacao prevalece sobre itens de status conflitantes nas tabelas abaixo
 ### Fase 0 - Linha de Base Confiavel (P0)
 
 - [x] Revalidar a solution completa da API com Docker depois da migration `005`; em 2026-10-31 passaram 50 testes unitarios, 1 arquitetural e 4 de integracao PostgreSQL. Foi corrigido o teste arquitetural para normalizar separadores Windows/Unix nos `ProjectReference`.
+- [x] Validar a migration `006` e o fluxo aberto por modalidade na solution completa; passaram 54 testes unitarios, 1 arquitetural e 5 de integracao PostgreSQL. O Admin passou no build e em 15 testes unitarios.
+- [x] Remover o modelo de turmas/matriculas fixas via migration `007`, converter aulas/ciclos antigos para modalidade e validar ausencia das tabelas/colunas no schema final.
 - [x] Gerar e validar localmente um TRX independente por projeto ativo: API em `backend/kiai-control-api/TestResults/{unit,integration,architecture}` e Admin em `frontend/kiai-control-admin/TestResults/admin`.
 - [x] Confirmar que a pipeline publica os TRX como artifact apos sua primeira execucao no GitHub Actions; a execucao `41162725604` publicou `test-results` (artifact `13027836463`), embora o job tenha falhado no teste arquitetural.
 - [x] Substituir os smoke tests `Assert.True(true)` por verificacoes reais ou removê-los ate existir comportamento testavel. O teste de arquitetura compara `ProjectReference` com o grafo permitido; o teste de bootstrap resolve repositorios registrados no DI; placeholders sem comportamento foram removidos.
@@ -66,20 +72,20 @@ Esta atualizacao prevalece sobre itens de status conflitantes nas tabelas abaixo
 - [ ] Confirmar uma execucao bem-sucedida do workflow em runner limpo e a publicacao dos TRX de todos os projetos; a execucao `41162725604` falhou no teste arquitetural, corrigido localmente em 2026-10-31. Tambem foi corrigida localmente a indentacao do script de verificacao TRX. A nova execucao depende de commit/push das correcoes.
 - [x] Criar projeto de testes do Admin e cobrir refresh, tenant, nome obrigatorio, erro HTTP, navegacao por permissions e bloqueio de `/access` sem permission; 15 testes passaram localmente em 2026-10-31, incluindo persistencia/restauracao, refresh e estados da tela de acesso.
 - [x] Cobrir a tela de gestao de permissions e os estados de erro/carregamento; em 2026-10-31 passaram 4 testes de componente, incluindo usuario autorizado, carregamento, erro HTTP e bloqueio sem permission.
-- [ ] Cobrir fluxos E2E criticos de login, criar/editar aluno, matricular, registrar presenca, validar check-in e registrar pagamento.
+- [ ] Cobrir fluxos E2E criticos de login, criar/editar aluno, vincular modalidade, registrar presenca, validar check-in e registrar pagamento.
 - [x] Atualizar a matriz de estado deste documento quando uma validacao mudar o status de uma area; evidencia local e resultado do runner registrados em 2026-10-31.
 
 **Aceite:** pipeline reproduzivel em ambiente limpo, relatorios TRX preservados por projeto, contagem de testes visivel, nenhum placeholder contado como cobertura e documentos sem afirmacoes contraditas pelo codigo.
 
 ### Fase 1 - PostgreSQL, Migrations e Integracao (P0)
 
-- [x] Implementar fixture Testcontainers com PostgreSQL 17 que aplica migrations `001`-`005` em ordem e descarte a instancia ao final; harness compilado localmente.
+- [x] Implementar fixture Testcontainers com PostgreSQL 17 que aplica migrations `001`-`007` em ordem e descarte a instancia ao final; 6 testes de integracao passaram localmente.
 - [x] Executar a fixture em runner com Docker e validar a conexao real, migrations e round-trip de `DateOnly`; o passo de integracao PostgreSQL passou no GitHub Actions run `41162725604` e os 4 testes passaram localmente em 2026-10-31.
 - [x] Documentar o comando de execucao em ambiente com Docker e configurar o runner de CI para executar o teste de integracao; comando em `backend/kiai-control-api/README.md` e passo de integracao em `.github/workflows/backend-api-ci.yml`.
-- [ ] Aplicar as cinco migrations e o seed em banco vazio; validar schema, bootstrap e login administrativo.
-- [ ] Definir controle de versao/aplicacao de migrations (ledger ou ferramenta escolhida), ordem, rollback e comportamento em banco existente.
+- [ ] Aplicar todas as migrations e o seed em banco vazio; validar schema, bootstrap e login administrativo.
+- [ ] Completar validacao do controle de versao/aplicacao de migrations: `create_database.sh` mantem um ledger, aplica migrations pendentes em ordem e reconhece o schema inicial em banco existente sem ledger; foi executado com sucesso no banco local `dev`. Falta validar banco vazio. Rollback documentado continua pendente.
 - [ ] Adicionar testes de integracao para os repositorios Dapper: CRUD, constraints, datas `DateOnly`, transacoes e isolamento entre organizacoes.
-- [ ] Validar os fluxos completos de criacao/edicao de cliente e professor, chamadas, matriculas, pagamentos e consultas diretamente contra PostgreSQL.
+- [ ] Validar os fluxos completos de criacao/edicao de cliente e professor, vinculos de modalidade, chamadas, pagamentos e consultas diretamente contra PostgreSQL.
 - [ ] Provar idempotencia da geracao de aulas/faturas com repeticao da mesma solicitacao.
 - [ ] Criar fixtures com duas organizacoes e comprovar que nenhuma consulta ou mutacao cruza o tenant.
 
@@ -116,13 +122,13 @@ Esta atualizacao prevalece sobre itens de status conflitantes nas tabelas abaixo
 
 ### Fase 4 - Fechar os Fluxos do Painel Admin (P1)
 
-- [ ] Unificar a jornada de aluno entre cadastro/modalidades, assinatura financeira e matricula em turma; hoje cada etapa pode ser concluida em sua tela existente, mas sem fluxo guiado unico nem historico/detalhe consolidado.
-- [ ] Completar a jornada de professor: associacao a modalidades/turmas e consulta de agenda.
+- [ ] Unificar a jornada de aluno entre cadastro/modalidades e assinatura financeira; hoje cada etapa pode ser concluida em sua tela existente, mas sem fluxo guiado unico nem historico/detalhe consolidado.
+- [ ] Completar a jornada de professor: associacao a modalidades/horarios e consulta de agenda.
 - [x] Implementar telas para planos, assinaturas, faturas e pagamentos, com confirmacao de cancelamento/desativacao e validacao de saldo/pagamento; build Admin aprovado, aguardando validacao com API/PostgreSQL real.
 - [ ] Implementar interfaces para graduacao, metas/progresso fitness, rankings/medalhas, notificacoes, relatorios e auditoria conforme papeis autorizados.
 - [ ] Integrar os relatorios existentes ao dashboard e permitir filtros previstos pelo contrato.
 - [ ] Revisar navegacao por role/permission, estados vazios, carregamento, erros, paginacao e responsividade em todos os fluxos.
-- [ ] Cobrir fluxos criticos com testes de componente e E2E: login, criar/editar aluno, matricular, registrar presenca, validar check-in e registrar pagamento.
+- [ ] Cobrir fluxos criticos com testes de componente e E2E: login, criar/editar aluno, vincular modalidade, registrar presenca, validar check-in e registrar pagamento.
 
 **Aceite:** cada fluxo operacional do MVP pode ser concluido pelo Admin sem chamadas manuais/API externa; autorizacao visual acompanha a autorizacao do backend; E2E dos fluxos criticos passa.
 

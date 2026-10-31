@@ -24,20 +24,22 @@ public static class ReportQueries
         ";
 
     public const string Attendance = @"
-        select cg.id as ClassGroupId,
-               cg.name as ClassGroupName,
+        select l.modality_id as ModalityId,
+               modality.name as ModalityName,
                count(distinct l.id)::integer as LessonsHeld,
                count(a.id) filter (where a.status in ('present', 'late'))::integer as AttendanceCount,
                count(a.id) filter (where a.status in ('absent', 'justified_absence'))::integer as AbsenceCount,
                coalesce(100.0 * count(a.id) filter (where a.status in ('present', 'late')) / nullif(count(a.id), 0), 0)::numeric(6,2) as AttendanceRate
-        from class_groups cg
-        left join lessons l on l.class_group_id = cg.id and l.organization_id = cg.organization_id
-                           and l.status = 'completed' and l.starts_at::date between @From and @To
-        left join attendances a on a.lesson_id = l.id and a.organization_id = cg.organization_id
-        where cg.organization_id = @OrganizationId
-          and (@ModalityId is null or cg.modality_id = @ModalityId)
-        group by cg.id, cg.name
-        order by cg.name;
+        from lessons l
+        join modalities modality on modality.id = l.modality_id
+            and modality.organization_id = l.organization_id
+        left join attendances a on a.lesson_id = l.id and a.organization_id = l.organization_id
+        where l.organization_id = @OrganizationId
+          and l.status = 'completed'
+          and l.starts_at::date between @From and @To
+          and (@ModalityId is null or l.modality_id = @ModalityId)
+        group by l.modality_id, modality.name
+        order by modality.name;
         ";
 
     public const string Financial = @"
@@ -54,19 +56,32 @@ public static class ReportQueries
         ";
 
     public const string ClientPerformance = @"
-        with lesson_totals as (
-            select e.client_id,
-                   count(distinct l.id) filter (where l.status = 'completed')::integer as lessons_available,
+        with eligible_lessons as (
+            select distinct c.id as client_id, lesson.id as lesson_id, lesson.status
+            from clients c
+            join lessons lesson on lesson.organization_id = c.organization_id
+                and lesson.starts_at::date between @From and @To
+            where c.organization_id = @OrganizationId
+              and c.current_status = 'active'
+              and exists (
+                  select 1
+                  from person_modalities assignment
+                  join modalities modality on modality.id = assignment.modality_id
+                      and modality.organization_id = c.organization_id
+                      and modality.is_active = true
+                  where assignment.person_id = c.person_id
+                    and assignment.modality_id = lesson.modality_id
+                    and (@ModalityId is null or lesson.modality_id = @ModalityId)
+              )
+        ), lesson_totals as (
+            select eligible.client_id,
+                   count(distinct eligible.lesson_id) filter (where eligible.status = 'completed')::integer as lessons_available,
                    count(a.id) filter (where a.status in ('present', 'late'))::integer as attendance_count
-            from enrollments e
-            join class_groups cg on cg.id = e.class_group_id and cg.organization_id = e.organization_id
-            join lessons l on l.class_group_id = cg.id and l.organization_id = e.organization_id
-                           and l.starts_at::date between @From and @To
-            left join attendances a on a.lesson_id = l.id and a.client_id = e.client_id and a.organization_id = e.organization_id
-            where e.organization_id = @OrganizationId
-              and e.enrolled_at::date <= @To and (e.ended_at is null or e.ended_at::date >= @From)
-              and (@ModalityId is null or cg.modality_id = @ModalityId)
-            group by e.client_id
+            from eligible_lessons eligible
+            left join attendances a on a.lesson_id = eligible.lesson_id
+                and a.client_id = eligible.client_id
+                and a.organization_id = @OrganizationId
+            group by eligible.client_id
         ), paid_totals as (
             select invoice.client_id, sum(payment.amount) as amount_paid
             from payments payment

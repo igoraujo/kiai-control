@@ -137,6 +137,25 @@ public sealed class AttendanceUseCase(IAttendanceRepository attendanceRepository
         return records.Select(ToResponse).ToList();
     }
 
+    public async Task<IReadOnlyList<EligibleAttendanceClientResponse>> ListEligibleClientsByLessonAsync(
+        Guid organizationId,
+        Guid lessonId,
+        CancellationToken cancellationToken)
+    {
+        if (organizationId == Guid.Empty || lessonId == Guid.Empty)
+        {
+            throw new ArgumentException("OrganizationId and LessonId are required.");
+        }
+
+        var clients = await attendanceRepository.ListEligibleClientsByLessonAsync(
+            organizationId, lessonId, cancellationToken);
+        return clients.Select(client => new EligibleAttendanceClientResponse
+        {
+            ClientId = client.ClientId,
+            ClientName = client.ClientName
+        }).ToList();
+    }
+
     public async Task<AttendanceRecordResponse?> CheckInAsync(
         Guid organizationId,
         Guid personId,

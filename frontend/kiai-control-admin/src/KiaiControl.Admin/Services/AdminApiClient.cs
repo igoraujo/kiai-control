@@ -162,12 +162,9 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
     public Task<IReadOnlyList<LessonResponse>> ListLessonsAsync(int page = 1, int pageSize = 200) =>
         ListAsync<LessonResponse>("lessons", page, pageSize);
 
-    public Task<LessonResponse> CreateLessonAsync(CreateLessonRequest request) =>
-        CreateAsync<CreateLessonRequest, LessonResponse>("lessons", request);
-
-    public async Task<IReadOnlyList<LessonResponse>> GenerateLessonsAsync(GenerateLessonsRequest request)
+    public async Task<IReadOnlyList<LessonResponse>> GenerateModalityLessonsAsync(GenerateModalityLessonsRequest request)
     {
-        using var response = await SendAuthorizedAsync(HttpMethod.Post, "api/v1/lessons/generate", request);
+        using var response = await SendAuthorizedAsync(HttpMethod.Post, "api/v1/lessons/generate-from-modality", request);
         return await response.Content.ReadFromJsonAsync<List<LessonResponse>>() ?? [];
     }
 
@@ -189,6 +186,12 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
     {
         using var response = await SendAuthorizedAsync(HttpMethod.Get, $"api/v1/lessons/{lessonId}/attendances");
         return await response.Content.ReadFromJsonAsync<List<AttendanceRecordResponse>>() ?? [];
+    }
+
+    public async Task<IReadOnlyList<EligibleAttendanceClientResponse>> GetEligibleLessonClientsAsync(Guid lessonId)
+    {
+        using var response = await SendAuthorizedAsync(HttpMethod.Get, $"api/v1/lessons/{lessonId}/eligible-clients");
+        return await response.Content.ReadFromJsonAsync<List<EligibleAttendanceClientResponse>>() ?? [];
     }
 
     public async Task<IReadOnlyList<AttendanceRecordResponse>> SaveLessonAttendanceAsync(

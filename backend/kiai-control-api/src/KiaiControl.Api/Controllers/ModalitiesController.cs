@@ -1,6 +1,7 @@
 using KiaiControl.Contracts.Auth;
 using KiaiControl.Contracts.Common;
 using KiaiControl.Contracts.Modalities;
+using KiaiControl.Contracts.Lessons;
 using KiaiControl.Core.Common;
 using KiaiControl.UseCases.Modalities;
 using Microsoft.AspNetCore.Authorization;
@@ -12,7 +13,10 @@ namespace KiaiControl.Api.Controllers;
 [Authorize(Roles = "owner,admin")]
 [Authorize(Policy = PermissionCodes.ModalitiesManage)]
 [Route("api/v1/modalities")]
-public sealed class ModalitiesController(OrganizationContext organizationContext, ModalityUseCase modalityUseCase) : ControllerBase
+public sealed class ModalitiesController(
+    OrganizationContext organizationContext,
+    ModalityUseCase modalityUseCase,
+    ModalityScheduleUseCase modalityScheduleUseCase) : ControllerBase
 {
     [AllowAnonymous]
     [HttpGet("status")]
@@ -101,5 +105,73 @@ public sealed class ModalitiesController(OrganizationContext organizationContext
 
         var deactivated = await modalityUseCase.DeleteAsync(organizationId, id, cancellationToken);
         return deactivated ? NoContent() : NotFound();
+    }
+
+    [HttpGet("{id:guid}/schedules")]
+    public async Task<ActionResult<IReadOnlyList<ModalityScheduleResponse>>> ListSchedulesAsync(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        if (organizationContext.OrganizationId is not Guid organizationId)
+        {
+            return BadRequest("Organization context is required.");
+        }
+
+        try
+        {
+            var schedules = await modalityScheduleUseCase.ListAsync(organizationId, id, cancellationToken);
+            return schedules is null ? NotFound() : Ok(schedules);
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(exception.Message);
+        }
+    }
+
+    [HttpPost("{id:guid}/schedules")]
+    public async Task<ActionResult<ModalityScheduleResponse>> CreateScheduleAsync(
+        Guid id,
+        [FromBody] CreateModalityScheduleRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (organizationContext.OrganizationId is not Guid organizationId)
+        {
+            return BadRequest("Organization context is required.");
+        }
+
+        try
+        {
+            var created = await modalityScheduleUseCase.CreateAsync(organizationId, id, request, cancellationToken);
+            return created is null
+                ? Conflict("The modality, branch or active teacher is unavailable, or this schedule already exists.")
+                : CreatedAtAction(nameof(ListSchedulesAsync), new { id }, created);
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(exception.Message);
+        }
+    }
+
+    [HttpDelete("{id:guid}/schedules/{scheduleId:guid}")]
+    public async Task<IActionResult> DeleteScheduleAsync(
+        Guid id,
+        Guid scheduleId,
+        CancellationToken cancellationToken)
+    {
+        if (organizationContext.OrganizationId is not Guid organizationId)
+        {
+            return BadRequest("Organization context is required.");
+        }
+
+        try
+        {
+            var deleted = await modalityScheduleUseCase.DeactivateAsync(
+                organizationId, id, scheduleId, cancellationToken);
+            return deleted ? NoContent() : NotFound();
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(exception.Message);
+        }
     }
 }

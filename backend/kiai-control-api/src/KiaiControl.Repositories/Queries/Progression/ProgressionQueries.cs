@@ -109,19 +109,30 @@ public static class ProgressionQueries
             select id, organization_id, modality_id
             from graduation_systems
             where id = @SystemId and organization_id = @OrganizationId and is_active = true
+        ), eligible_lessons as (
+            select distinct c.id as client_id, lesson.id as lesson_id, lesson.starts_at
+            from clients c
+            join target_system target on target.organization_id = c.organization_id
+            join person_modalities assignment on assignment.person_id = c.person_id
+                and assignment.modality_id = target.modality_id
+            join modalities modality on modality.id = assignment.modality_id
+                and modality.organization_id = c.organization_id
+                and modality.is_active = true
+            join lessons lesson on lesson.organization_id = c.organization_id
+                and lesson.modality_id = target.modality_id
+                and lesson.status = 'completed'
+            where c.organization_id = @OrganizationId
+              and c.current_status = 'active'
         ), attendance_stats as (
-            select c.id as client_id,
+            select eligible.client_id,
                    count(a.id)::integer as attendance_count,
                    count(a.id) filter (where a.status in ('present', 'late'))::integer as attended_count,
-                   count(distinct l.starts_at::date)::integer as training_days
-            from clients c
-            join enrollments e on e.client_id = c.id and e.organization_id = c.organization_id and e.status = 'active'
-            join class_groups cg on cg.id = e.class_group_id and cg.organization_id = c.organization_id
-            join target_system target on target.modality_id = cg.modality_id and target.organization_id = c.organization_id
-            join lessons l on l.class_group_id = cg.id and l.organization_id = c.organization_id and l.status = 'completed'
-            left join attendances a on a.lesson_id = l.id and a.client_id = c.id and a.organization_id = c.organization_id
-            where c.organization_id = @OrganizationId and c.current_status = 'active'
-            group by c.id
+                   count(distinct eligible.starts_at::date)::integer as training_days
+            from eligible_lessons eligible
+            left join attendances a on a.lesson_id = eligible.lesson_id
+                and a.client_id = eligible.client_id
+                and a.organization_id = @OrganizationId
+            group by eligible.client_id
         )
         select c.id as ClientId, p.full_name as FullName,
                current_level.id as CurrentLevelId, next_level.id as NextLevelId,

@@ -62,12 +62,57 @@ run_sql_file_docker() {
   docker exec -i "${PG_CONTAINER_NAME}" psql -U "${PGUSER}" -d "${db_name}" -v ON_ERROR_STOP=1 < "${file_path}"
 }
 
+ensure_migration_ledger_local() {
+  PGPASSWORD="${PGPASSWORD}" psql -h "${PGHOST}" -p "${PGPORT}" -U "${PGUSER}" -d "${DB_NAME}" \
+    -v ON_ERROR_STOP=1 -c "CREATE TABLE IF NOT EXISTS schema_migrations (migration_name varchar(255) PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())" >/dev/null
+}
+
+ensure_migration_ledger_docker() {
+  docker exec -i "${PG_CONTAINER_NAME}" psql -U "${PGUSER}" -d "${DB_NAME}" \
+    -v ON_ERROR_STOP=1 -c "CREATE TABLE IF NOT EXISTS schema_migrations (migration_name varchar(255) PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())" >/dev/null
+}
+
+migration_applied_local() {
+  local migration_name="$1"
+  local result
+  result="$(PGPASSWORD="${PGPASSWORD}" psql -h "${PGHOST}" -p "${PGPORT}" -U "${PGUSER}" -d "${DB_NAME}" -tAc \
+    "SELECT 1 FROM schema_migrations WHERE migration_name = '${migration_name}'")"
+  [[ "${result}" == "1" ]]
+}
+
+migration_applied_docker() {
+  local migration_name="$1"
+  local result
+  result="$(docker exec -i "${PG_CONTAINER_NAME}" psql -U "${PGUSER}" -d "${DB_NAME}" -tAc \
+    "SELECT 1 FROM schema_migrations WHERE migration_name = '${migration_name}'")"
+  [[ "${result}" == "1" ]]
+}
+
+mark_migration_local() {
+  local migration_name="$1"
+  PGPASSWORD="${PGPASSWORD}" psql -h "${PGHOST}" -p "${PGPORT}" -U "${PGUSER}" -d "${DB_NAME}" \
+    -v ON_ERROR_STOP=1 -c "INSERT INTO schema_migrations (migration_name) VALUES ('${migration_name}') ON CONFLICT DO NOTHING" >/dev/null
+}
+
+mark_migration_docker() {
+  local migration_name="$1"
+  docker exec -i "${PG_CONTAINER_NAME}" psql -U "${PGUSER}" -d "${DB_NAME}" \
+    -v ON_ERROR_STOP=1 -c "INSERT INTO schema_migrations (migration_name) VALUES ('${migration_name}') ON CONFLICT DO NOTHING" >/dev/null
+}
+
 apply_followup_migrations_local() {
   local migration_file
   for migration_file in "${ROOT_DIR}"/migrations/*.sql; do
     [[ "${migration_file}" == "${MIGRATION_FILE}" ]] && continue
-    echo "Applying migration $(basename "${migration_file}")..."
+    local migration_name
+    migration_name="$(basename "${migration_file}")"
+    if migration_applied_local "${migration_name}"; then
+      echo "Skipping applied migration ${migration_name}."
+      continue
+    fi
+    echo "Applying migration ${migration_name}..."
     run_sql_file_local "${DB_NAME}" "${migration_file}"
+    mark_migration_local "${migration_name}"
   done
 }
 
@@ -75,8 +120,15 @@ apply_followup_migrations_docker() {
   local migration_file
   for migration_file in "${ROOT_DIR}"/migrations/*.sql; do
     [[ "${migration_file}" == "${MIGRATION_FILE}" ]] && continue
-    echo "Applying migration $(basename "${migration_file}")..."
+    local migration_name
+    migration_name="$(basename "${migration_file}")"
+    if migration_applied_docker "${migration_name}"; then
+      echo "Skipping applied migration ${migration_name}."
+      continue
+    fi
+    echo "Applying migration ${migration_name}..."
     run_sql_file_docker "${DB_NAME}" "${migration_file}"
+    mark_migration_docker "${migration_name}"
   done
 }
 
@@ -93,6 +145,8 @@ if has_local_psql; then
     echo "Schema already exists in ${DB_NAME}; skipping initial migration."
   fi
 
+  ensure_migration_ledger_local
+  mark_migration_local "$(basename "${MIGRATION_FILE}")"
   apply_followup_migrations_local
 
   echo "Applying admin bootstrap..."
@@ -110,6 +164,8 @@ else
     echo "Schema already exists in ${DB_NAME}; skipping initial migration."
   fi
 
+  ensure_migration_ledger_docker
+  mark_migration_docker "$(basename "${MIGRATION_FILE}")"
   apply_followup_migrations_docker
 
   echo "Applying admin bootstrap..."

@@ -39,7 +39,6 @@
     }
     @if (HasPermission(PermissionCodes.TeachersManage)
         || HasPermission(PermissionCodes.ModalitiesManage)
-        || HasPermission(PermissionCodes.ClassGroupsRead)
         || HasPermission(PermissionCodes.AccessPermissionsManage))
     {
         <MudText Typo="Typo.overline" Class="menu-kicker">Gestão</MudText>
@@ -51,10 +50,6 @@
     @if (HasPermission(PermissionCodes.ModalitiesManage))
     {
         <MudNavLink Href="/modalities" Icon="@Icons.Material.Filled.SportsMartialArts">Modalidades</MudNavLink>
-    }
-    @if (HasPermission(PermissionCodes.ClassGroupsRead))
-    {
-        <MudNavLink Href="/class-groups" Icon="@Icons.Material.Filled.Class">Turmas</MudNavLink>
     }
     @if (HasPermission(PermissionCodes.AccessPermissionsManage))
     {
@@ -80,4 +75,3 @@
     private bool HasPermission(string permission) =>
         Session.Current?.User.Permissions.Contains(permission, StringComparer.OrdinalIgnoreCase) == true;
 }
-

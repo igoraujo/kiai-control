@@ -4,23 +4,20 @@ public static class RankingQueries
 {
     public const string CreateCycle = @"
         insert into ranking_cycles (
-            id, organization_id, modality_id, class_group_id, name, starts_at, ends_at, status, created_at
+            id, organization_id, modality_id, name, starts_at, ends_at, status, created_at
         )
-        select @Id, o.id, @ModalityId, @ClassGroupId, @Name, @StartsAt, @EndsAt, 'open', @CreatedAt
+        select @Id, o.id, @ModalityId, @Name, @StartsAt, @EndsAt, 'open', @CreatedAt
         from organizations o
         where o.id = @OrganizationId
           and (@ModalityId is null or exists (
               select 1 from modalities m where m.id = @ModalityId and m.organization_id = o.id and m.is_active = true
           ))
-          and (@ClassGroupId is null or exists (
-              select 1 from class_groups cg where cg.id = @ClassGroupId and cg.organization_id = o.id and cg.status = 'active'
-          ))
-        returning id, organization_id as OrganizationId, modality_id as ModalityId, class_group_id as ClassGroupId,
+        returning id, organization_id as OrganizationId, modality_id as ModalityId,
                   name, starts_at as StartsAt, ends_at as EndsAt, status::text as Status, created_at as CreatedAt;
         ";
 
     public const string ListCycles = @"
-        select id, organization_id as OrganizationId, modality_id as ModalityId, class_group_id as ClassGroupId,
+        select id, organization_id as OrganizationId, modality_id as ModalityId,
                name, starts_at as StartsAt, ends_at as EndsAt, status::text as Status, created_at as CreatedAt
         from ranking_cycles
         where organization_id = @OrganizationId
@@ -29,7 +26,7 @@ public static class RankingQueries
         ";
 
     public const string LockCycle = @"
-        select id, organization_id as OrganizationId, modality_id as ModalityId, class_group_id as ClassGroupId,
+        select id, organization_id as OrganizationId, modality_id as ModalityId,
                name, starts_at as StartsAt, ends_at as EndsAt, status::text as Status, created_at as CreatedAt
         from ranking_cycles
         where organization_id = @OrganizationId and id = @CycleId and status = 'open'
@@ -42,7 +39,7 @@ public static class RankingQueries
 
     public const string Recalculate = @"
         with target_cycle as (
-            select id, organization_id, modality_id, class_group_id, starts_at, ends_at
+            select id, organization_id, modality_id, starts_at, ends_at
             from ranking_cycles
             where organization_id = @OrganizationId and id = @CycleId and status = 'open'
         ), lesson_states as (
@@ -51,18 +48,20 @@ public static class RankingQueries
                    l.starts_at,
                    (a.status in ('present', 'late')) as attended
             from target_cycle cycle
-            join enrollments e on e.organization_id = cycle.organization_id
-                              and e.enrolled_at::date <= cycle.ends_at
-                              and (e.ended_at is null or e.ended_at::date >= cycle.starts_at)
-            join clients c on c.id = e.client_id and c.organization_id = cycle.organization_id and c.current_status = 'active'
-            join class_groups cg on cg.id = e.class_group_id and cg.organization_id = cycle.organization_id
-            join lessons l on l.class_group_id = cg.id and l.organization_id = cycle.organization_id
+            join lessons l on l.organization_id = cycle.organization_id
                           and l.status = 'completed'
                           and l.starts_at::date between cycle.starts_at and cycle.ends_at
+            join clients c on c.organization_id = cycle.organization_id and c.current_status = 'active'
+            left join person_modalities assignment on assignment.person_id = c.person_id
+                and assignment.modality_id = l.modality_id
+            left join modalities modality on modality.id = l.modality_id
+                and modality.organization_id = cycle.organization_id
+                and modality.is_active = true
             left join attendances a on a.organization_id = cycle.organization_id
                                    and a.lesson_id = l.id and a.client_id = c.id
-            where (cycle.modality_id is null or cg.modality_id = cycle.modality_id)
-              and (cycle.class_group_id is null or cg.id = cycle.class_group_id)
+            where assignment.person_id is not null
+              and modality.id is not null
+              and (cycle.modality_id is null or l.modality_id = cycle.modality_id)
         ), sequenced as (
             select lesson_states.*,
                    row_number() over (partition by client_id order by starts_at, lesson_id) as sequence_number,
@@ -108,13 +107,13 @@ public static class RankingQueries
             left join totals on totals.client_id = c.id
             left join latest_streak on latest_streak.client_id = c.id
             where exists (
-                select 1 from enrollments e
-                join class_groups cg on cg.id = e.class_group_id and cg.organization_id = cycle.organization_id
-                where e.organization_id = cycle.organization_id and e.client_id = c.id
-                  and e.enrolled_at::date <= cycle.ends_at
-                  and (e.ended_at is null or e.ended_at::date >= cycle.starts_at)
-                  and (cycle.modality_id is null or cg.modality_id = cycle.modality_id)
-                  and (cycle.class_group_id is null or cg.id = cycle.class_group_id)
+                select 1
+                from person_modalities assignment
+                join modalities modality on modality.id = assignment.modality_id
+                    and modality.organization_id = cycle.organization_id
+                    and modality.is_active = true
+                where assignment.person_id = c.person_id
+                  and (cycle.modality_id is null or assignment.modality_id = cycle.modality_id)
             )
         )
         insert into ranking_entries (id, ranking_cycle_id, client_id, points, attendance_count, streak_count, position, updated_at)

@@ -7,14 +7,11 @@
     <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="dashboard-heading">
         <div>
             <MudText Typo="Typo.h4">Aulas</MudText>
-            <MudText Typo="Typo.body2" Color="Color.Secondary">Agenda, chamada e check-ins por aula</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">Sessões da modalidade, chamada e check-ins por aula</MudText>
         </div>
-        @if (CanManageLessons)
+        @if (CanManageModalities)
         {
-            <MudStack Row="true" Spacing="1">
-                <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.AutoAwesome" OnClick="GenerateAsync">Gerar agenda</MudButton>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="CreateAsync">Nova aula</MudButton>
-            </MudStack>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Schedule" OnClick="ManageModalities">Gerenciar horários</MudButton>
         }
     </MudStack>
 
@@ -39,14 +36,14 @@
         <HeaderContent>
             <MudTh>Data</MudTh>
             <MudTh>Horário</MudTh>
-            <MudTh>Turma</MudTh>
+            <MudTh>Modalidade</MudTh>
             <MudTh>Situação</MudTh>
             <MudTh Style="text-align:right">Ações</MudTh>
         </HeaderContent>
         <RowTemplate>
             <MudTd>@context.StartsAt.ToLocalTime().ToString("dd/MM/yyyy")</MudTd>
             <MudTd>@context.StartsAt.ToLocalTime().ToString("HH:mm") - @context.EndsAt.ToLocalTime().ToString("HH:mm")</MudTd>
-            <MudTd>@ClassGroupName(context.ClassGroupId)</MudTd>
+            <MudTd>@LessonName(context)</MudTd>
             <MudTd><MudChip T="string" Size="Size.Small" Color="LessonStatusColor(context.Status)">@LessonStatusLabel(context.Status)</MudChip></MudTd>
             <MudTd Style="text-align:right">
                 <MudIconButton Icon="@Icons.Material.Filled.FactCheck" Size="Size.Small" Color="Color.Primary" aria-label="Abrir chamada" OnClick="() => OpenAttendance(context)" />
@@ -62,10 +59,11 @@
 </MudStack>
 
 @code {
-    private IReadOnlyList<ClassGroupResponse> _classGroups = [];
     private DateTime? _from = DateTime.Today;
     private DateTime? _to = DateTime.Today.AddDays(13);
     private string _statusFilter = string.Empty;
+    private bool CanManageModalities => Session.Current?.User.Permissions.Contains(
+        "modalities.manage", StringComparer.OrdinalIgnoreCase) == true;
     private bool CanManageLessons => Session.Current?.User.Roles.Any(role =>
         role.Equals("owner", StringComparison.OrdinalIgnoreCase)
         || role.Equals("admin", StringComparison.OrdinalIgnoreCase)
@@ -81,49 +79,20 @@
             && (string.IsNullOrEmpty(_statusFilter) || lesson.Status == _statusFilter);
     });
 
-    protected override async Task LoadExtrasAsync()
-    {
-        try
-        {
-            _classGroups = await Api.ListAsync<ClassGroupResponse>("class-groups", pageSize: 200);
-        }
-        catch (UnauthorizedAccessException)
-        {
-            await Session.ClearAsync();
-            Navigation.NavigateTo("/login");
-        }
-        catch (HttpRequestException exception)
-        {
-            Snackbar.Add($"Não foi possível carregar as turmas: {exception.Message}", Severity.Warning);
-        }
-    }
+    private static string LessonName(LessonResponse lesson) =>
+        $"{lesson.ModalityName ?? "Aula"}{(string.IsNullOrWhiteSpace(lesson.BranchName) ? string.Empty : $" · {lesson.BranchName}")}";
 
-    private string ClassGroupName(Guid id) => _classGroups.FirstOrDefault(group => group.Id == id)?.Name ?? "Turma";
-
-    private Task CreateAsync() => OpenLessonDialogAsync(null, reschedule: false);
-
-    private Task RescheduleAsync(LessonResponse lesson) => OpenLessonDialogAsync(lesson, reschedule: true);
-
-    private Task OpenLessonDialogAsync(LessonResponse? lesson, bool reschedule) =>
-        OpenDialogAsync(reschedule ? "Reagendar aula" : "Nova aula",
+    private Task RescheduleAsync(LessonResponse lesson) =>
+        OpenDialogAsync("Reagendar aula",
             new DialogParameters<LessonDialog>
             {
-                { dialog => dialog.Item, lesson },
-                { dialog => dialog.ClassGroups, _classGroups },
-                { dialog => dialog.RescheduleOnly, reschedule }
+                { dialog => dialog.Item, lesson }
             }, MaxWidth.Medium);
-
-    private async Task GenerateAsync()
-    {
-        var result = await OpenDialogAsync<GenerateLessonsDialog>("Gerar aulas a partir dos horários",
-            new DialogParameters<GenerateLessonsDialog> { { dialog => dialog.ClassGroups, _classGroups } }, MaxWidth.Small);
-        _ = result;
-    }
 
     private async Task CancelAsync(LessonResponse lesson)
     {
         var confirmed = await DialogService.ShowMessageBoxAsync(
-            "Cancelar aula", $"Cancelar a aula de {ClassGroupName(lesson.ClassGroupId)} em {lesson.StartsAt.ToLocalTime():dd/MM HH:mm}?",
+            "Cancelar aula", $"Cancelar a aula de {LessonName(lesson)} em {lesson.StartsAt.ToLocalTime():dd/MM HH:mm}?",
             yesText: "Cancelar aula", cancelText: "Manter aula");
         if (confirmed != true)
         {
@@ -146,6 +115,8 @@
             Snackbar.Add(exception.Message, Severity.Error);
         }
     }
+
+    private void ManageModalities() => Navigation.NavigateTo("/modalities");
 
     private void OpenAttendance(LessonResponse lesson) => Navigation.NavigateTo($"/lessons/{lesson.Id}/attendance");
 

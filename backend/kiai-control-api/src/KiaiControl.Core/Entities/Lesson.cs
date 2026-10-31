@@ -6,7 +6,13 @@ public sealed class Lesson
 
     public Guid OrganizationId { get; set; }
 
-    public Guid ClassGroupId { get; set; }
+    public Guid ModalityId { get; set; }
+
+    public Guid? ModalityScheduleId { get; set; }
+
+    public string? ModalityName { get; set; }
+
+    public string? BranchName { get; set; }
 
     public DateTimeOffset StartsAt { get; set; }
 

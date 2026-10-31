@@ -46,7 +46,7 @@ public sealed class ApiBootstrapRegistrationTests
         ], "test"));
         var teacherUser = new ClaimsPrincipal(new ClaimsIdentity(
         [
-            new Claim(PermissionCodes.ClaimType, PermissionCodes.ClassGroupsRead)
+            new Claim(PermissionCodes.ClaimType, PermissionCodes.LessonsManage)
         ], "test"));
 
         Assert.False((await authorization.AuthorizeAsync(authenticatedUser, PermissionCodes.ClientsManage)).Succeeded);
@@ -55,8 +55,8 @@ public sealed class ApiBootstrapRegistrationTests
         Assert.False((await authorization.AuthorizeAsync(clientUser, PermissionCodes.AttendanceManage)).Succeeded);
         Assert.True((await authorization.AuthorizeAsync(clientUser, PermissionCodes.NotificationsRead)).Succeeded);
         Assert.False((await authorization.AuthorizeAsync(clientUser, PermissionCodes.NotificationsManage)).Succeeded);
-        Assert.True((await authorization.AuthorizeAsync(teacherUser, PermissionCodes.ClassGroupsRead)).Succeeded);
-        Assert.False((await authorization.AuthorizeAsync(teacherUser, PermissionCodes.ClassGroupsManage)).Succeeded);
+        Assert.True((await authorization.AuthorizeAsync(teacherUser, PermissionCodes.LessonsManage)).Succeeded);
+        Assert.False((await authorization.AuthorizeAsync(teacherUser, PermissionCodes.AttendanceManage)).Succeeded);
     }
 
     private sealed class TestHostEnvironment : IHostEnvironment

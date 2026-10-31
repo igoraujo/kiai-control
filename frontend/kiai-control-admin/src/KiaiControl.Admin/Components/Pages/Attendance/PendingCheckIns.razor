@@ -36,14 +36,14 @@
         <MudTable Items="_pending" Loading="_isSaving" Hover="true" Dense="true">
             <HeaderContent>
                 <MudTh>Aluno</MudTh>
-                <MudTh>Turma</MudTh>
+                <MudTh>Modalidade / grupo</MudTh>
                 <MudTh>Aula</MudTh>
                 <MudTh>Check-in</MudTh>
                 <MudTh Style="text-align:right">Validação</MudTh>
             </HeaderContent>
             <RowTemplate>
                 <MudTd>@context.ClientName</MudTd>
-                <MudTd>@ClassGroupNameForLesson(context.LessonId)</MudTd>
+                <MudTd>@LessonNameFor(context.LessonId)</MudTd>
                 <MudTd>
                     @if (LessonFor(context.LessonId) is { } lesson)
                     {
@@ -69,7 +69,6 @@
 @code {
     private IReadOnlyList<AttendanceRecordResponse> _pending = [];
     private IReadOnlyList<LessonResponse> _lessons = [];
-    private IReadOnlyList<ClassGroupResponse> _classGroups = [];
     private bool _isLoading = true;
     private bool _isSaving;
     private string? _errorMessage;
@@ -93,11 +92,9 @@
         {
             var pendingTask = Api.ListPendingCheckInsAsync();
             var lessonsTask = Api.ListLessonsAsync();
-            var groupsTask = Api.ListAsync<ClassGroupResponse>("class-groups", pageSize: 200);
-            await Task.WhenAll(pendingTask, lessonsTask, groupsTask);
+            await Task.WhenAll(pendingTask, lessonsTask);
             _pending = await pendingTask;
             _lessons = await lessonsTask;
-            _classGroups = await groupsTask;
         }
         catch (UnauthorizedAccessException)
         {
@@ -148,10 +145,11 @@
 
     private LessonResponse? LessonFor(Guid lessonId) => _lessons.FirstOrDefault(lesson => lesson.Id == lessonId);
 
-    private string ClassGroupNameForLesson(Guid lessonId)
+    private string LessonNameFor(Guid lessonId)
     {
-        var classGroupId = LessonFor(lessonId)?.ClassGroupId;
-        return _classGroups.FirstOrDefault(group => group.Id == classGroupId)?.Name ?? "Turma";
+        var lesson = LessonFor(lessonId);
+        var name = lesson?.ModalityName ?? "Aula";
+        return string.IsNullOrWhiteSpace(lesson?.BranchName) ? name : $"{name} · {lesson.BranchName}";
     }
 
     private void OpenLessonAsync(Guid lessonId) => Navigation.NavigateTo($"/lessons/{lessonId}/attendance");

@@ -28,9 +28,9 @@ public sealed class DashboardReportResponse
 
 public sealed class AttendanceReportRow
 {
-    public Guid ClassGroupId { get; init; }
+    public Guid ModalityId { get; init; }
 
-    public string ClassGroupName { get; init; } = string.Empty;
+    public string? ModalityName { get; init; }
 
     public int LessonsHeld { get; init; }
 

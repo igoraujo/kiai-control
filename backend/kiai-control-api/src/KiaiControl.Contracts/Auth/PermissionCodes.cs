@@ -10,8 +10,6 @@ public static class PermissionCodes
     public const string AttendanceManage = "attendance.manage";
     public const string BillingManage = "billing.manage";
     public const string BranchesManage = "branches.manage";
-    public const string ClassGroupsRead = "class-groups.read";
-    public const string ClassGroupsManage = "class-groups.manage";
     public const string ClientsManage = "clients.manage";
     public const string FitnessManage = "fitness.manage";
     public const string GraduationManage = "graduation.manage";
@@ -33,8 +31,6 @@ public static class PermissionCodes
         AttendanceManage,
         BillingManage,
         BranchesManage,
-        ClassGroupsRead,
-        ClassGroupsManage,
         ClientsManage,
         FitnessManage,
         GraduationManage,

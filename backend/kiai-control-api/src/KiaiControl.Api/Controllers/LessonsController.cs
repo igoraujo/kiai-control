@@ -42,7 +42,7 @@ public sealed class LessonsController(
         {
             var created = await lessonUseCase.CreateAsync(organizationId, request, cancellationToken);
             return created is null
-                ? Conflict("The class group is unavailable in this organization.")
+                ? Conflict("The modality is unavailable in this organization.")
                 : CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
         }
         catch (ArgumentException exception)
@@ -51,10 +51,10 @@ public sealed class LessonsController(
         }
     }
 
-    [HttpPost("generate")]
+    [HttpPost("generate-from-modality")]
     [Authorize(Roles = "owner,admin,teacher")]
-    public async Task<ActionResult<IReadOnlyList<LessonResponse>>> GenerateAsync(
-        [FromBody] GenerateLessonsRequest request,
+    public async Task<ActionResult<IReadOnlyList<LessonResponse>>> GenerateFromModalityAsync(
+        [FromBody] GenerateModalityLessonsRequest request,
         CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
@@ -64,10 +64,10 @@ public sealed class LessonsController(
 
         try
         {
-            var created = await lessonUseCase.GenerateFromSchedulesAsync(organizationId, request, cancellationToken);
+            var created = await lessonUseCase.GenerateFromModalitySchedulesAsync(organizationId, request, cancellationToken);
             return created is null
-                ? NotFound("The class group is unavailable in this organization.")
-                : CreatedAtAction("List", new { page = 1, pageSize = Math.Max(created.Count, 1) }, created);
+                ? NotFound("The active modality is unavailable in this organization.")
+                : CreatedAtAction(nameof(ListAsync), new { page = 1, pageSize = Math.Max(created.Count, 1) }, created);
         }
         catch (ArgumentException exception)
         {
@@ -192,6 +192,27 @@ public sealed class LessonsController(
 
         var attendance = await attendanceUseCase.ListByLessonAsync(organizationId, id, cancellationToken);
         return Ok(attendance);
+    }
+
+    [HttpGet("{id:guid}/eligible-clients")]
+    [Authorize(Roles = "owner,admin,teacher,reception")]
+    public async Task<ActionResult<IReadOnlyList<EligibleAttendanceClientResponse>>> GetEligibleClientsAsync(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        if (organizationContext.OrganizationId is not Guid organizationId)
+        {
+            return BadRequest("Organization context is required.");
+        }
+
+        if (await lessonUseCase.GetByIdAsync(organizationId, id, cancellationToken) is null)
+        {
+            return NotFound();
+        }
+
+        var clients = await attendanceUseCase.ListEligibleClientsByLessonAsync(
+            organizationId, id, cancellationToken);
+        return Ok(clients);
     }
 
     [HttpPut("{id:guid}/attendances")]
