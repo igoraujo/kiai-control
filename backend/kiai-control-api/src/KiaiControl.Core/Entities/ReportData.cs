@@ -21,9 +21,9 @@ public sealed class DashboardReportData
 
 public sealed class AttendanceReportData
 {
-    public Guid ClassGroupId { get; set; }
+    public Guid ModalityId { get; set; }
 
-    public string ClassGroupName { get; set; } = string.Empty;
+    public string? ModalityName { get; set; }
 
     public int LessonsHeld { get; set; }
 

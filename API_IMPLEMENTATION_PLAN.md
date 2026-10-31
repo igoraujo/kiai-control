@@ -1,5 +1,7 @@
 # Kiai Control API - Pendencias e Plano de Implementacao
 
+> **Documento historico, substituido em 2026-10-30.** Nao use o checklist abaixo como estado atual: varias pendencias listadas foram implementadas desde esta revisao e outras afirmacoes precisam de validacao. A fonte vigente para o projeto completo e [PROJECT_IMPLEMENTATION_PLAN.md](PROJECT_IMPLEMENTATION_PLAN.md). Preserve este arquivo apenas como registro do plano anterior.
+
 **Atualizado:** 2026-10-04  
 **Escopo:** API backend em `backend/kiai-control-api`  
 **Referencia funcional:** `SYSTEM_DESIGN.md`, `COPILOT.md` e `CHECKPOINT.md`

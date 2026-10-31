@@ -134,7 +134,8 @@ public sealed class AuthUseCase(
             PersonId = user.PersonId,
             OrganizationId = user.OrganizationId,
             Email = user.Email,
-            Roles = user.Roles
+            Roles = user.Roles,
+            Permissions = user.Permissions
         };
     }
 
@@ -171,9 +172,7 @@ public sealed class AuthUseCase(
 
         return new ForgotPasswordResponse
         {
-            Message = "If the e-mail exists, recovery instructions will be sent.",
-            ResetToken = rawToken,
-            ResetTokenExpiresAt = expiresAt
+            Message = "If the e-mail exists, recovery instructions will be sent."
         };
     }
 
@@ -254,7 +253,8 @@ public sealed class AuthUseCase(
                 PersonId = user.PersonId,
                 OrganizationId = user.OrganizationId,
                 Email = user.Email,
-                Roles = user.Roles
+                Roles = user.Roles,
+                Permissions = user.Permissions
             }
         };
 

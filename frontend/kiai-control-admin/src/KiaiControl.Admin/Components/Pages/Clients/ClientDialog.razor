@@ -19,6 +19,14 @@
                         <MudDatePicker @bind-Date="_joinedAt" Label="Data de ingresso" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" />
                     </MudItem>
                 </MudGrid>
+                <MudText Typo="Typo.subtitle2" Class="pt-2">Modalidades</MudText>
+                <MudSelect T="Guid" @bind-SelectedValues="_selectedModalityIds" MultiSelection="true"
+                           Label="Modalidades do aluno" Variant="Variant.Outlined" Clearable="true">
+                    @foreach (var modality in Modalities)
+                    {
+                        <MudSelectItem Value="@modality.Id">@modality.Name</MudSelectItem>
+                    }
+                </MudSelect>
             </MudStack>
         </MudForm>
     </DialogContent>
@@ -31,13 +39,18 @@
 @code {
     [Parameter] public ClientResponse? Item { get; set; }
     [Parameter] public IReadOnlyList<BranchResponse> Branches { get; set; } = [];
+    [Parameter] public IReadOnlyList<ModalityResponse> Modalities { get; set; } = [];
+    [Parameter] public IReadOnlyList<Guid> SelectedModalityIds { get; set; } = [];
 
     private readonly PersonFormModel _person = new();
+    private IReadOnlyCollection<Guid> _selectedModalityIds = Array.Empty<Guid>();
+    private Guid? _createdClientId;
     private string? _registrationCode;
     private DateTime? _joinedAt;
 
     protected override void OnInitialized()
     {
+        _selectedModalityIds = SelectedModalityIds.ToHashSet();
         if (Item is not null)
         {
             _person.BranchId = Item.BranchId;
@@ -59,29 +72,36 @@
 
     protected override async Task SaveCoreAsync()
     {
+        Guid clientId;
         if (Item is null)
         {
-            await Api.CreateAsync<CreateClientRequest, ClientResponse>("clients", new CreateClientRequest
+            if (_createdClientId is null)
             {
-                BranchId = _person.BranchId,
-                FullName = _person.FullName,
-                PreferredName = _person.PreferredName,
-                Email = _person.Email,
-                Phone = _person.Phone,
-                BirthDate = ToDateOnly(_person.BirthDate),
-                Document = _person.Document,
-                MedicalNotes = _person.MedicalNotes,
-                EmergencyContactName = _person.EmergencyContactName,
-                EmergencyContactPhone = _person.EmergencyContactPhone,
-                HideFromRanking = _person.HideFromRanking,
-                RegistrationCode = _registrationCode,
-                JoinedAt = ToDateOnly(_joinedAt),
-                Status = _person.Status
-            });
+                var created = await Api.CreateAsync<CreateClientRequest, ClientResponse>("clients", new CreateClientRequest
+                {
+                    BranchId = _person.BranchId,
+                    FullName = _person.FullName,
+                    PreferredName = _person.PreferredName,
+                    Email = _person.Email,
+                    Phone = _person.Phone,
+                    BirthDate = ToDateOnly(_person.BirthDate),
+                    Document = _person.Document,
+                    MedicalNotes = _person.MedicalNotes,
+                    EmergencyContactName = _person.EmergencyContactName,
+                    EmergencyContactPhone = _person.EmergencyContactPhone,
+                    HideFromRanking = _person.HideFromRanking,
+                    RegistrationCode = _registrationCode,
+                    JoinedAt = ToDateOnly(_joinedAt),
+                    Status = _person.Status
+                });
+                _createdClientId = created.Id;
+            }
+
+            clientId = _createdClientId.Value;
         }
         else
         {
-            await Api.UpdateAsync<UpdateClientRequest, ClientResponse>("clients", Item.Id, new UpdateClientRequest
+            var updated = await Api.UpdateAsync<UpdateClientRequest, ClientResponse>("clients", Item.Id, new UpdateClientRequest
             {
                 BranchId = _person.BranchId,
                 FullName = _person.FullName,
@@ -98,6 +118,19 @@
                 JoinedAt = ToDateOnly(_joinedAt),
                 Status = _person.Status
             });
+            clientId = updated.Id;
+        }
+
+        var existingModalityIds = Item is null ? new HashSet<Guid>() : SelectedModalityIds.ToHashSet();
+        var desiredModalityIds = _selectedModalityIds.ToHashSet();
+        foreach (var modalityId in desiredModalityIds.Except(existingModalityIds))
+        {
+            await Api.LinkClientModalityAsync(clientId, modalityId);
+        }
+
+        foreach (var modalityId in existingModalityIds.Except(desiredModalityIds))
+        {
+            await Api.UnlinkClientModalityAsync(clientId, modalityId);
         }
     }
 

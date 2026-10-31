@@ -1,3 +1,4 @@
+using KiaiControl.Contracts.Auth;
 using KiaiControl.Contracts.Ranking;
 using KiaiControl.Core.Common;
 using KiaiControl.UseCases.Ranking;
@@ -8,6 +9,7 @@ namespace KiaiControl.Api.Controllers;
 
 [ApiController]
 [Authorize(Roles = "owner,admin,teacher")]
+[Authorize(Policy = PermissionCodes.RankingManage)]
 [Route("api/v1")]
 public sealed class RankingController(OrganizationContext organizationContext, RankingUseCase rankingUseCase) : ControllerBase
 {

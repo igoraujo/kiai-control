@@ -1,3 +1,4 @@
+using KiaiControl.Contracts.Auth;
 using KiaiControl.Contracts.Reports;
 using KiaiControl.Core.Common;
 using KiaiControl.UseCases.Reports;
@@ -8,6 +9,7 @@ namespace KiaiControl.Api.Controllers;
 
 [ApiController]
 [Authorize(Roles = "owner,admin,financial")]
+[Authorize(Policy = PermissionCodes.ReportsRead)]
 [Route("api/v1/reports")]
 public sealed class ReportsController(OrganizationContext organizationContext, ReportUseCase reportUseCase) : ControllerBase
 {

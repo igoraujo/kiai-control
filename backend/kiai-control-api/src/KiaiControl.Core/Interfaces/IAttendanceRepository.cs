@@ -30,6 +30,11 @@ public interface IAttendanceRepository
         Guid lessonId,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<EligibleAttendanceClient>> ListEligibleClientsByLessonAsync(
+        Guid organizationId,
+        Guid lessonId,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<AttendanceRecord>> ListPendingByOrganizationAsync(
         Guid organizationId,
         int page,

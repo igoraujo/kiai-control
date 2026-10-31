@@ -33,8 +33,8 @@ public sealed class ReportUseCase(IReportRepository repository)
         var rows = await repository.GetAttendanceAsync(organizationId, from, to, modalityId, cancellationToken);
         return rows.Select(row => new AttendanceReportRow
         {
-            ClassGroupId = row.ClassGroupId,
-            ClassGroupName = row.ClassGroupName,
+            ModalityId = row.ModalityId,
+            ModalityName = row.ModalityName,
             LessonsHeld = row.LessonsHeld,
             AttendanceCount = row.AttendanceCount,
             AbsenceCount = row.AbsenceCount,

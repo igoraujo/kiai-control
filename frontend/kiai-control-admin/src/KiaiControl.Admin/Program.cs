@@ -1,6 +1,7 @@
 using KiaiControl.Admin.Components;
 using KiaiControl.Admin.Services;
 using MudBlazor.Services;
+using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,6 +16,8 @@ builder.Services.AddHttpClient("KiaiApi", client =>
 });
 builder.Services.AddScoped<AdminSession>();
 builder.Services.AddScoped<AdminApiClient>();
+builder.Services.AddScoped<ProtectedLocalStorage>();
+builder.Services.AddScoped<IAdminSessionStore, ProtectedBrowserSessionStore>();
 
 var app = builder.Build();
 

@@ -29,9 +29,9 @@ public interface ILessonRepository
         DateTimeOffset endsAt,
         CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<Lesson>?> GenerateFromSchedulesAsync(
+    Task<IReadOnlyList<Lesson>?> GenerateFromModalitySchedulesAsync(
         Guid organizationId,
-        Guid classGroupId,
+        Guid modalityId,
         DateOnly startDate,
         DateOnly endDate,
         CancellationToken cancellationToken = default);

@@ -22,17 +22,21 @@ public static class AttendanceQueries
         select
             @Id, l.organization_id, l.id, c.id, 'pending_confirmation'::attendance_status, @CheckedInAt, @CreatedAt
         from lessons l
-        join enrollments e on e.organization_id = l.organization_id
-            and e.class_group_id = l.class_group_id
-            and e.status = 'active'
-        join clients c on c.id = e.client_id
-            and c.organization_id = l.organization_id
+        join clients c on c.organization_id = l.organization_id
             and c.current_status = 'active'
         join persons p on p.id = c.person_id
             and p.deleted_at is null
             and p.id = @PersonId
         where l.organization_id = @OrganizationId
             and l.id = @LessonId
+            and exists (
+                select 1 from person_modalities pm
+                join modalities modality on modality.id = pm.modality_id
+                    and modality.organization_id = l.organization_id
+                    and modality.is_active = true
+                where pm.person_id = c.person_id
+                  and pm.modality_id = l.modality_id
+            )
             and l.status = 'scheduled'
             and l.starts_at <= @CheckedInAt
             and l.ends_at >= @CheckedInAt
@@ -117,6 +121,25 @@ public static class AttendanceQueries
         where a.organization_id = @OrganizationId and a.lesson_id = @LessonId
         order by a.created_at, a.client_id;";
 
+    public const string ListEligibleClientsByLesson = @"
+        select c.id as ClientId, person.full_name as ClientName
+        from lessons l
+        join clients c on c.organization_id = l.organization_id
+            and c.current_status = 'active'
+        join persons person on person.id = c.person_id
+            and person.deleted_at is null
+        where l.organization_id = @OrganizationId
+          and l.id = @LessonId
+          and exists (
+              select 1 from person_modalities pm
+              join modalities modality on modality.id = pm.modality_id
+                  and modality.organization_id = l.organization_id
+                  and modality.is_active = true
+              where pm.person_id = c.person_id
+                and pm.modality_id = l.modality_id
+          )
+        order by person.full_name;";
+
     public const string ListPendingByOrganization = @"
         select
             a.id,
@@ -152,7 +175,7 @@ public static class AttendanceQueries
             validated_by_person_id as ValidatedByPersonId, created_at as CreatedAt, updated_at as UpdatedAt;";
 
     public const string LockLessonForCall = @"
-        select l.class_group_id
+        select l.id
         from lessons l
         where l.organization_id = @OrganizationId
           and l.id = @LessonId
@@ -165,21 +188,24 @@ public static class AttendanceQueries
             validated_at, validated_by_person_id, created_at
         )
         select
-            @Id, @OrganizationId, l.id, e.client_id, @Status::attendance_status, @AttendanceDate,
+            @Id, @OrganizationId, l.id, c.id, @Status::attendance_status, @AttendanceDate,
             @ValidatedAt, @ValidatedByPersonId, @CreatedAt
         from lessons l
-        join enrollments e
-          on e.organization_id = l.organization_id
-         and e.class_group_id = l.class_group_id
-         and e.client_id = @ClientId
-         and e.status = 'active'
         join clients c
-          on c.id = e.client_id
+          on c.id = @ClientId
          and c.organization_id = l.organization_id
          and c.current_status = 'active'
         where l.organization_id = @OrganizationId
           and l.id = @LessonId
           and l.status in ('scheduled', 'completed')
+          and exists (
+              select 1 from person_modalities pm
+              join modalities modality on modality.id = pm.modality_id
+                  and modality.organization_id = l.organization_id
+                  and modality.is_active = true
+              where pm.person_id = c.person_id
+                and pm.modality_id = l.modality_id
+          )
         on conflict (organization_id, lesson_id, client_id)
         do update set
             status = excluded.status,

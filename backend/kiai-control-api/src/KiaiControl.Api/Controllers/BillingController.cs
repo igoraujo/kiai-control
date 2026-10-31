@@ -1,3 +1,4 @@
+using KiaiControl.Contracts.Auth;
 using KiaiControl.Contracts.Billing;
 using KiaiControl.Contracts.Common;
 using KiaiControl.Core.Common;
@@ -9,6 +10,7 @@ namespace KiaiControl.Api.Controllers;
 
 [ApiController]
 [Authorize(Roles = "owner,admin,financial")]
+[Authorize(Policy = PermissionCodes.BillingManage)]
 [Route("api/v1/billing")]
 public sealed class BillingController(
     OrganizationContext organizationContext,
@@ -182,11 +184,15 @@ public sealed class BillingController(
         try
         {
             var plan = await billingCatalogUseCase.CreatePlanAsync(organizationId, request, cancellationToken);
-            return CreatedAtAction(nameof(ListPlansAsync), new { page = 1, pageSize = 50 }, plan);
+            return CreatedAtAction("ListPlans", new { page = 1, pageSize = 50 }, plan);
         }
         catch (ArgumentException exception)
         {
             return BadRequest(exception.Message);
+        }
+        catch (ConflictException exception)
+        {
+            return Conflict(exception.Message);
         }
     }
 
@@ -225,6 +231,10 @@ public sealed class BillingController(
         {
             return BadRequest(exception.Message);
         }
+        catch (ConflictException exception)
+        {
+            return Conflict(exception.Message);
+        }
     }
 
     [HttpDelete("plans/{id:guid}")]
@@ -261,6 +271,20 @@ public sealed class BillingController(
         {
             return BadRequest(exception.Message);
         }
+    }
+
+    [HttpGet("subscriptions")]
+    public async Task<ActionResult<IReadOnlyList<ClientPlanSubscriptionResponse>>> ListSubscriptionsAsync(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50,
+        CancellationToken cancellationToken = default)
+    {
+        if (organizationContext.OrganizationId is not Guid organizationId)
+        {
+            return BadRequest("Organization context is required.");
+        }
+
+        return Ok(await billingCatalogUseCase.ListSubscriptionsAsync(organizationId, page, pageSize, cancellationToken));
     }
 
     [HttpPatch("subscriptions/{subscriptionId:guid}/cancel")]

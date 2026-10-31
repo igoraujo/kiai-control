@@ -4,15 +4,47 @@ namespace KiaiControl.Admin.Services;
 
 public sealed class AdminSession
 {
+    private readonly IAdminSessionStore? _store;
+
+    public AdminSession(IAdminSessionStore? store = null)
+    {
+        _store = store;
+    }
+
     public SessionTokenResponse? Current { get; private set; }
 
-    public void Set(SessionTokenResponse session) => Current = session;
+    public bool IsInitialized { get; private set; }
 
-    public void Clear() => Current = null;
+    public async Task InitializeAsync()
+    {
+        if (IsInitialized)
+        {
+            return;
+        }
 
-    public Task LogoutAsync()
+        Current = _store is null ? null : await _store.LoadAsync();
+        IsInitialized = true;
+    }
+
+    public async Task SetAsync(SessionTokenResponse session)
+    {
+        if (_store is not null)
+        {
+            await _store.SaveAsync(session);
+        }
+
+        Current = session;
+        IsInitialized = true;
+    }
+
+    public async Task ClearAsync()
     {
         Current = null;
-        return Task.CompletedTask;
+        IsInitialized = true;
+        if (_store is not null)
+        {
+            await _store.ClearAsync();
+        }
     }
+
 }

@@ -70,6 +70,20 @@ public sealed class ModalityUseCase(IModalityRepository modalityRepository)
         return modalityRepository.DeactivateAsync(organizationId, id, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<ModalityResponse>> ListClientModalitiesAsync(
+        Guid organizationId,
+        Guid clientId,
+        CancellationToken cancellationToken)
+    {
+        if (organizationId == Guid.Empty || clientId == Guid.Empty)
+        {
+            throw new ArgumentException("OrganizationId and ClientId are required.");
+        }
+
+        var modalities = await modalityRepository.ListClientModalitiesAsync(organizationId, clientId, cancellationToken);
+        return modalities.Select(ToResponse).ToList();
+    }
+
     public Task<bool> LinkClientAsync(
         Guid organizationId,
         Guid clientId,

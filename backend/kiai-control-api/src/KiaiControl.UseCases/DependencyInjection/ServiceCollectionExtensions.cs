@@ -2,7 +2,6 @@ using KiaiControl.UseCases.Attendance;
 using KiaiControl.UseCases.Auth;
 using KiaiControl.UseCases.Billing;
 using KiaiControl.UseCases.Branches;
-using KiaiControl.UseCases.ClassGroups;
 using KiaiControl.UseCases.Lessons;
 using KiaiControl.UseCases.Clients;
 using KiaiControl.UseCases.Modalities;
@@ -27,7 +26,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ClientUseCase>();
         services.AddScoped<TeacherUseCase>();
         services.AddScoped<ModalityUseCase>();
-        services.AddScoped<ClassGroupUseCase>();
+        services.AddScoped<ModalityScheduleUseCase>();
         services.AddScoped<LessonUseCase>();
         services.AddScoped<AttendanceUseCase>();
         services.AddScoped<BillingUseCase>();

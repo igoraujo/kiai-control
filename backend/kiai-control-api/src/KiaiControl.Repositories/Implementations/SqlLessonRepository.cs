@@ -2,6 +2,7 @@ using Dapper;
 using KiaiControl.Core.Entities;
 using KiaiControl.Core.Interfaces;
 using KiaiControl.Repositories.Queries.Lessons;
+using KiaiControl.Repositories.Queries.Modalities;
 
 namespace KiaiControl.Repositories.Implementations;
 
@@ -75,26 +76,32 @@ public sealed class SqlLessonRepository(IDbConnectionFactory dbConnectionFactory
             new { OrganizationId = organizationId, Id = id, StartsAt = startsAt, EndsAt = endsAt, UpdatedAt = DateTimeOffset.UtcNow });
     }
 
-    public async Task<IReadOnlyList<Lesson>?> GenerateFromSchedulesAsync(
+    public async Task<IReadOnlyList<Lesson>?> GenerateFromModalitySchedulesAsync(
         Guid organizationId,
-        Guid classGroupId,
+        Guid modalityId,
         DateOnly startDate,
         DateOnly endDate,
         CancellationToken cancellationToken = default)
     {
         using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
         var created = await connection.QueryAsync<Lesson>(
-            LessonQueries.GenerateFromSchedules,
-            new { OrganizationId = organizationId, ClassGroupId = classGroupId, StartDate = startDate, EndDate = endDate });
+            LessonQueries.GenerateFromModalitySchedules,
+            new
+            {
+                OrganizationId = organizationId,
+                ModalityId = modalityId,
+                StartDate = startDate,
+                EndDate = endDate
+            });
 
         if (created.Any())
         {
             return created.ToList();
         }
 
-        var classGroupExists = await connection.QuerySingleOrDefaultAsync<bool?>(
-            "select true from class_groups where id = @ClassGroupId and organization_id = @OrganizationId and status = 'active';",
-            new { OrganizationId = organizationId, ClassGroupId = classGroupId });
-        return classGroupExists is null ? null : created.ToList();
+        var modalityExists = await connection.QuerySingleOrDefaultAsync<bool>(
+            ModalityScheduleQueries.GetModality,
+            new { OrganizationId = organizationId, ModalityId = modalityId });
+        return modalityExists ? [] : null;
     }
 }

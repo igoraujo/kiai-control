@@ -1,12 +1,11 @@
 # Testes do Kiai Control Admin
 
-Espaco reservado para os projetos de teste do frontend administrativo.
+O projeto `KiaiControl.Admin.UnitTests` contem testes de unidade do cliente HTTP e testes bUnit dos componentes compartilhados.
 
-Estrutura planejada:
-- KiaiControl.Admin.UnitTests
-- KiaiControl.Admin.E2ETests
+Execute a suite a partir da raiz do repositorio:
 
-Comandos uteis:
 ```bash
-dotnet test ../KiaiControl.Admin.slnx
+dotnet test frontend/kiai-control-admin/KiaiControl.Admin.slnx
 ```
+
+O plano de evolucao e os criterios de aceite estao em [PROJECT_IMPLEMENTATION_PLAN.md](../../../PROJECT_IMPLEMENTATION_PLAN.md).

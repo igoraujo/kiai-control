@@ -1,4 +1,5 @@
 ﻿@inject AdminSession Session
+@using KiaiControl.Contracts.Auth
 
 <MudNavMenu Class="nav-root">
     <MudText Typo="Typo.overline" Class="menu-kicker">Navegação</MudText>
@@ -13,36 +14,64 @@
 
     <MudDivider Class="menu-divider" />
 
-    @if (HasRole("owner", "admin", "financial"))
+    @if (HasPermission(PermissionCodes.ReportsRead))
     {
         <MudText Typo="Typo.overline" Class="menu-kicker">Principal</MudText>
         <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.SpaceDashboard">Dashboard</MudNavLink>
     }
+    @if (HasPermission(PermissionCodes.BillingManage))
+    {
+        <MudNavLink Href="/billing" Icon="@Icons.Material.Filled.AccountBalanceWallet">Financeiro</MudNavLink>
+    }
 
-    @if (HasRole("owner", "admin", "reception"))
+    @if (HasPermission(PermissionCodes.ClientsManage)
+        || HasPermission(PermissionCodes.BranchesManage))
     {
         <MudText Typo="Typo.overline" Class="menu-kicker">Cadastros</MudText>
+    }
+    @if (HasPermission(PermissionCodes.ClientsManage))
+    {
         <MudNavLink Href="/clients" Icon="@Icons.Material.Filled.Groups">Alunos</MudNavLink>
+    }
+    @if (HasPermission(PermissionCodes.BranchesManage))
+    {
         <MudNavLink Href="/branches" Icon="@Icons.Material.Filled.Business">Unidades</MudNavLink>
     }
-    @if (HasRole("owner", "admin"))
+    @if (HasPermission(PermissionCodes.TeachersManage)
+        || HasPermission(PermissionCodes.ModalitiesManage)
+        || HasPermission(PermissionCodes.AccessPermissionsManage))
     {
         <MudText Typo="Typo.overline" Class="menu-kicker">Gestão</MudText>
+    }
+    @if (HasPermission(PermissionCodes.TeachersManage))
+    {
         <MudNavLink Href="/teachers" Icon="@Icons.Material.Filled.School">Professores</MudNavLink>
+    }
+    @if (HasPermission(PermissionCodes.ModalitiesManage))
+    {
         <MudNavLink Href="/modalities" Icon="@Icons.Material.Filled.SportsMartialArts">Modalidades</MudNavLink>
-        <MudNavLink Href="/class-groups" Icon="@Icons.Material.Filled.Class">Turmas</MudNavLink>
+    }
+    @if (HasPermission(PermissionCodes.AccessPermissionsManage))
+    {
+        <MudNavLink Href="/access" Icon="@Icons.Material.Filled.AdminPanelSettings">Acesso e permissões</MudNavLink>
     }
 
-    @if (HasRole("owner", "admin", "teacher", "reception"))
+    @if (HasPermission(PermissionCodes.LessonsManage)
+        || HasPermission(PermissionCodes.AttendanceManage))
     {
         <MudText Typo="Typo.overline" Class="menu-kicker">Operação</MudText>
+    }
+    @if (HasPermission(PermissionCodes.LessonsManage))
+    {
         <MudNavLink Href="/lessons" Icon="@Icons.Material.Filled.CalendarMonth">Aulas</MudNavLink>
+    }
+    @if (HasPermission(PermissionCodes.AttendanceManage))
+    {
         <MudNavLink Href="/attendance/pending" Icon="@Icons.Material.Filled.HowToReg">Check-ins pendentes</MudNavLink>
     }
 </MudNavMenu>
 
 @code {
-    private bool HasRole(params string[] roles) =>
-        Session.Current?.User.Roles.Any(userRole => roles.Contains(userRole, StringComparer.OrdinalIgnoreCase)) == true;
+    private bool HasPermission(string permission) =>
+        Session.Current?.User.Permissions.Contains(permission, StringComparer.OrdinalIgnoreCase) == true;
 }
-

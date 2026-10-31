@@ -8,8 +8,6 @@ public sealed class RankingCycle
 
     public Guid? ModalityId { get; set; }
 
-    public Guid? ClassGroupId { get; set; }
-
     public string Name { get; set; } = string.Empty;
 
     public DateOnly StartsAt { get; set; }

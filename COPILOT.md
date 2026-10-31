@@ -1,5 +1,11 @@
 # Kiai Control - Instruções para IA
 
+## Planejamento e estado do projeto
+
+- Consultar [PROJECT_IMPLEMENTATION_PLAN.md](PROJECT_IMPLEMENTATION_PLAN.md) antes de iniciar uma evolucao; ele e a fonte atual de prioridades, lacunas verificadas e criterios de aceite.
+- Tratar `SYSTEM_DESIGN.md` como estado desejado e os checklists antigos como historicos, nao como evidencia de implementacao.
+- Atualizar o plano somente depois de validar a entrega com os testes/checks definidos; nao marcar como concluido apenas por existir controller, tela ou build.
+
 ## Arquitetura
 
 Utilizar obrigatoriamente:

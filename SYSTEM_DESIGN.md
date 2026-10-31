@@ -18,7 +18,7 @@
 
 ### Objetivo
 
-Plataforma SaaS com CRM web, API e aplicativo mobile para gestão de academias de artes marciais e atividades físicas, com controle de alunos, professores, modalidades, turmas, horários, presença, mensalidades, pagamentos, graduação, evolução, metas, ranking e relatórios.
+Plataforma SaaS com CRM web, API e aplicativo mobile para gestão de academias de artes marciais e atividades físicas, com controle de alunos, professores, modalidades, horários recorrentes, aulas, presença, mensalidades, pagamentos, graduação, evolução, metas, ranking e relatórios.
 
 ### Problema resolvido
 
@@ -39,7 +39,7 @@ O Kiai Control centraliza esses controles em uma única plataforma, com foco em:
 ### Benefícios
 
 - Redução de inadimplência por controle de mensalidades, vencimentos e alertas.
-- Gestão centralizada de alunos, professores, turmas e pagamentos.
+- Gestão centralizada de alunos, professores, modalidades, horários e pagamentos.
 - Controle de frequência e presença por aula.
 - Evolução marcial com faixas, graus e critérios de graduação.
 - Evolução física com metas, progresso, categorias e pontuação.
@@ -65,7 +65,7 @@ O sistema contempla:
 - Gestão de usuários, pessoas e múltiplos perfis.
 - Cadastro de alunos, professores e administradores.
 - Gestão de modalidades.
-- Gestão de turmas, horários e aulas.
+- Gestão de horários recorrentes por modalidade, aulas e presenças.
 - Registro de presença.
 - Controle de mensalidades, planos e pagamentos.
 - Relatórios financeiros, operacionais e de desempenho.
@@ -133,23 +133,17 @@ Fora do MVP:
 ### Gestão de professores
 
 - **RF027** - O sistema deve permitir cadastro de professores.
-- **RF028** - O sistema deve permitir vincular professor a uma ou mais turmas.
+- **RF028** - O sistema deve permitir atribuir professor aos horários de uma ou mais modalidades.
 - **RF029** - O sistema deve permitir consultar agenda do professor.
 - **RF030** - O sistema deve permitir registrar substituição de professor em aula específica.
 
-### Gestão de turmas, horários e aulas
+### Horarios de modalidades e aulas
 
-- **RF031** - O sistema deve permitir cadastro de turmas.
-- **RF032** - O sistema deve permitir definir modalidade da turma.
-- **RF033** - O sistema deve permitir definir professor principal da turma.
-- **RF034** - O sistema deve permitir definir capacidade máxima da turma.
-- **RF035** - O sistema deve permitir definir dias da semana e horários.
-- **RF036** - O sistema deve permitir gerar aulas recorrentes a partir dos horários.
-- **RF037** - O sistema deve permitir cancelar aula.
-- **RF038** - O sistema deve permitir reagendar aula.
-- **RF039** - O sistema deve permitir matricular aluno em turma.
-- **RF040** - O sistema deve permitir remover aluno de turma.
-- **RF041** - O sistema deve impedir matrícula acima da capacidade, salvo permissão administrativa.
+- **RF031** - O sistema deve permitir definir varios horarios semanais diretamente em uma modalidade e unidade.
+- **RF032** - Cada horario pode ter um professor responsavel.
+- **RF033** - O sistema deve gerar ocorrencias de aula a partir dos horarios da modalidade.
+- **RF034** - O sistema deve permitir cancelar e reagendar uma ocorrencia.
+- **RF035** - Aluno ativo vinculado a uma modalidade pode frequentar qualquer horario dessa modalidade, sem vinculo a uma sessao especifica.
 
 ### Presença e frequência
 
@@ -157,7 +151,7 @@ Fora do MVP:
 - **RF043** - O sistema deve permitir check-in pelo professor.
 - **RF044** - O sistema deve permitir check-in pelo aluno com confirmação do professor, quando configurado.
 - **RF045** - O sistema deve permitir registro de falta justificada.
-- **RF046** - O sistema deve calcular percentual de frequência por aluno, turma, modalidade e período.
+- **RF046** - O sistema deve calcular percentual de frequência por aluno, modalidade e período.
 - **RF047** - O sistema deve calcular sequência de dias/aulas sem faltar.
 - **RF048** - O sistema deve atualizar pontuação de presença após confirmação da aula.
 - **RF049** - O sistema deve alimentar ranking interno por organização.
@@ -201,7 +195,7 @@ Fora do MVP:
 
 ### Gamificação
 
-- **RF078** - O sistema deve manter ranking de frequência por modalidade, turma e organização.
+- **RF078** - O sistema deve manter ranking de frequência por modalidade e organização.
 - **RF079** - O sistema deve atribuir medalhas por marcos de presença.
 - **RF080** - O sistema deve atribuir pontos por aula frequentada.
 - **RF081** - O sistema deve atribuir pontos bônus por sequência sem faltas.
@@ -212,17 +206,17 @@ Fora do MVP:
 
 - **RF084** - O sistema deve disponibilizar dashboard administrativo.
 - **RF085** - O sistema deve exibir alunos ativos, inativos, novos e cancelados.
-- **RF086** - O sistema deve exibir presença média por turma.
+- **RF086** - O sistema deve exibir presença média por modalidade.
 - **RF087** - O sistema deve exibir receita prevista, recebida e em atraso.
 - **RF088** - O sistema deve exibir evolução de alunos por modalidade.
 - **RF089** - O sistema deve exibir ranking de alunos.
-- **RF090** - O sistema deve permitir filtros por período, modalidade, turma, aluno e professor.
+- **RF090** - O sistema deve permitir filtros por período, modalidade, aluno e professor.
 
 ### Mobile
 
 - **RF091** - O aplicativo mobile deve permitir login de aluno e professor.
 - **RF092** - O aluno deve consultar presença, evolução, graduação, metas e pagamentos.
-- **RF093** - O professor deve consultar agenda, turmas e registrar presença.
+- **RF093** - O professor deve consultar sua agenda de horários e registrar presença.
 - **RF094** - O app deve exibir ranking e medalhas.
 - **RF095** - O app deve receber notificações internas.
 
@@ -313,12 +307,11 @@ Fora do MVP:
 **Fluxo Principal:**
 1. O ator cadastra dados pessoais do aluno.
 2. O ator seleciona modalidade(s).
-3. O ator vincula turma(s) e plano financeiro.
-4. O sistema cria matrícula e mensalidades conforme plano.
+3. O sistema vincula o aluno à modalidade e ao plano financeiro.
+4. O sistema cria a assinatura e as mensalidades conforme o plano.
 5. O sistema disponibiliza acesso ao app.
 
 **Fluxos Alternativos:**
-- Turma sem vaga: bloqueia ou solicita permissão administrativa.
 - Plano ausente: permite cadastro sem financeiro, com alerta.
 
 ### UC004 - Gerenciar professor
@@ -327,37 +320,39 @@ Fora do MVP:
 **Fluxo Principal:**
 1. O ator cadastra pessoa ou seleciona pessoa existente.
 2. O ator adiciona perfil de professor.
-3. O ator vincula modalidades e turmas.
+3. O ator atribui modalidades e horários ao professor.
 4. O sistema atualiza permissões.
 
 **Fluxos Alternativos:**
 - Pessoa já é aluno: sistema mantém perfil aluno e adiciona professor.
 
-### UC005 - Criar turma e horários
+### UC005 - Configurar horarios semanais da modalidade
 
 **Ator:** Administrador  
 **Fluxo Principal:**
-1. O ator informa nome, modalidade, professor e capacidade.
-2. O ator define dias e horários.
-3. O sistema gera grade recorrente.
-4. O sistema disponibiliza a turma para matrícula.
+1. O ator seleciona uma modalidade e informa dia, inicio, termino, unidade e professor.
+2. O sistema registra o horario recorrente na modalidade.
+3. O ator gera as ocorrencias para um periodo de ate 90 dias.
+4. O sistema cria aulas sem duplicar ocorrencias ja geradas e copia o professor do horario para cada aula.
+5. Alunos ativos vinculados a modalidade podem comparecer a qualquer uma das aulas geradas.
 
 **Fluxos Alternativos:**
-- Conflito de horário do professor: sistema alerta e exige confirmação.
-- Capacidade inválida: sistema bloqueia.
+- Horario duplicado na mesma modalidade/unidade: sistema rejeita o cadastro.
+- Modalidade inativa, unidade de outra organizacao ou professor inativo: sistema rejeita o cadastro.
+- Regeracao do mesmo periodo: sistema retorna somente aulas novas, sem duplicar as existentes.
 
 ### UC006 - Registrar presença
 
 **Ator:** Professor ou administrador  
 **Fluxo Principal:**
 1. O ator abre aula do dia.
-2. O sistema lista alunos matriculados.
+2. O sistema lista alunos ativos vinculados à modalidade da aula.
 3. O ator marca presença, falta ou falta justificada.
 4. O sistema salva chamada.
 5. O sistema recalcula frequência, streak, pontuação e ranking.
 
 **Fluxos Alternativos:**
-- Aluno não matriculado: professor pode adicionar presença avulsa se permitido.
+- Aluno sem vínculo ativo com a modalidade não pode ser incluído na chamada.
 - Aula cancelada: sistema impede chamada.
 
 ### UC007 - Gerenciar pagamento
@@ -541,7 +536,6 @@ KiaiControl.sln
 │   │   │   ├── Student.cs
 │   │   │   ├── Teacher.cs
 │   │   │   ├── Modality.cs
-│   │   │   ├── ClassGroup.cs
 │   │   │   ├── Lesson.cs
 │   │   │   ├── Attendance.cs
 │   │   │   ├── Graduation.cs
@@ -1132,10 +1126,8 @@ persons 1---N user_accounts
 persons N---N roles via person_roles
 organizations 1---N modalities
 persons N---N modalities via person_modalities
-modalities 1---N class_groups
-class_groups 1---N schedules
-class_groups 1---N lessons
-persons N---N class_groups via enrollments
+modalities 1---N modality_schedules
+modality_schedules 1---N lessons
 lessons 1---N attendances
 persons 1---N attendances
 organizations 1---N plans
@@ -1398,88 +1390,53 @@ Table modalities {
 Table person_modalities {
   person_id uuid [not null, ref: > persons.id]
   modality_id uuid [not null, ref: > modalities.id]
-  organization_id uuid [not null, ref: > organizations.id]
-  started_at date
-  ended_at date
-  is_active boolean [not null, default: true]
+  linked_at timestamptz [not null, default: `now()`]
 
   Indexes {
     (person_id, modality_id) [pk]
-    organization_id
     modality_id
   }
 }
 
-Table class_groups {
+Table modality_schedules {
   id uuid [pk]
   organization_id uuid [not null, ref: > organizations.id]
-  branch_id uuid [ref: > branches.id]
   modality_id uuid [not null, ref: > modalities.id]
-  name varchar(120) [not null]
-  main_teacher_id uuid [ref: > persons.id]
-  capacity int [not null]
-  is_active boolean [not null, default: true]
-  created_at timestamptz [not null]
-  updated_at timestamptz
-
-  Indexes {
-    organization_id
-    modality_id
-    main_teacher_id
-    (organization_id, name)
-  }
-}
-
-Table class_schedules {
-  id uuid [pk]
-  class_group_id uuid [not null, ref: > class_groups.id]
+  branch_id uuid [ref: > branches.id]
+  teacher_id uuid [ref: > teachers.id]
   day_of_week int [not null]
   starts_at time [not null]
   ends_at time [not null]
-  created_at timestamptz [not null]
-
-  Indexes {
-    class_group_id
-    (class_group_id, day_of_week, starts_at) [unique]
-  }
-}
-
-Table enrollments {
-  id uuid [pk]
-  organization_id uuid [not null, ref: > organizations.id]
-  person_id uuid [not null, ref: > persons.id]
-  class_group_id uuid [not null, ref: > class_groups.id]
-  enrolled_at date [not null]
-  cancelled_at date
   is_active boolean [not null, default: true]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz
+
+  Note: 'Dia entre 0 e 6; termino posterior ao inicio; um horario por modalidade, unidade, dia e hora.'
 
   Indexes {
-    organization_id
-    person_id
-    class_group_id
-    (person_id, class_group_id, is_active)
+    (organization_id, modality_id, branch_id, day_of_week, starts_at) [unique]
+    (organization_id, modality_id, is_active)
   }
 }
 
 Table lessons {
   id uuid [pk]
   organization_id uuid [not null, ref: > organizations.id]
-  class_group_id uuid [not null, ref: > class_groups.id]
-  teacher_id uuid [ref: > persons.id]
-  lesson_date date [not null]
-  starts_at time [not null]
-  ends_at time [not null]
+  modality_id uuid [not null, ref: > modalities.id]
+  modality_schedule_id uuid [ref: > modality_schedules.id]
+  starts_at timestamptz [not null]
+  ends_at timestamptz [not null]
   status lesson_status [not null, default: 'scheduled']
-  cancellation_reason text
-  created_at timestamptz [not null]
+  cancellation_reason varchar(255)
+  created_at timestamptz [not null, default: `now()`]
   updated_at timestamptz
 
+  Note: 'Aula ocorrida em modalidade; modality_schedule_id registra o horario recorrente de origem quando gerada.'
+
   Indexes {
-    organization_id
-    class_group_id
-    teacher_id
-    (class_group_id, lesson_date, starts_at) [unique]
-    (organization_id, lesson_date)
+    (organization_id, modality_id, starts_at)
+    (organization_id, modality_schedule_id, starts_at) [unique]
+    (organization_id, status)
   }
 }
 
@@ -1487,19 +1444,18 @@ Table attendances {
   id uuid [pk]
   organization_id uuid [not null, ref: > organizations.id]
   lesson_id uuid [not null, ref: > lessons.id]
-  person_id uuid [not null, ref: > persons.id]
+  client_id uuid [not null, ref: > clients.id]
+  checked_in_at timestamptz
   status attendance_status [not null]
-  checked_by_person_id uuid [ref: > persons.id]
-  note text
-  created_at timestamptz [not null]
+  validated_at timestamptz
+  validated_by_person_id uuid [ref: > persons.id]
+  created_at timestamptz [not null, default: `now()`]
   updated_at timestamptz
 
   Indexes {
-    organization_id
-    lesson_id
-    person_id
-    (lesson_id, person_id) [unique]
-    (organization_id, person_id, created_at)
+    (organization_id, lesson_id, client_id) [unique]
+    (organization_id, status)
+    client_id
   }
 }
 
@@ -1799,9 +1755,8 @@ Table audit_logs {
 
 - `plans.monthly_amount >= 0`.
 - `plans.due_day between 1 and 28` para simplificar recorrência mensal.
-- `class_groups.capacity > 0`.
-- `class_schedules.day_of_week between 0 and 6`.
-- `class_schedules.ends_at > class_schedules.starts_at`.
+- `modality_schedules.day_of_week between 0 and 6`.
+- `modality_schedules.ends_at > modality_schedules.starts_at`.
 - `invoices.amount >= 0`.
 - `payments.amount > 0`.
 - `fitness_goals.target_value > 0`.
@@ -1909,15 +1864,14 @@ Table audit_logs {
 | created_at | timestamptz | Sim | Criação. |
 | updated_at | timestamptz | Não | Atualização. |
 
-### class_groups, class_schedules, enrollments, lessons e attendances
+### modalidade, horarios, aulas e presencas
 
 | Tabela | Descrição |
 |---|---|
-| class_groups | Turmas por modalidade, professor e capacidade. |
-| class_schedules | Grade semanal recorrente da turma. |
-| enrollments | Matrículas de alunos nas turmas. |
-| lessons | Aulas geradas ou cadastradas. |
-| attendances | Presenças/faltas dos alunos em cada aula. |
+| modality_schedules | Grade recorrente por modalidade/unidade, com professor opcional. |
+| lessons | Ocorrencias datadas da modalidade, geradas a partir de horarios recorrentes. |
+| person_modalities | Vinculo do aluno a modalidade; habilita frequencia em qualquer horario ativo dela. |
+| attendances | Presencas/faltas por ocorrencia concreta da aula. |
 
 ### plans, subscriptions, invoices e payments
 
@@ -2021,31 +1975,21 @@ Padrões gerais:
 | GET | `/modalities/{id}` | - | modalidade | 200, 404 |
 | PUT | `/modalities/{id}` | dados | modalidade | 200, 400, 404 |
 | DELETE | `/modalities/{id}` | - | vazio | 204, 404 |
+| GET | `/modalities/{id}/schedules` | - | horarios semanais ativos | 200, 404 |
+| POST | `/modalities/{id}/schedules` | unidade, professor, dia, inicio, fim | horario | 201, 400, 409 |
+| DELETE | `/modalities/{id}/schedules/{scheduleId}` | - | vazio | 204, 404 |
 | POST | `/persons/{id}/modalities` | modalityId | vínculo | 201, 400, 404 |
 | DELETE | `/persons/{id}/modalities/{modalityId}` | - | vazio | 204, 404 |
-
-### Turmas, horários e matrículas
-
-| Método | Endpoint | Entrada | Saída | Códigos HTTP |
-|---|---|---|---|---|
-| POST | `/class-groups` | turma | turma criada | 201, 400 |
-| GET | `/class-groups` | filtros | lista paginada | 200 |
-| GET | `/class-groups/{id}` | - | turma | 200, 404 |
-| PUT | `/class-groups/{id}` | dados | turma | 200, 400, 404 |
-| DELETE | `/class-groups/{id}` | - | vazio | 204, 404 |
-| POST | `/class-groups/{id}/schedules` | dia, início, fim | horário | 201, 400 |
-| DELETE | `/class-groups/{id}/schedules/{scheduleId}` | - | vazio | 204, 404 |
-| POST | `/class-groups/{id}/enrollments` | personId | matrícula | 201, 400, 409 |
-| DELETE | `/class-groups/{id}/enrollments/{enrollmentId}` | - | vazio | 204, 404 |
 
 ### Aulas e presenças
 
 | Método | Endpoint | Entrada | Saída | Códigos HTTP |
 |---|---|---|---|---|
-| POST | `/lessons/generate` | turma, período | aulas geradas | 201, 400 |
+| POST | `/lessons/generate-from-modality` | modalidade, período (até 90 dias) | novas aulas geradas | 201, 400 |
 | POST | `/lessons` | aula avulsa | aula | 201, 400 |
 | GET | `/lessons` | filtros | lista | 200 |
 | GET | `/lessons/{id}` | - | aula | 200, 404 |
+| GET | `/lessons/{id}/eligible-clients` | - | alunos ativos elegiveis para a aula | 200, 404 |
 | PUT | `/lessons/{id}` | dados | aula | 200, 400, 404 |
 | PATCH | `/lessons/{id}/cancel` | motivo | aula cancelada | 200, 400, 404 |
 | PATCH | `/lessons/{id}/reschedule` | data, horário | aula reagendada | 200, 400, 404 |
@@ -2155,7 +2099,7 @@ Papéis iniciais:
 - **Admin:** gestão operacional completa.
 - **Finance:** financeiro e relatórios financeiros.
 - **Receptionist:** cadastro, presença e consultas limitadas.
-- **Teacher:** turmas, aulas, presença, evolução e graduação autorizada.
+- **Teacher:** agenda da modalidade, aulas, presença, evolução e graduação autorizada.
 - **Student:** consulta própria no app.
 
 Regras:
@@ -2285,7 +2229,7 @@ Usar apenas ferramentas gratuitas e open source:
 - **Dashboard Infra:** CPU, memória, disco, rede.
 - **Dashboard Banco:** conexões, queries lentas, locks, tamanho.
 - **Dashboard Financeiro:** receita prevista, recebida, vencida.
-- **Dashboard Presença:** frequência por turma/modalidade.
+- **Dashboard Presença:** frequência por modalidade.
 - **Dashboard Jobs:** execuções, duração e falhas.
 
 ### Alertas
@@ -2326,7 +2270,7 @@ Usar apenas ferramentas gratuitas e open source:
 - Fluxos críticos:
   - Login.
   - Cadastro de aluno.
-  - Criação de turma.
+  - Configuração de horários recorrentes por modalidade.
   - Registro de presença.
   - Registro de pagamento.
   - Graduação.
@@ -2337,7 +2281,7 @@ Usar apenas ferramentas gratuitas e open source:
 - Cenários:
   - Login simultâneo.
   - Listagem de alunos paginada.
-  - Registro de presença em turma grande.
+  - Registro de presença em aulas com muitos alunos.
   - Dashboard administrativo.
   - Geração de mensalidades.
 
@@ -2607,7 +2551,7 @@ Documentos obrigatórios:
 
 ### Fase 1 - MVP operacional
 
-Objetivo: permitir que uma academia opere cadastro, turmas, presença e financeiro básico.
+Objetivo: permitir que uma academia opere cadastro, modalidades, aulas e financeiro básico.
 
 Entregas:
 
@@ -2616,8 +2560,8 @@ Entregas:
 - Perfis múltiplos.
 - Alunos e professores.
 - Modalidades.
-- Turmas e horários.
-- Matrícula.
+- Horários recorrentes por modalidade.
+- Vínculo de alunos com modalidades.
 - Aulas.
 - Presença.
 - Planos, mensalidades e pagamentos manuais.
@@ -2753,12 +2697,10 @@ Nesse cenário, o prazo tende a aumentar.
 - Implementar múltiplas modalidades por pessoa.
 - Implementar unidades/filiais.
 
-#### Épico 4 - Turmas e aulas
+#### Épico 4 - Horários de modalidades e aulas
 
-- Implementar turmas.
-- Implementar horários recorrentes.
-- Implementar geração de aulas.
-- Implementar matrícula em turma.
+- Implementar horários recorrentes por modalidade, unidade e professor.
+- Implementar geração de aulas a partir dos horários.
 - Implementar cancelamento e reagendamento.
 
 #### Épico 5 - Presença
@@ -2808,7 +2750,7 @@ Nesse cenário, o prazo tende a aumentar.
 - Implementar relatório de presença.
 - Implementar relatório financeiro.
 - Implementar relatório de evolução.
-- Implementar filtros por período, turma, modalidade e aluno.
+- Implementar filtros por período, modalidade e aluno.
 
 #### Épico 11 - Mobile
 

@@ -117,6 +117,31 @@ public sealed class AuthUseCaseTests
         Assert.Equal(ComputeSha256(rawRefreshToken), repository.LastRevokedSessionTokenHash);
     }
 
+    [Fact]
+    public async Task ForgotPasswordAsync_ShouldNotExposeResetTokenAndShouldReturnGenericMessage()
+    {
+        var repository = new FakeAuthRepository();
+        var user = new AuthUser
+        {
+            Id = Guid.NewGuid(),
+            PersonId = Guid.NewGuid(),
+            OrganizationId = Guid.NewGuid(),
+            Email = "admin@kiai.local",
+            IsActive = true
+        };
+        repository.UsersByEmail[user.Email] = user;
+        var useCase = new AuthUseCase(repository, new FakePasswordHasher(), new FakeAuthTokenService());
+
+        var existingUserResponse = await useCase.ForgotPasswordAsync(
+            new ForgotPasswordRequest { Email = user.Email }, null, CancellationToken.None);
+        var unknownUserResponse = await useCase.ForgotPasswordAsync(
+            new ForgotPasswordRequest { Email = "unknown@kiai.local" }, null, CancellationToken.None);
+
+        Assert.Equal(unknownUserResponse.Message, existingUserResponse.Message);
+        Assert.Equal(ComputeSha256("refresh-token"), repository.LastCreatedPasswordResetToken!.TokenHash);
+        Assert.DoesNotContain("refresh-token", System.Text.Json.JsonSerializer.Serialize(existingUserResponse));
+    }
+
     private static string ComputeSha256(string input)
     {
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(input));
@@ -136,6 +161,8 @@ public sealed class AuthUseCaseTests
         public Guid? LastRevokedSessionsUserId { get; private set; }
 
         public string? LastUpdatedPasswordHash { get; private set; }
+
+        public AuthPasswordResetToken? LastCreatedPasswordResetToken { get; private set; }
 
         public Task<AuthUser?> GetByEmailAsync(string email, CancellationToken cancellationToken = default)
         {
@@ -224,6 +251,7 @@ public sealed class AuthUseCaseTests
 
         public Task<AuthPasswordResetToken> CreatePasswordResetTokenAsync(AuthPasswordResetToken token, CancellationToken cancellationToken = default)
         {
+            LastCreatedPasswordResetToken = token;
             return Task.FromResult(token);
         }
 

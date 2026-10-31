@@ -85,6 +85,18 @@ public sealed class SqlAttendanceRepository(IDbConnectionFactory dbConnectionFac
         return entries.ToList();
     }
 
+    public async Task<IReadOnlyList<EligibleAttendanceClient>> ListEligibleClientsByLessonAsync(
+        Guid organizationId,
+        Guid lessonId,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
+        var clients = await connection.QueryAsync<EligibleAttendanceClient>(
+            AttendanceQueries.ListEligibleClientsByLesson,
+            new { OrganizationId = organizationId, LessonId = lessonId });
+        return clients.ToList();
+    }
+
     public async Task<IReadOnlyList<AttendanceRecord>> ListPendingByOrganizationAsync(
         Guid organizationId,
         int page,

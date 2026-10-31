@@ -32,10 +32,6 @@ public sealed class ForgotPasswordRequest
 public sealed class ForgotPasswordResponse
 {
     public string Message { get; init; } = string.Empty;
-
-    public string? ResetToken { get; init; }
-
-    public DateTimeOffset? ResetTokenExpiresAt { get; init; }
 }
 
 public sealed class ResetPasswordRequest
@@ -56,6 +52,8 @@ public sealed class AuthUserProfileResponse
     public string Email { get; init; } = string.Empty;
 
     public IReadOnlyList<string> Roles { get; init; } = [];
+
+    public IReadOnlyList<string> Permissions { get; init; } = [];
 }
 
 public sealed class SessionTokenResponse

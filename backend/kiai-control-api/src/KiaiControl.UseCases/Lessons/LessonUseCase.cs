@@ -11,14 +11,19 @@ public sealed class LessonUseCase(ILessonRepository lessonRepository)
         CreateLessonRequest request,
         CancellationToken cancellationToken)
     {
-        ValidateInterval(organizationId, request.ClassGroupId, request.StartsAt, request.EndsAt);
+        if (request.ModalityId == Guid.Empty)
+        {
+            throw new ArgumentException("ModalityId is required.");
+        }
+
+        ValidateInterval(organizationId, request.StartsAt, request.EndsAt);
 
         var lesson = new Lesson
         {
             OrganizationId = organizationId,
-            ClassGroupId = request.ClassGroupId,
-            StartsAt = request.StartsAt,
-            EndsAt = request.EndsAt,
+            ModalityId = request.ModalityId,
+            StartsAt = request.StartsAt.ToUniversalTime(),
+            EndsAt = request.EndsAt.ToUniversalTime(),
             Status = "scheduled"
         };
 
@@ -48,14 +53,14 @@ public sealed class LessonUseCase(ILessonRepository lessonRepository)
         UpdateLessonRequest request,
         CancellationToken cancellationToken)
     {
-        ValidateInterval(organizationId, Guid.NewGuid(), request.StartsAt, request.EndsAt, checkClassGroup: false);
+        ValidateInterval(organizationId, request.StartsAt, request.EndsAt);
 
         var updated = await lessonRepository.UpdateAsync(new Lesson
         {
             Id = id,
             OrganizationId = organizationId,
-            StartsAt = request.StartsAt,
-            EndsAt = request.EndsAt
+            StartsAt = request.StartsAt.ToUniversalTime(),
+            EndsAt = request.EndsAt.ToUniversalTime()
         }, cancellationToken);
 
         return updated is null ? null : ToResponse(updated);
@@ -91,25 +96,25 @@ public sealed class LessonUseCase(ILessonRepository lessonRepository)
         RescheduleLessonRequest request,
         CancellationToken cancellationToken)
     {
-        ValidateInterval(organizationId, Guid.NewGuid(), request.StartsAt, request.EndsAt, checkClassGroup: false);
+        ValidateInterval(organizationId, request.StartsAt, request.EndsAt);
 
         var rescheduled = await lessonRepository.RescheduleAsync(
             organizationId,
             id,
-            request.StartsAt,
-            request.EndsAt,
+            request.StartsAt.ToUniversalTime(),
+            request.EndsAt.ToUniversalTime(),
             cancellationToken);
         return rescheduled is null ? null : ToResponse(rescheduled);
     }
 
-    public async Task<IReadOnlyList<LessonResponse>?> GenerateFromSchedulesAsync(
+    public async Task<IReadOnlyList<LessonResponse>?> GenerateFromModalitySchedulesAsync(
         Guid organizationId,
-        GenerateLessonsRequest request,
+        GenerateModalityLessonsRequest request,
         CancellationToken cancellationToken)
     {
-        if (organizationId == Guid.Empty || request.ClassGroupId == Guid.Empty)
+        if (organizationId == Guid.Empty || request.ModalityId == Guid.Empty)
         {
-            throw new ArgumentException("OrganizationId and ClassGroupId are required.");
+            throw new ArgumentException("OrganizationId and ModalityId are required.");
         }
 
         if (request.EndDate < request.StartDate)
@@ -122,9 +127,9 @@ public sealed class LessonUseCase(ILessonRepository lessonRepository)
             throw new ArgumentException("The generation range cannot exceed 90 days.");
         }
 
-        var lessons = await lessonRepository.GenerateFromSchedulesAsync(
+        var lessons = await lessonRepository.GenerateFromModalitySchedulesAsync(
             organizationId,
-            request.ClassGroupId,
+            request.ModalityId,
             request.StartDate,
             request.EndDate,
             cancellationToken);
@@ -133,14 +138,12 @@ public sealed class LessonUseCase(ILessonRepository lessonRepository)
 
     private static void ValidateInterval(
         Guid organizationId,
-        Guid classGroupId,
         DateTimeOffset startsAt,
-        DateTimeOffset endsAt,
-        bool checkClassGroup = true)
+        DateTimeOffset endsAt)
     {
-        if (organizationId == Guid.Empty || (checkClassGroup && classGroupId == Guid.Empty))
+        if (organizationId == Guid.Empty)
         {
-            throw new ArgumentException("OrganizationId and ClassGroupId are required.");
+            throw new ArgumentException("OrganizationId is required.");
         }
 
         if (endsAt <= startsAt)
@@ -155,7 +158,10 @@ public sealed class LessonUseCase(ILessonRepository lessonRepository)
         {
             Id = lesson.Id,
             OrganizationId = lesson.OrganizationId,
-            ClassGroupId = lesson.ClassGroupId,
+            ModalityId = lesson.ModalityId,
+            ModalityScheduleId = lesson.ModalityScheduleId,
+            ModalityName = lesson.ModalityName,
+            BranchName = lesson.BranchName,
             StartsAt = lesson.StartsAt,
             EndsAt = lesson.EndsAt,
             Status = lesson.Status,

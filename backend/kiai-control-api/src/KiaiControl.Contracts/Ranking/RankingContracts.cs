@@ -4,8 +4,6 @@ public sealed class CreateRankingCycleRequest
 {
     public Guid? ModalityId { get; set; }
 
-    public Guid? ClassGroupId { get; set; }
-
     public string Name { get; set; } = string.Empty;
 
     public DateOnly StartsAt { get; set; }
@@ -20,8 +18,6 @@ public sealed class RankingCycleResponse
     public Guid OrganizationId { get; init; }
 
     public Guid? ModalityId { get; init; }
-
-    public Guid? ClassGroupId { get; init; }
 
     public string Name { get; init; } = string.Empty;
 

@@ -10,6 +10,7 @@ namespace KiaiControl.Api.Controllers;
 
 [ApiController]
 [Authorize(Roles = "owner,admin")]
+[Authorize(Policy = PermissionCodes.AccessManage)]
 [Route("api/v1/access")]
 public sealed class AccessControlController(
     OrganizationContext organizationContext,
@@ -23,6 +24,7 @@ public sealed class AccessControlController(
 
     [HttpGet("permissions")]
     [Authorize(Roles = "owner")]
+    [Authorize(Policy = PermissionCodes.AccessPermissionsManage)]
     public async Task<ActionResult<IReadOnlyList<PermissionResponse>>> ListPermissionsAsync(CancellationToken cancellationToken)
     {
         return Ok(await accessControlUseCase.ListPermissionsAsync(cancellationToken));
@@ -108,11 +110,17 @@ public sealed class AccessControlController(
 
     [HttpGet("roles/{roleCode}/permissions")]
     [Authorize(Roles = "owner")]
+    [Authorize(Policy = PermissionCodes.AccessPermissionsManage)]
     public async Task<ActionResult<IReadOnlyList<PermissionResponse>>> ListRolePermissionsAsync(string roleCode, CancellationToken cancellationToken)
     {
+        if (organizationContext.OrganizationId is not Guid organizationId)
+        {
+            return BadRequest("Organization context is required.");
+        }
+
         try
         {
-            return Ok(await accessControlUseCase.ListRolePermissionsAsync(roleCode, cancellationToken));
+            return Ok(await accessControlUseCase.ListRolePermissionsAsync(organizationId, roleCode, cancellationToken));
         }
         catch (ArgumentException exception)
         {
@@ -126,14 +134,21 @@ public sealed class AccessControlController(
 
     [HttpPut("roles/{roleCode}/permissions")]
     [Authorize(Roles = "owner")]
+    [Authorize(Policy = PermissionCodes.AccessPermissionsManage)]
     public async Task<IActionResult> GrantPermissionAsync(
         string roleCode,
         [FromBody] SetRolePermissionRequest request,
         CancellationToken cancellationToken)
     {
+        if (organizationContext.OrganizationId is not Guid organizationId || !TryGetUserId(out var actorUserId))
+        {
+            return Unauthorized();
+        }
+
         try
         {
-            var granted = await accessControlUseCase.GrantRolePermissionAsync(roleCode, request.PermissionCode, cancellationToken);
+            var granted = await accessControlUseCase.GrantRolePermissionAsync(
+                organizationId, roleCode, request.PermissionCode, actorUserId, cancellationToken);
             return granted ? NoContent() : NotFound("Role or permission code was not found.");
         }
         catch (ArgumentException exception)
@@ -144,11 +159,18 @@ public sealed class AccessControlController(
 
     [HttpDelete("roles/{roleCode}/permissions/{permissionCode}")]
     [Authorize(Roles = "owner")]
+    [Authorize(Policy = PermissionCodes.AccessPermissionsManage)]
     public async Task<IActionResult> RevokePermissionAsync(string roleCode, string permissionCode, CancellationToken cancellationToken)
     {
+        if (organizationContext.OrganizationId is not Guid organizationId || !TryGetUserId(out var actorUserId))
+        {
+            return Unauthorized();
+        }
+
         try
         {
-            var revoked = await accessControlUseCase.RevokeRolePermissionAsync(roleCode, permissionCode, cancellationToken);
+            var revoked = await accessControlUseCase.RevokeRolePermissionAsync(
+                organizationId, roleCode, permissionCode, actorUserId, cancellationToken);
             return revoked ? NoContent() : NotFound();
         }
         catch (ArgumentException exception)

@@ -1,7 +1,9 @@
 using Dapper;
+using KiaiControl.Core.Common;
 using KiaiControl.Core.Entities;
 using KiaiControl.Core.Interfaces;
 using KiaiControl.Repositories.Queries.Billing;
+using Npgsql;
 
 namespace KiaiControl.Repositories.Implementations;
 
@@ -12,7 +14,14 @@ public sealed class SqlBillingCatalogRepository(IDbConnectionFactory dbConnectio
         plan.Id = Guid.NewGuid();
         plan.CreatedAt = DateTimeOffset.UtcNow;
         using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
-        return await connection.QuerySingleAsync<BillingPlan>(BillingCatalogQueries.InsertPlan, plan);
+        try
+        {
+            return await connection.QuerySingleAsync<BillingPlan>(BillingCatalogQueries.InsertPlan, plan);
+        }
+        catch (PostgresException exception) when (exception.SqlState == PostgresErrorCodes.UniqueViolation)
+        {
+            throw PostgresConflictMapper.ToConflict(exception);
+        }
     }
 
     public async Task<IReadOnlyList<BillingPlan>> ListPlansAsync(
@@ -37,7 +46,14 @@ public sealed class SqlBillingCatalogRepository(IDbConnectionFactory dbConnectio
     {
         plan.UpdatedAt = DateTimeOffset.UtcNow;
         using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
-        return await connection.QuerySingleOrDefaultAsync<BillingPlan>(BillingCatalogQueries.UpdatePlan, plan);
+        try
+        {
+            return await connection.QuerySingleOrDefaultAsync<BillingPlan>(BillingCatalogQueries.UpdatePlan, plan);
+        }
+        catch (PostgresException exception) when (exception.SqlState == PostgresErrorCodes.UniqueViolation)
+        {
+            throw PostgresConflictMapper.ToConflict(exception);
+        }
     }
 
     public async Task<bool> DeactivatePlanAsync(Guid organizationId, Guid planId, CancellationToken cancellationToken = default)
@@ -60,6 +76,24 @@ public sealed class SqlBillingCatalogRepository(IDbConnectionFactory dbConnectio
         subscription.CreatedAt = DateTimeOffset.UtcNow;
         using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
         return await connection.QuerySingleOrDefaultAsync<ClientPlanSubscription>(BillingCatalogQueries.CreateSubscription, subscription);
+    }
+
+    public async Task<IReadOnlyList<ClientPlanSubscription>> ListSubscriptionsAsync(
+        Guid organizationId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        var safePage = page < 1 ? 1 : page;
+        var safePageSize = pageSize is < 1 or > 200 ? 50 : pageSize;
+        using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
+        var subscriptions = await connection.QueryAsync<ClientPlanSubscription>(BillingCatalogQueries.ListSubscriptions, new
+        {
+            OrganizationId = organizationId,
+            Offset = (safePage - 1) * safePageSize,
+            PageSize = safePageSize
+        });
+        return subscriptions.ToList();
     }
 
     public async Task<ClientPlanSubscription?> CancelSubscriptionAsync(

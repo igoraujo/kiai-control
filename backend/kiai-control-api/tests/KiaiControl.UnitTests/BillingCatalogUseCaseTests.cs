@@ -61,4 +61,40 @@ public sealed class BillingCatalogUseCaseTests
         Assert.Empty(secondRun);
         Assert.Equal(new DateOnly(2026, 10, 10), firstRun[0].DueDate);
     }
+
+    [Fact]
+    public async Task ListSubscriptionsAsync_ShouldReturnOnlySubscriptionsForOrganization()
+    {
+        var useCase = new BillingCatalogUseCase(new InMemoryBillingCatalogRepository());
+        var organizationId = Guid.NewGuid();
+        var otherOrganizationId = Guid.NewGuid();
+        var plan = await useCase.CreatePlanAsync(organizationId, new CreateBillingPlanRequest
+        {
+            Name = "Mensal",
+            MonthlyAmount = 100,
+            DueDay = 10
+        }, CancellationToken.None);
+        var otherPlan = await useCase.CreatePlanAsync(otherOrganizationId, new CreateBillingPlanRequest
+        {
+            Name = "Outro",
+            MonthlyAmount = 50,
+            DueDay = 5
+        }, CancellationToken.None);
+        await useCase.CreateSubscriptionAsync(organizationId, Guid.NewGuid(), new CreateClientSubscriptionRequest
+        {
+            PlanId = plan.Id,
+            StartsAt = new DateOnly(2026, 10, 1)
+        }, CancellationToken.None);
+        await useCase.CreateSubscriptionAsync(otherOrganizationId, Guid.NewGuid(), new CreateClientSubscriptionRequest
+        {
+            PlanId = otherPlan.Id,
+            StartsAt = new DateOnly(2026, 10, 1)
+        }, CancellationToken.None);
+
+        var subscriptions = await useCase.ListSubscriptionsAsync(organizationId, 1, 50, CancellationToken.None);
+
+        var subscription = Assert.Single(subscriptions);
+        Assert.Equal(organizationId, subscription.OrganizationId);
+        Assert.Equal(plan.Id, subscription.PlanId);
+    }
 }

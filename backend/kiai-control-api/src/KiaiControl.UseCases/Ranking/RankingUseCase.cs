@@ -21,7 +21,6 @@ public sealed class RankingUseCase(IRankingRepository repository)
         {
             OrganizationId = organizationId,
             ModalityId = request.ModalityId,
-            ClassGroupId = request.ClassGroupId,
             Name = request.Name.Trim(),
             StartsAt = request.StartsAt,
             EndsAt = request.EndsAt
@@ -140,7 +139,6 @@ public sealed class RankingUseCase(IRankingRepository repository)
         Id = value.Id,
         OrganizationId = value.OrganizationId,
         ModalityId = value.ModalityId,
-        ClassGroupId = value.ClassGroupId,
         Name = value.Name,
         StartsAt = value.StartsAt,
         EndsAt = value.EndsAt,

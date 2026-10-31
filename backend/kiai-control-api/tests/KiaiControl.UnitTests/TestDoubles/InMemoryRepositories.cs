@@ -251,6 +251,18 @@ public sealed class InMemoryModalityRepository : IModalityRepository
         return Task.FromResult(true);
     }
 
+    public Task<IReadOnlyList<Modality>> ListClientModalitiesAsync(Guid organizationId, Guid clientId, CancellationToken cancellationToken = default)
+    {
+        IReadOnlyList<Modality> modalities = _clientModalities
+            .Where(link => link.OrganizationId == organizationId && link.ClientId == clientId)
+            .Select(link => _modalities.FirstOrDefault(modality => modality.OrganizationId == organizationId && modality.Id == link.ModalityId))
+            .Where(modality => modality is not null)
+            .Cast<Modality>()
+            .OrderBy(modality => modality.Name)
+            .ToList();
+        return Task.FromResult(modalities);
+    }
+
     public Task<bool> LinkClientAsync(
         Guid organizationId,
         Guid clientId,
@@ -269,257 +281,6 @@ public sealed class InMemoryModalityRepository : IModalityRepository
         CancellationToken cancellationToken = default)
     {
         return Task.FromResult(_clientModalities.Remove((organizationId, clientId, modalityId)));
-    }
-}
-
-public sealed class InMemoryClassGroupRepository : IClassGroupRepository
-{
-    private readonly List<ClassGroup> _classGroups = [];
-    private readonly List<ClassSchedule> _schedules = [];
-    private readonly List<Enrollment> _enrollments = [];
-    private readonly List<ClassGroupTeacherAssignment> _teacherAssignments = [];
-
-    public Task<ClassGroup?> CreateAsync(ClassGroup classGroup, CancellationToken cancellationToken = default)
-    {
-        classGroup.Id = Guid.NewGuid();
-        classGroup.CreatedAt = DateTimeOffset.UtcNow;
-        _classGroups.Add(classGroup);
-        return Task.FromResult<ClassGroup?>(classGroup);
-    }
-
-    public Task<IReadOnlyList<ClassGroup>> ListByOrganizationAsync(
-        Guid organizationId,
-        int page,
-        int pageSize,
-        CancellationToken cancellationToken = default)
-    {
-        var safePage = page < 1 ? 1 : page;
-        var safePageSize = pageSize is < 1 or > 200 ? 50 : pageSize;
-        var classGroups = _classGroups
-            .Where(item => item.OrganizationId == organizationId)
-            .OrderBy(item => item.Name)
-            .Skip((safePage - 1) * safePageSize)
-            .Take(safePageSize)
-            .ToList();
-        return Task.FromResult<IReadOnlyList<ClassGroup>>(classGroups);
-    }
-
-    public Task<ClassGroup?> GetByIdAsync(Guid organizationId, Guid id, CancellationToken cancellationToken = default)
-    {
-        var classGroup = _classGroups.FirstOrDefault(item => item.OrganizationId == organizationId && item.Id == id);
-        return Task.FromResult(classGroup);
-    }
-
-    public Task<ClassGroup?> UpdateAsync(ClassGroup classGroup, CancellationToken cancellationToken = default)
-    {
-        var current = _classGroups.FirstOrDefault(item => item.OrganizationId == classGroup.OrganizationId && item.Id == classGroup.Id);
-        if (current is null)
-        {
-            return Task.FromResult<ClassGroup?>(null);
-        }
-
-        current.BranchId = classGroup.BranchId;
-        current.ModalityId = classGroup.ModalityId;
-        current.Name = classGroup.Name;
-        current.Description = classGroup.Description;
-        current.Capacity = classGroup.Capacity;
-        current.Status = classGroup.Status;
-        current.UpdatedAt = DateTimeOffset.UtcNow;
-        return Task.FromResult<ClassGroup?>(current);
-    }
-
-    public Task<bool> ArchiveAsync(Guid organizationId, Guid id, CancellationToken cancellationToken = default)
-    {
-        var classGroup = _classGroups.FirstOrDefault(item => item.OrganizationId == organizationId && item.Id == id && item.Status != "archived");
-        if (classGroup is null)
-        {
-            return Task.FromResult(false);
-        }
-
-        classGroup.Status = "archived";
-        classGroup.UpdatedAt = DateTimeOffset.UtcNow;
-        return Task.FromResult(true);
-    }
-
-    public Task<ClassSchedule?> CreateScheduleAsync(
-        Guid organizationId,
-        ClassSchedule schedule,
-        CancellationToken cancellationToken = default)
-    {
-        if (!_classGroups.Any(item => item.OrganizationId == organizationId && item.Id == schedule.ClassGroupId && item.Status == "active")
-            || _schedules.Any(item => item.ClassGroupId == schedule.ClassGroupId
-                && item.DayOfWeek == schedule.DayOfWeek
-                && item.StartsAt == schedule.StartsAt))
-        {
-            return Task.FromResult<ClassSchedule?>(null);
-        }
-
-        schedule.Id = Guid.NewGuid();
-        schedule.CreatedAt = DateTimeOffset.UtcNow;
-        _schedules.Add(schedule);
-        return Task.FromResult<ClassSchedule?>(schedule);
-    }
-
-    public Task<bool> DeleteScheduleAsync(
-        Guid organizationId,
-        Guid classGroupId,
-        Guid scheduleId,
-        CancellationToken cancellationToken = default)
-    {
-        if (!_classGroups.Any(item => item.OrganizationId == organizationId && item.Id == classGroupId))
-        {
-            return Task.FromResult(false);
-        }
-
-        var removed = _schedules.RemoveAll(item => item.ClassGroupId == classGroupId && item.Id == scheduleId) > 0;
-        return Task.FromResult(removed);
-    }
-
-    public Task<IReadOnlyList<ClassScheduleRecord>> ListSchedulesAsync(
-        Guid organizationId,
-        Guid classGroupId,
-        CancellationToken cancellationToken = default)
-    {
-        var exists = _classGroups.Any(item => item.OrganizationId == organizationId && item.Id == classGroupId);
-        var schedules = exists
-            ? _schedules.Where(item => item.ClassGroupId == classGroupId).OrderBy(item => item.DayOfWeek).ThenBy(item => item.StartsAt).ToList()
-            : [];
-        var records = schedules.Select(item => new ClassScheduleRecord
-        {
-            Id = item.Id,
-            ClassGroupId = item.ClassGroupId,
-            DayOfWeek = item.DayOfWeek,
-            StartsAt = item.StartsAt.ToTimeSpan(),
-            EndsAt = item.EndsAt.ToTimeSpan(),
-            CreatedAt = item.CreatedAt
-        }).ToList();
-        return Task.FromResult<IReadOnlyList<ClassScheduleRecord>>(records);
-    }
-
-    public Task<Enrollment?> CreateEnrollmentAsync(Enrollment enrollment, CancellationToken cancellationToken = default)
-    {
-        var classGroup = _classGroups.FirstOrDefault(item => item.OrganizationId == enrollment.OrganizationId
-            && item.Id == enrollment.ClassGroupId && item.Status == "active");
-        if (classGroup is null)
-        {
-            return Task.FromResult<Enrollment?>(null);
-        }
-
-        var existing = _enrollments.FirstOrDefault(item => item.OrganizationId == enrollment.OrganizationId
-            && item.ClassGroupId == enrollment.ClassGroupId && item.ClientId == enrollment.ClientId);
-        var otherActiveEnrollments = _enrollments.Count(item => item.OrganizationId == enrollment.OrganizationId
-            && item.ClassGroupId == enrollment.ClassGroupId && item.ClientId != enrollment.ClientId && item.Status == "active");
-        if (otherActiveEnrollments >= classGroup.Capacity)
-        {
-            return Task.FromResult<Enrollment?>(null);
-        }
-
-        if (existing is not null)
-        {
-            existing.Status = "active";
-            existing.EndedAt = null;
-            existing.EnrolledAt = DateTimeOffset.UtcNow;
-            return Task.FromResult<Enrollment?>(existing);
-        }
-
-        enrollment.Id = Guid.NewGuid();
-        enrollment.EnrolledAt = DateTimeOffset.UtcNow;
-        _enrollments.Add(enrollment);
-        return Task.FromResult<Enrollment?>(enrollment);
-    }
-
-    public Task<bool> CancelEnrollmentAsync(
-        Guid organizationId,
-        Guid classGroupId,
-        Guid enrollmentId,
-        CancellationToken cancellationToken = default)
-    {
-        var enrollment = _enrollments.FirstOrDefault(item => item.OrganizationId == organizationId
-            && item.ClassGroupId == classGroupId && item.Id == enrollmentId && item.Status == "active");
-        if (enrollment is null)
-        {
-            return Task.FromResult(false);
-        }
-
-        enrollment.Status = "canceled";
-        enrollment.EndedAt = DateTimeOffset.UtcNow;
-        return Task.FromResult(true);
-    }
-
-    public Task<IReadOnlyList<Enrollment>> ListEnrollmentsAsync(
-        Guid organizationId,
-        Guid classGroupId,
-        CancellationToken cancellationToken = default)
-    {
-        var enrollments = _enrollments
-            .Where(item => item.OrganizationId == organizationId && item.ClassGroupId == classGroupId)
-            .OrderBy(item => item.Status == "active" ? 0 : 1)
-            .ThenBy(item => item.ClientName)
-            .ToList();
-        return Task.FromResult<IReadOnlyList<Enrollment>>(enrollments);
-    }
-
-    public Task<bool> AssignTeacherAsync(
-        Guid organizationId,
-        Guid classGroupId,
-        Guid teacherId,
-        bool isPrimary,
-        DateOnly startsAt,
-        DateOnly? endsAt,
-        CancellationToken cancellationToken = default)
-    {
-        var classGroupExists = _classGroups.Any(item => item.OrganizationId == organizationId
-            && item.Id == classGroupId && item.Status == "active");
-        if (!classGroupExists)
-        {
-            return Task.FromResult(false);
-        }
-
-        var existing = _teacherAssignments.FirstOrDefault(item => item.ClassGroupId == classGroupId
-            && item.TeacherId == teacherId
-            && DateOnly.FromDateTime(item.StartsAt) == startsAt);
-        if (existing is not null)
-        {
-            existing.IsPrimary = isPrimary;
-            existing.EndsAt = endsAt?.ToDateTime(TimeOnly.MinValue);
-            return Task.FromResult(true);
-        }
-
-        _teacherAssignments.Add(new ClassGroupTeacherAssignment
-        {
-            Id = Guid.NewGuid(),
-            ClassGroupId = classGroupId,
-            TeacherId = teacherId,
-            IsPrimary = isPrimary,
-            StartsAt = startsAt.ToDateTime(TimeOnly.MinValue),
-            EndsAt = endsAt?.ToDateTime(TimeOnly.MinValue)
-        });
-        return Task.FromResult(true);
-    }
-
-    public Task<IReadOnlyList<ClassGroupTeacherAssignment>> ListTeacherAssignmentsAsync(
-        Guid organizationId,
-        Guid classGroupId,
-        CancellationToken cancellationToken = default)
-    {
-        var exists = _classGroups.Any(item => item.OrganizationId == organizationId && item.Id == classGroupId);
-        var assignments = exists
-            ? _teacherAssignments.Where(item => item.ClassGroupId == classGroupId).OrderByDescending(item => item.IsPrimary).ToList()
-            : [];
-        return Task.FromResult<IReadOnlyList<ClassGroupTeacherAssignment>>(assignments);
-    }
-
-    public Task<bool> RemoveTeacherAssignmentAsync(
-        Guid organizationId,
-        Guid classGroupId,
-        Guid teacherId,
-        DateOnly startsAt,
-        CancellationToken cancellationToken = default)
-    {
-        var removed = _teacherAssignments.RemoveAll(item => item.ClassGroupId == classGroupId
-            && item.TeacherId == teacherId
-            && DateOnly.FromDateTime(item.StartsAt) == startsAt) > 0;
-        return Task.FromResult(removed);
     }
 }
 
@@ -613,15 +374,15 @@ public sealed class InMemoryLessonRepository : ILessonRepository
         return Task.FromResult<Lesson?>(lesson);
     }
 
-    public Task<IReadOnlyList<Lesson>?> GenerateFromSchedulesAsync(
+    public Task<IReadOnlyList<Lesson>?> GenerateFromModalitySchedulesAsync(
         Guid organizationId,
-        Guid classGroupId,
+        Guid modalityId,
         DateOnly startDate,
         DateOnly endDate,
         CancellationToken cancellationToken = default)
     {
-        var classGroupExists = _lessons.Any(item => item.OrganizationId == organizationId && item.ClassGroupId == classGroupId);
-        return Task.FromResult<IReadOnlyList<Lesson>?>(classGroupExists ? [] : null);
+        var modalityExists = _lessons.Any(item => item.OrganizationId == organizationId && item.ModalityId == modalityId);
+        return Task.FromResult<IReadOnlyList<Lesson>?>(modalityExists ? [] : null);
     }
 }
 
@@ -718,6 +479,12 @@ public sealed class InMemoryAttendanceRepository : IAttendanceRepository
             .ToList();
         return Task.FromResult(items);
     }
+
+    public Task<IReadOnlyList<EligibleAttendanceClient>> ListEligibleClientsByLessonAsync(
+        Guid organizationId,
+        Guid lessonId,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<EligibleAttendanceClient>>([]);
 
     public Task<IReadOnlyList<AttendanceRecord>> ListPendingByOrganizationAsync(
         Guid organizationId,
@@ -974,6 +741,24 @@ public sealed class InMemoryBillingCatalogRepository : IBillingCatalogRepository
         subscription.CreatedAt = DateTimeOffset.UtcNow;
         _subscriptions.Add(subscription);
         return Task.FromResult<ClientPlanSubscription?>(subscription);
+    }
+
+    public Task<IReadOnlyList<ClientPlanSubscription>> ListSubscriptionsAsync(
+        Guid organizationId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        var safePage = page < 1 ? 1 : page;
+        var safePageSize = pageSize is < 1 or > 200 ? 50 : pageSize;
+        IReadOnlyList<ClientPlanSubscription> subscriptions = _subscriptions
+            .Where(item => item.OrganizationId == organizationId)
+            .OrderByDescending(item => item.IsActive)
+            .ThenByDescending(item => item.StartsAt)
+            .Skip((safePage - 1) * safePageSize)
+            .Take(safePageSize)
+            .ToList();
+        return Task.FromResult(subscriptions);
     }
 
     public Task<ClientPlanSubscription?> CancelSubscriptionAsync(Guid organizationId, Guid subscriptionId, DateOnly endsAt, CancellationToken cancellationToken = default)

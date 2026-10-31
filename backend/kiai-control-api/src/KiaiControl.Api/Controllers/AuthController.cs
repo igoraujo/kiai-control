@@ -4,6 +4,7 @@ using KiaiControl.Contracts.Auth;
 using KiaiControl.UseCases.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace KiaiControl.Api.Controllers;
 
@@ -12,6 +13,7 @@ namespace KiaiControl.Api.Controllers;
 public sealed class AuthController(AuthUseCase authUseCase) : ControllerBase
 {
     [AllowAnonymous]
+    [EnableRateLimiting("auth-sensitive")]
     [HttpPost("login")]
     public async Task<ActionResult<SessionTokenResponse>> LoginAsync([FromBody] LoginRequest request, CancellationToken cancellationToken)
     {
@@ -31,6 +33,7 @@ public sealed class AuthController(AuthUseCase authUseCase) : ControllerBase
     }
 
     [AllowAnonymous]
+    [EnableRateLimiting("auth-sensitive")]
     [HttpPost("refresh")]
     public async Task<ActionResult<SessionTokenResponse>> RefreshAsync([FromBody] RefreshTokenRequest request, CancellationToken cancellationToken)
     {
@@ -46,6 +49,7 @@ public sealed class AuthController(AuthUseCase authUseCase) : ControllerBase
     }
 
     [AllowAnonymous]
+    [EnableRateLimiting("auth-sensitive")]
     [HttpPost("logout")]
     public async Task<IActionResult> LogoutAsync([FromBody] LogoutRequest request, CancellationToken cancellationToken)
     {
@@ -54,6 +58,7 @@ public sealed class AuthController(AuthUseCase authUseCase) : ControllerBase
     }
 
     [Authorize]
+    [EnableRateLimiting("auth-sensitive")]
     [HttpPost("change-password")]
     public async Task<IActionResult> ChangePasswordAsync([FromBody] ChangePasswordRequest request, CancellationToken cancellationToken)
     {
@@ -93,6 +98,7 @@ public sealed class AuthController(AuthUseCase authUseCase) : ControllerBase
     }
 
     [AllowAnonymous]
+    [EnableRateLimiting("auth-sensitive")]
     [HttpPost("forgot-password")]
     public async Task<ActionResult<ForgotPasswordResponse>> ForgotPasswordAsync([FromBody] ForgotPasswordRequest request, CancellationToken cancellationToken)
     {
@@ -108,6 +114,7 @@ public sealed class AuthController(AuthUseCase authUseCase) : ControllerBase
     }
 
     [AllowAnonymous]
+    [EnableRateLimiting("auth-sensitive")]
     [HttpPost("reset-password")]
     public async Task<ActionResult<SimpleMessageResponse>> ResetPasswordAsync([FromBody] ResetPasswordRequest request, CancellationToken cancellationToken)
     {

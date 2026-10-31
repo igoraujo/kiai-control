@@ -36,6 +36,7 @@
             <MudTd>@context.Description</MudTd>
             <MudTd><MudChip T="string" Size="Size.Small" Color="@(context.IsActive ? Color.Success : Color.Default)">@(context.IsActive ? "Ativa" : "Inativa")</MudChip></MudTd>
             <MudTd Style="text-align:right">
+                <MudIconButton Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" aria-label="Gerenciar horários da modalidade" OnClick="() => ManageSchedules(context)" />
                 <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" aria-label="Editar" OnClick="() => EditAsync(context)" />
                 <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" aria-label="Excluir" OnClick="() => DeleteAsync(context.Id, context.Name)" />
             </MudTd>
@@ -52,4 +53,6 @@
     private Task EditAsync(ModalityResponse? item) =>
         OpenDialogAsync(item is null ? "Nova modalidade" : "Editar modalidade",
             new DialogParameters<ModalityDialog> { { x => x.Item, item } });
+
+    private void ManageSchedules(ModalityResponse item) => Navigation.NavigateTo($"/modalities/{item.Id}/schedules");
 }

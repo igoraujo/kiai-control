@@ -21,7 +21,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IClientRepository, SqlClientRepository>();
         services.AddScoped<ITeacherRepository, SqlTeacherRepository>();
         services.AddScoped<IModalityRepository, SqlModalityRepository>();
-        services.AddScoped<IClassGroupRepository, SqlClassGroupRepository>();
+        services.AddScoped<IModalityScheduleRepository, SqlModalityScheduleRepository>();
         services.AddScoped<ILessonRepository, SqlLessonRepository>();
         services.AddScoped<IAttendanceRepository, SqlAttendanceRepository>();
         services.AddScoped<IBillingRepository, SqlBillingRepository>();

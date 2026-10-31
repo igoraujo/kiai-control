@@ -1,3 +1,4 @@
+using KiaiControl.Contracts.Auth;
 using KiaiControl.Contracts.Graduation;
 using KiaiControl.Core.Common;
 using KiaiControl.UseCases.Graduation;
@@ -8,6 +9,7 @@ namespace KiaiControl.Api.Controllers;
 
 [ApiController]
 [Authorize(Roles = "owner,admin,teacher")]
+[Authorize(Policy = PermissionCodes.GraduationManage)]
 [Route("api/v1")]
 public sealed class GraduationController(OrganizationContext organizationContext, GraduationUseCase graduationUseCase) : ControllerBase
 {

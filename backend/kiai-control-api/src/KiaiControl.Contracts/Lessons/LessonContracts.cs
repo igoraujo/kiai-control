@@ -2,7 +2,7 @@ namespace KiaiControl.Contracts.Lessons;
 
 public sealed class CreateLessonRequest
 {
-    public Guid ClassGroupId { get; set; }
+    public Guid ModalityId { get; set; }
 
     public DateTimeOffset StartsAt { get; set; }
 
@@ -28,22 +28,19 @@ public sealed class RescheduleLessonRequest
     public DateTimeOffset EndsAt { get; set; }
 }
 
-public sealed class GenerateLessonsRequest
-{
-    public Guid ClassGroupId { get; set; }
-
-    public DateOnly StartDate { get; set; }
-
-    public DateOnly EndDate { get; set; }
-}
-
 public sealed class LessonResponse
 {
     public Guid Id { get; init; }
 
     public Guid OrganizationId { get; init; }
 
-    public Guid ClassGroupId { get; init; }
+    public Guid ModalityId { get; init; }
+
+    public Guid? ModalityScheduleId { get; init; }
+
+    public string? ModalityName { get; init; }
+
+    public string? BranchName { get; init; }
 
     public DateTimeOffset StartsAt { get; init; }
 

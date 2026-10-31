@@ -1,0 +1,204 @@
+@page "/access"
+@using KiaiControl.Contracts.Auth
+@inject AdminSession Session
+@inject AdminApiClient Api
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>Acesso e permissões | Kiai Control</PageTitle>
+
+<MudStack Spacing="3">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+        <MudText Typo="Typo.h4">Acesso e permissões</MudText>
+        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadAsync" Disabled="_isLoading">
+            Atualizar
+        </MudButton>
+    </MudStack>
+
+    @if (_errorMessage is not null)
+    {
+        <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">@_errorMessage</MudAlert>
+    }
+
+    @if (!_hasPermission)
+    {
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">
+            Seu perfil não pode administrar permissões de roles.
+        </MudAlert>
+    }
+    else if (_isLoading)
+    {
+        <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+    }
+    else
+    {
+        <MudStack Row="true" Spacing="3" AlignItems="AlignItems.Center">
+            <MudSelect T="string" Value="@_selectedRoleCode" ValueChanged="SelectRoleAsync"
+                       Label="Role" Variant="Variant.Outlined" Dense="true" Style="max-width: 320px">
+                @foreach (var role in _roles)
+                {
+                    <MudSelectItem Value="@role.Code">@role.Name (@role.Code)</MudSelectItem>
+                }
+            </MudSelect>
+            @if (_selectedRoleCode == "owner")
+            {
+                <MudText Color="Color.Secondary">As permissões do owner são fixas.</MudText>
+            }
+        </MudStack>
+
+        <MudDivider />
+
+        <MudTable Items="@FilteredPermissions" Dense="true" Hover="true" Elevation="0">
+            <HeaderContent>
+                <MudTh>Permissão</MudTh>
+                <MudTh>Código</MudTh>
+                <MudTh>Concedida</MudTh>
+            </HeaderContent>
+            <RowTemplate Context="permission">
+                <MudTd DataLabel="Permissão">@permission.Name</MudTd>
+                <MudTd DataLabel="Código">@permission.Code</MudTd>
+                <MudTd DataLabel="Concedida">
+                    <MudCheckBox T="bool"
+                                 Value="@IsGranted(permission.Code)"
+                                 ValueChanged="@(value => SetPermissionAsync(permission.Code, value))"
+                                 Disabled="@(_isSaving || _selectedRoleCode == "owner")"
+                                 Color="Color.Primary" />
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudText>Nenhuma permissão cadastrada.</MudText>
+            </NoRecordsContent>
+        </MudTable>
+    }
+</MudStack>
+
+@code {
+    private IReadOnlyList<RoleResponse> _roles = [];
+    private IReadOnlyList<PermissionResponse> _permissions = [];
+    private HashSet<string> _grantedPermissions = new(StringComparer.OrdinalIgnoreCase);
+    private string? _selectedRoleCode;
+    private string? _errorMessage;
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private bool _hasPermission;
+
+    private IEnumerable<PermissionResponse> FilteredPermissions => _permissions;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Session.Current is null)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        _hasPermission = Session.Current.User.Permissions.Contains(
+            PermissionCodes.AccessPermissionsManage,
+            StringComparer.OrdinalIgnoreCase);
+        if (_hasPermission)
+        {
+            await LoadAsync();
+        }
+        else
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+        try
+        {
+            _roles = await Api.ListAccessRolesAsync();
+            _permissions = await Api.ListAccessPermissionsAsync();
+            _selectedRoleCode ??= _roles.FirstOrDefault(role => role.Code == "admin")?.Code
+                ?? _roles.FirstOrDefault()?.Code;
+            if (_selectedRoleCode is not null)
+            {
+                await LoadSelectedRolePermissionsAsync();
+            }
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await Session.ClearAsync();
+            Navigation.NavigateTo("/login");
+        }
+        catch (HttpRequestException exception)
+        {
+            _errorMessage = exception.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task SelectRoleAsync(string roleCode)
+    {
+        _selectedRoleCode = roleCode;
+        _errorMessage = null;
+        try
+        {
+            await LoadSelectedRolePermissionsAsync();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await Session.ClearAsync();
+            Navigation.NavigateTo("/login");
+        }
+        catch (HttpRequestException exception)
+        {
+            _errorMessage = exception.Message;
+        }
+    }
+
+    private async Task LoadSelectedRolePermissionsAsync()
+    {
+        var rolePermissions = await Api.ListRolePermissionsAsync(_selectedRoleCode!);
+        _grantedPermissions = rolePermissions
+            .Select(permission => permission.Code)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private bool IsGranted(string permissionCode) => _grantedPermissions.Contains(permissionCode);
+
+    private async Task SetPermissionAsync(string permissionCode, bool isGranted)
+    {
+        if (_selectedRoleCode is null || _selectedRoleCode == "owner" || _isSaving)
+        {
+            return;
+        }
+
+        _isSaving = true;
+        _errorMessage = null;
+        try
+        {
+            await Api.SetRolePermissionAsync(_selectedRoleCode, permissionCode, isGranted);
+            if (isGranted)
+            {
+                _grantedPermissions.Add(permissionCode);
+            }
+            else
+            {
+                _grantedPermissions.Remove(permissionCode);
+            }
+
+            Snackbar.Add("Permissão atualizada.", Severity.Success);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await Session.ClearAsync();
+            Navigation.NavigateTo("/login");
+        }
+        catch (HttpRequestException exception)
+        {
+            _errorMessage = exception.Message;
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+}

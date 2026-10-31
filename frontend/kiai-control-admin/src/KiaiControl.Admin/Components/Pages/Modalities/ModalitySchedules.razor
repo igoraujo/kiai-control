@@ -1,0 +1,286 @@
+@page "/modalities/{ModalityId:guid}/schedules"
+@inject AdminApiClient Api
+@inject AdminSession Session
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<PageTitle>Horários da modalidade | Kiai Control</PageTitle>
+
+<MudStack Spacing="3">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" aria-label="Voltar para modalidades" OnClick="BackToModalities" />
+        <div>
+            <MudText Typo="Typo.h4">@(_modality?.Name ?? "Modalidade")</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">Horários semanais abertos aos alunos vinculados a esta modalidade</MudText>
+        </div>
+    </MudStack>
+
+    @if (_isLoading)
+    {
+        <MudSkeleton Height="280px" />
+    }
+    else if (!string.IsNullOrWhiteSpace(_errorMessage))
+    {
+        <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">
+            @_errorMessage
+            <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="LoadAsync">Tentar novamente</MudButton>
+        </MudAlert>
+    }
+    else if (_modality is not null)
+    {
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
+            O aluno é vinculado à modalidade uma única vez e pode frequentar qualquer um destes horários.
+        </MudAlert>
+
+        <MudPaper Class="pa-4" Elevation="0">
+            <MudStack Spacing="2">
+                <MudText Typo="Typo.h6">Adicionar horário recorrente</MudText>
+                <MudGrid Spacing="2">
+                    <MudItem xs="12" sm="3">
+                        <MudSelect T="int" @bind-Value="_dayOfWeek" Label="Dia da semana" Variant="Variant.Outlined" Margin="Margin.Dense">
+                            @foreach (var weekday in Weekdays)
+                            {
+                                <MudSelectItem Value="@weekday.Value">@weekday.Label</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="6" sm="2">
+                        <MudTextField T="string" @bind-Value="_startsAt" Label="Início" InputType="InputType.Time" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="6" sm="2">
+                        <MudTextField T="string" @bind-Value="_endsAt" Label="Término" InputType="InputType.Time" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" sm="2">
+                        <MudSelect T="Guid?" @bind-Value="_branchId" Label="Unidade" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+                            @foreach (var branch in _branches)
+                            {
+                                <MudSelectItem Value="@((Guid?)branch.Id)">@branch.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="3">
+                        <MudSelect T="Guid?" @bind-Value="_teacherId" Label="Professor" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+                            @foreach (var teacher in _teachers)
+                            {
+                                <MudSelectItem Value="@((Guid?)teacher.Id)">@teacher.FullName</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                </MudGrid>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Disabled="_isSaving" OnClick="AddScheduleAsync">Adicionar horário</MudButton>
+            </MudStack>
+        </MudPaper>
+
+        <MudTable Items="_schedules" Loading="_isSaving" Dense="true" Hover="true">
+            <HeaderContent>
+                <MudTh>Dia</MudTh><MudTh>Horário</MudTh><MudTh>Unidade</MudTh><MudTh>Professor</MudTh><MudTh Style="text-align:right">Ações</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@DayName(context.DayOfWeek)</MudTd>
+                <MudTd>@context.StartsAt.ToString("HH:mm") - @context.EndsAt.ToString("HH:mm")</MudTd>
+                <MudTd>@(context.BranchName ?? "Todas")</MudTd>
+                <MudTd>@(context.TeacherName ?? "A definir")</MudTd>
+                <MudTd Style="text-align:right">
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" aria-label="Remover horário" Disabled="_isSaving" OnClick="() => DeleteScheduleAsync(context)" />
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent><MudText>Nenhum horário semanal cadastrado.</MudText></NoRecordsContent>
+        </MudTable>
+
+        <MudPaper Class="pa-4" Elevation="0">
+            <MudStack Spacing="2">
+                <MudText Typo="Typo.h6">Gerar aulas</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Cria as ocorrências dos horários cadastrados, incluindo o professor definido em cada horário. Gerar novamente não duplica aulas existentes.</MudText>
+                <MudStack Row="true" Spacing="2">
+                    <MudDatePicker @bind-Date="_startDate" Label="De" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    <MudDatePicker @bind-Date="_endDate" Label="Até" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.AutoAwesome" Disabled="_isSaving || _schedules.Count == 0" OnClick="GenerateAsync">Gerar agenda</MudButton>
+                </MudStack>
+            </MudStack>
+        </MudPaper>
+    }
+</MudStack>
+
+@code {
+    [Parameter] public Guid ModalityId { get; set; }
+
+    private ModalityResponse? _modality;
+    private IReadOnlyList<ModalityScheduleResponse> _schedules = [];
+    private IReadOnlyList<BranchResponse> _branches = [];
+    private IReadOnlyList<TeacherResponse> _teachers = [];
+    private DateTime? _startDate = DateTime.Today;
+    private DateTime? _endDate = DateTime.Today.AddDays(13);
+    private Guid? _branchId;
+    private Guid? _teacherId;
+    private int _dayOfWeek = (int)DateTime.Today.DayOfWeek;
+    private string _startsAt = "18:00";
+    private string _endsAt = "19:00";
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private string? _errorMessage;
+
+    private static readonly (int Value, string Label)[] Weekdays =
+    [
+        (0, "Domingo"), (1, "Segunda-feira"), (2, "Terça-feira"),
+        (3, "Quarta-feira"), (4, "Quinta-feira"), (5, "Sexta-feira"), (6, "Sábado")
+    ];
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Session.Current is null)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+        try
+        {
+            var modalityTask = Api.GetAsync<ModalityResponse>($"modalities/{ModalityId}");
+            var schedulesTask = Api.GetAsync<List<ModalityScheduleResponse>>($"modalities/{ModalityId}/schedules");
+            var branchesTask = Api.ListAsync<BranchResponse>("branches", pageSize: 200);
+            var teachersTask = Api.ListAsync<TeacherResponse>("teachers", pageSize: 200);
+            await Task.WhenAll(modalityTask, schedulesTask, branchesTask, teachersTask);
+            _modality = await modalityTask;
+            _schedules = await schedulesTask;
+            _branches = await branchesTask;
+            _teachers = (await teachersTask).Where(teacher => teacher.Status == "active").ToList();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await Session.ClearAsync();
+            Navigation.NavigateTo("/login");
+        }
+        catch (HttpRequestException exception)
+        {
+            _errorMessage = exception.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task AddScheduleAsync()
+    {
+        if (!TimeOnly.TryParse(_startsAt, out var startsAt)
+            || !TimeOnly.TryParse(_endsAt, out var endsAt)
+            || endsAt <= startsAt)
+        {
+            Snackbar.Add("Informe horários válidos; o término deve ser posterior ao início.", Severity.Warning);
+            return;
+        }
+
+        await RunSaveAsync(async () =>
+        {
+            await Api.CreateAsync<CreateModalityScheduleRequest, ModalityScheduleResponse>(
+                $"modalities/{ModalityId}/schedules",
+                new CreateModalityScheduleRequest
+                {
+                    BranchId = _branchId,
+                    TeacherId = _teacherId,
+                    DayOfWeek = _dayOfWeek,
+                    StartsAt = startsAt,
+                    EndsAt = endsAt
+                });
+            _branchId = null;
+            _teacherId = null;
+        }, "Horário adicionado.");
+    }
+
+    private async Task DeleteScheduleAsync(ModalityScheduleResponse schedule)
+    {
+        if (await DialogService.ShowMessageBoxAsync(
+            "Remover horário",
+            $"Remover {DayName(schedule.DayOfWeek)} às {schedule.StartsAt:HH:mm}? Aulas já geradas serão preservadas.",
+            yesText: "Remover",
+            cancelText: "Manter") != true)
+        {
+            return;
+        }
+
+        await RunSaveAsync(
+            () => Api.DeleteAsync($"modalities/{ModalityId}/schedules", schedule.Id),
+            "Horário removido.");
+    }
+
+    private async Task GenerateAsync()
+    {
+        if (_startDate is null || _endDate is null || _endDate < _startDate)
+        {
+            Snackbar.Add("Informe um período válido.", Severity.Warning);
+            return;
+        }
+
+        if ((_endDate.Value.Date - _startDate.Value.Date).TotalDays > 90)
+        {
+            Snackbar.Add("O período de geração não pode exceder 90 dias.", Severity.Warning);
+            return;
+        }
+
+        _isSaving = true;
+        try
+        {
+            var lessons = await Api.GenerateModalityLessonsAsync(new GenerateModalityLessonsRequest
+            {
+                ModalityId = ModalityId,
+                StartDate = DateOnly.FromDateTime(_startDate.Value),
+                EndDate = DateOnly.FromDateTime(_endDate.Value)
+            });
+            Snackbar.Add($"{lessons.Count} aula(s) nova(s) gerada(s).", Severity.Success);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await Session.ClearAsync();
+            Navigation.NavigateTo("/login");
+        }
+        catch (HttpRequestException exception)
+        {
+            Snackbar.Add(exception.Message, Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task RunSaveAsync(Func<Task> action, string message)
+    {
+        _isSaving = true;
+        try
+        {
+            await action();
+            Snackbar.Add(message, Severity.Success);
+            await LoadAsync();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await Session.ClearAsync();
+            Navigation.NavigateTo("/login");
+        }
+        catch (HttpRequestException exception)
+        {
+            Snackbar.Add(exception.Message, Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private void BackToModalities() => Navigation.NavigateTo("/modalities");
+
+    private static string DayName(int day) => day switch
+    {
+        0 => "Domingo", 1 => "Segunda-feira", 2 => "Terça-feira",
+        3 => "Quarta-feira", 4 => "Quinta-feira", 5 => "Sexta-feira", 6 => "Sábado",
+        _ => "Dia inválido"
+    };
+}

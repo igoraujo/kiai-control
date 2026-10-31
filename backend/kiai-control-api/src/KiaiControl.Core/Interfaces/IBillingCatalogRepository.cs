@@ -14,6 +14,8 @@ public interface IBillingCatalogRepository
 
     Task<ClientPlanSubscription?> CreateSubscriptionAsync(ClientPlanSubscription subscription, CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<ClientPlanSubscription>> ListSubscriptionsAsync(Guid organizationId, int page, int pageSize, CancellationToken cancellationToken = default);
+
     Task<ClientPlanSubscription?> CancelSubscriptionAsync(
         Guid organizationId,
         Guid subscriptionId,

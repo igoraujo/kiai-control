@@ -11,7 +11,7 @@
         <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" aria-label="Voltar para aulas" OnClick="BackToLessons" />
         <div>
             <MudText Typo="Typo.h4">Chamada</MudText>
-            <MudText Typo="Typo.body2" Color="Color.Secondary">@_classGroup?.Name · @_lesson?.StartsAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">@LessonDescription</MudText>
         </div>
     </MudStack>
 
@@ -29,7 +29,7 @@
     else if (_lesson is not null)
     {
         <MudPaper Elevation="0" Class="attendance-summary">
-            <MudText Typo="Typo.body2">@_activeEnrollments.Count alunos ativos na turma</MudText>
+            <MudText Typo="Typo.body2">@_eligibleClients.Count alunos elegíveis para esta aula</MudText>
             <MudChip T="string" Color="Color.Warning" Variant="Variant.Outlined">@_pending.Count check-ins pendentes</MudChip>
         </MudPaper>
 
@@ -69,7 +69,7 @@
 
             @if (_manualRows.Count == 0)
             {
-                <MudText Typo="Typo.body2" Color="Color.Secondary">Não há alunos ativos matriculados nesta turma.</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Não há alunos ativos vinculados a esta modalidade.</MudText>
             }
             else
             {
@@ -113,13 +113,15 @@
     [Parameter] public Guid LessonId { get; set; }
 
     private LessonResponse? _lesson;
-    private ClassGroupResponse? _classGroup;
-    private IReadOnlyList<EnrollmentResponse> _activeEnrollments = [];
+    private IReadOnlyList<EligibleAttendanceClientResponse> _eligibleClients = [];
     private IReadOnlyList<AttendanceRecordResponse> _pending = [];
     private List<ManualAttendanceRow> _manualRows = [];
     private bool _isLoading = true;
     private bool _isSaving;
     private string? _errorMessage;
+    private string LessonDescription => _lesson is null
+        ? "Aula"
+        : $"{_lesson.ModalityName}{(string.IsNullOrWhiteSpace(_lesson.BranchName) ? string.Empty : $" · {_lesson.BranchName}")} · {_lesson.StartsAt.ToLocalTime():dd/MM/yyyy HH:mm}";
 
     protected override async Task OnInitializedAsync()
     {
@@ -139,21 +141,20 @@
         try
         {
             _lesson = await Api.GetAsync<LessonResponse>($"lessons/{LessonId}");
-            _classGroup = await Api.GetAsync<ClassGroupResponse>($"class-groups/{_lesson.ClassGroupId}");
-            var enrollmentTask = Api.GetAsync<List<EnrollmentResponse>>($"class-groups/{_lesson.ClassGroupId}/enrollments");
+            var eligibleClientsTask = Api.GetEligibleLessonClientsAsync(LessonId);
             var attendanceTask = Api.GetLessonAttendanceAsync(LessonId);
-            await Task.WhenAll(enrollmentTask, attendanceTask);
+            await Task.WhenAll(eligibleClientsTask, attendanceTask);
 
-            _activeEnrollments = (await enrollmentTask).Where(enrollment => enrollment.Status == "active").ToList();
+            _eligibleClients = await eligibleClientsTask;
             var attendance = await attendanceTask;
             _pending = attendance.Where(record => record.Status == "pending_confirmation").ToList();
-            _manualRows = _activeEnrollments.Select(enrollment =>
+            _manualRows = _eligibleClients.Select(client =>
             {
-                var existing = attendance.FirstOrDefault(record => record.ClientId == enrollment.ClientId);
+                var existing = attendance.FirstOrDefault(record => record.ClientId == client.ClientId);
                 return new ManualAttendanceRow
                 {
-                    ClientId = enrollment.ClientId,
-                    ClientName = enrollment.ClientName,
+                    ClientId = client.ClientId,
+                    ClientName = client.ClientName,
                     Existing = existing,
                     IsPending = existing?.Status == "pending_confirmation",
                     Status = existing is null || existing.Status == "pending_confirmation" ? null : existing.Status
@@ -162,7 +163,7 @@
         }
         catch (UnauthorizedAccessException)
         {
-            Session.Clear();
+            await Session.ClearAsync();
             Navigation.NavigateTo("/login");
         }
         catch (HttpRequestException exception)
@@ -222,7 +223,7 @@
         }
         catch (UnauthorizedAccessException)
         {
-            Session.Clear();
+            await Session.ClearAsync();
             Navigation.NavigateTo("/login");
         }
         catch (HttpRequestException exception)

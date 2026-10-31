@@ -1,3 +1,4 @@
+using KiaiControl.Contracts.Auth;
 using KiaiControl.Contracts.Branches;
 using KiaiControl.Core.Common;
 using KiaiControl.UseCases.Branches;
@@ -8,6 +9,7 @@ namespace KiaiControl.Api.Controllers;
 
 [ApiController]
 [Authorize(Roles = "owner,admin,reception")]
+[Authorize(Policy = PermissionCodes.BranchesManage)]
 [Route("api/v1/branches")]
 public sealed class BranchesController(OrganizationContext organizationContext, BranchUseCase branchUseCase) : ControllerBase
 {
