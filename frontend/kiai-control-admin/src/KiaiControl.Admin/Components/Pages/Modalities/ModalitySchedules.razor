@@ -52,7 +52,8 @@
                         <MudTextField T="string" @bind-Value="_endsAt" Label="Término" InputType="InputType.Time" Variant="Variant.Outlined" Margin="Margin.Dense" />
                     </MudItem>
                     <MudItem xs="12" sm="2">
-                        <MudSelect T="Guid?" @bind-Value="_branchId" Label="Unidade" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+                        <MudSelect T="Guid?" @bind-Value="_branchId" Label="Unidade" Placeholder="Selecione uma unidade (opcional)"
+                                   Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
                             @foreach (var branch in _branches)
                             {
                                 <MudSelectItem Value="@((Guid?)branch.Id)">@branch.Name</MudSelectItem>
@@ -60,7 +61,8 @@
                         </MudSelect>
                     </MudItem>
                     <MudItem xs="12" sm="3">
-                        <MudSelect T="Guid?" @bind-Value="_teacherId" Label="Professor" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+                        <MudSelect T="Guid?" @bind-Value="_teacherId" Label="Professor" Placeholder="Selecione um professor (opcional)"
+                                   Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
                             @foreach (var teacher in _teachers)
                             {
                                 <MudSelectItem Value="@((Guid?)teacher.Id)">@teacher.FullName</MudSelectItem>
@@ -160,7 +162,7 @@
         }
         catch (HttpRequestException exception)
         {
-            _errorMessage = exception.Message;
+            _errorMessage = UserFriendlyError(exception, "carregar os dados da modalidade e dos horários");
         }
         finally
         {
@@ -192,23 +194,23 @@
                 });
             _branchId = null;
             _teacherId = null;
-        }, "Horário adicionado.");
+        }, "Horário adicionado com sucesso.");
     }
 
     private async Task DeleteScheduleAsync(ModalityScheduleResponse schedule)
     {
         if (await DialogService.ShowMessageBoxAsync(
             "Remover horário",
-            $"Remover {DayName(schedule.DayOfWeek)} às {schedule.StartsAt:HH:mm}? Aulas já geradas serão preservadas.",
+            $"Deseja remover o horário de {DayName(schedule.DayOfWeek)} às {schedule.StartsAt:HH:mm}? As aulas já geradas serão mantidas.",
             yesText: "Remover",
-            cancelText: "Manter") != true)
+            cancelText: "Manter horário") != true)
         {
             return;
         }
 
         await RunSaveAsync(
             () => Api.DeleteAsync($"modalities/{ModalityId}/schedules", schedule.Id),
-            "Horário removido.");
+            "Horário removido com sucesso.");
     }
 
     private async Task GenerateAsync()
@@ -234,7 +236,13 @@
                 StartDate = DateOnly.FromDateTime(_startDate.Value),
                 EndDate = DateOnly.FromDateTime(_endDate.Value)
             });
-            Snackbar.Add($"{lessons.Count} aula(s) nova(s) gerada(s).", Severity.Success);
+            var message = lessons.Count switch
+            {
+                0 => "Nenhuma aula nova foi criada. As aulas existentes foram mantidas.",
+                1 => "Uma aula foi criada com sucesso.",
+                _ => $"{lessons.Count} aulas foram criadas com sucesso."
+            };
+            Snackbar.Add(message, Severity.Success);
         }
         catch (UnauthorizedAccessException)
         {
@@ -243,7 +251,7 @@
         }
         catch (HttpRequestException exception)
         {
-            Snackbar.Add(exception.Message, Severity.Error);
+            Snackbar.Add(UserFriendlyError(exception, "gerar as aulas"), Severity.Error);
         }
         finally
         {
@@ -267,7 +275,7 @@
         }
         catch (HttpRequestException exception)
         {
-            Snackbar.Add(exception.Message, Severity.Error);
+            Snackbar.Add(UserFriendlyError(exception, "salvar o horário"), Severity.Error);
         }
         finally
         {
@@ -283,4 +291,24 @@
         3 => "Quarta-feira", 4 => "Quinta-feira", 5 => "Sexta-feira", 6 => "Sábado",
         _ => "Dia inválido"
     };
+
+    private static string UserFriendlyError(HttpRequestException exception, string operation)
+    {
+        return exception.StatusCode switch
+        {
+            System.Net.HttpStatusCode.BadRequest => CleanApiMessage(exception.Message)
+                ?? "Confira os dados informados e tente novamente.",
+            System.Net.HttpStatusCode.Conflict => "O horário já existe ou a unidade/professor está indisponível para esta modalidade.",
+            System.Net.HttpStatusCode.NotFound => "A modalidade, unidade, professor ou horário não foi encontrado ou está indisponível.",
+            _ => $"Não foi possível {operation}. Tente novamente. Se o problema persistir, entre em contato com o suporte."
+        };
+    }
+
+    private static string? CleanApiMessage(string message)
+    {
+        var cleanMessage = message.Trim().Trim('"');
+        return string.IsNullOrWhiteSpace(cleanMessage) || cleanMessage.StartsWith('{')
+            ? null
+            : cleanMessage;
+    }
 }

@@ -48,4 +48,30 @@ public sealed class BillingPaymentUseCaseTests
         Assert.NotNull(payment);
         Assert.Equal("paid", updatedInvoice?.Status);
     }
+
+    [Fact]
+    public async Task RegisterPaymentAsync_ShouldNormalizePaidAtToUtc()
+    {
+        var useCase = new BillingUseCase(new InMemoryBillingRepository());
+        var invoice = await useCase.CreateAsync(new CreateBillingRequest
+        {
+            OrganizationId = Guid.NewGuid(),
+            ClientId = Guid.NewGuid(),
+            ClientPlanSubscriptionId = Guid.NewGuid(),
+            DueDate = new DateOnly(2026, 10, 10),
+            Amount = 100
+        }, CancellationToken.None);
+        var paidAt = new DateTimeOffset(2026, 10, 31, 0, 0, 0, TimeSpan.FromHours(-3));
+
+        var payment = await useCase.RegisterPaymentAsync(invoice.OrganizationId, invoice.Id, new RegisterPaymentRequest
+        {
+            Amount = 100,
+            Method = "pix",
+            PaidAt = paidAt
+        }, CancellationToken.None);
+
+        Assert.NotNull(payment);
+        Assert.Equal(TimeSpan.Zero, payment.PaidAt.Offset);
+        Assert.Equal(new DateTimeOffset(2026, 10, 31, 3, 0, 0, TimeSpan.Zero), payment.PaidAt);
+    }
 }

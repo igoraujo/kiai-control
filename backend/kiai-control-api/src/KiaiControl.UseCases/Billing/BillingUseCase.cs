@@ -155,7 +155,7 @@ public sealed class BillingUseCase(IBillingRepository billingRepository)
         {
             Amount = request.Amount,
             Method = method,
-            PaidAt = request.PaidAt,
+            PaidAt = request.PaidAt.ToUniversalTime(),
             ExternalReference = string.IsNullOrWhiteSpace(request.ExternalReference) ? null : request.ExternalReference.Trim(),
             Notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim()
         }, cancellationToken);

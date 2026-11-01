@@ -14,17 +14,17 @@ public sealed class ModalityScheduleUseCase(IModalityScheduleRepository schedule
     {
         if (organizationId == Guid.Empty || modalityId == Guid.Empty)
         {
-            throw new ArgumentException("OrganizationId and ModalityId are required.");
+            throw new ArgumentException("A organização e a modalidade são obrigatórias.");
         }
 
         if (request.DayOfWeek is < 0 or > 6)
         {
-            throw new ArgumentException("DayOfWeek must be between 0 and 6.");
+            throw new ArgumentException("Selecione um dia da semana válido.");
         }
 
         if (request.EndsAt <= request.StartsAt)
         {
-            throw new ArgumentException("EndsAt must be later than StartsAt.");
+            throw new ArgumentException("O horário de término deve ser posterior ao horário de início.");
         }
 
         var created = await scheduleRepository.CreateAsync(new ModalitySchedule
@@ -48,7 +48,7 @@ public sealed class ModalityScheduleUseCase(IModalityScheduleRepository schedule
     {
         if (organizationId == Guid.Empty || modalityId == Guid.Empty)
         {
-            throw new ArgumentException("OrganizationId and ModalityId are required.");
+            throw new ArgumentException("A organização e a modalidade são obrigatórias.");
         }
 
         var schedules = await scheduleRepository.ListAsync(organizationId, modalityId, cancellationToken);
@@ -66,7 +66,7 @@ public sealed class ModalityScheduleUseCase(IModalityScheduleRepository schedule
     {
         if (organizationId == Guid.Empty || modalityId == Guid.Empty || scheduleId == Guid.Empty)
         {
-            throw new ArgumentException("OrganizationId, ModalityId and ScheduleId are required.");
+            throw new ArgumentException("A organização, a modalidade e o horário são obrigatórios.");
         }
 
         return scheduleRepository.DeactivateAsync(organizationId, modalityId, scheduleId, cancellationToken);

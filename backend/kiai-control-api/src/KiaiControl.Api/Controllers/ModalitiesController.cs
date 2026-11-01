@@ -107,14 +107,14 @@ public sealed class ModalitiesController(
         return deactivated ? NoContent() : NotFound();
     }
 
-    [HttpGet("{id:guid}/schedules")]
+    [HttpGet("{id:guid}/schedules", Name = "ListModalitySchedules")]
     public async Task<ActionResult<IReadOnlyList<ModalityScheduleResponse>>> ListSchedulesAsync(
         Guid id,
         CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest("O contexto da organização não foi informado.");
         }
 
         try
@@ -136,15 +136,15 @@ public sealed class ModalitiesController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest("O contexto da organização não foi informado.");
         }
 
         try
         {
             var created = await modalityScheduleUseCase.CreateAsync(organizationId, id, request, cancellationToken);
             return created is null
-                ? Conflict("The modality, branch or active teacher is unavailable, or this schedule already exists.")
-                : CreatedAtAction(nameof(ListSchedulesAsync), new { id }, created);
+                ? Conflict("O horário já existe ou a unidade/professor está indisponível para esta modalidade.")
+                : CreatedAtRoute("ListModalitySchedules", new { id }, created);
         }
         catch (ArgumentException exception)
         {
@@ -160,7 +160,7 @@ public sealed class ModalitiesController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest("O contexto da organização não foi informado.");
         }
 
         try

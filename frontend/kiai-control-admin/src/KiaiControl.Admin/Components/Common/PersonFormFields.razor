@@ -21,7 +21,8 @@
             <MudTextField @bind-Value="Model.Document" Label="CPF ou documento" Variant="Variant.Outlined" />
         </MudItem>
         <MudItem xs="12">
-            <MudSelect T="Guid?" @bind-Value="Model.BranchId" Label="Unidade" Clearable="true" Variant="Variant.Outlined">
+            <MudSelect T="Guid?" @bind-Value="Model.BranchId" Label="Unidade" Placeholder="Selecione uma unidade (opcional)"
+                       Clearable="true" Variant="Variant.Outlined">
                 @foreach (var branch in Branches)
                 {
                     <MudSelectItem T="Guid?" Value="@((Guid?)branch.Id)">@branch.Name</MudSelectItem>

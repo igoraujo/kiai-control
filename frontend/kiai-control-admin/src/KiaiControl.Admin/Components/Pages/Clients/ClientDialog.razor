@@ -21,7 +21,9 @@
                 </MudGrid>
                 <MudText Typo="Typo.subtitle2" Class="pt-2">Modalidades</MudText>
                 <MudSelect T="Guid" @bind-SelectedValues="_selectedModalityIds" MultiSelection="true"
-                           Label="Modalidades do aluno" Variant="Variant.Outlined" Clearable="true">
+                           Label="Modalidades do aluno" Placeholder="Selecione uma ou mais modalidades"
+                           MultiSelectionTextFunc="GetModalitySelectionText"
+                           Variant="Variant.Outlined" Clearable="true">
                     @foreach (var modality in Modalities)
                     {
                         <MudSelectItem Value="@modality.Id">@modality.Name</MudSelectItem>
@@ -137,4 +139,30 @@
     private static DateOnly? ToDateOnly(DateTime? date) => date is null ? null : DateOnly.FromDateTime(date.Value);
 
     private static DateTime? ToDateTime(DateOnly? date) => date?.ToDateTime(TimeOnly.MinValue);
+
+    private string GetModalitySelectionText(IReadOnlyList<string> selectedValues)
+    {
+        var selectedIds = selectedValues
+            .Select(value => Guid.TryParse(value, out var id) ? id : (Guid?)null)
+            .Where(id => id.HasValue)
+            .Select(id => id.GetValueOrDefault())
+            .ToHashSet();
+        var names = Modalities
+            .Where(modality => selectedIds.Contains(modality.Id))
+            .Select(modality => modality.Name)
+            .ToList();
+        var unavailableCount = selectedIds.Count - names.Count;
+        if (unavailableCount == 1)
+        {
+            names.Add("Modalidade indisponível");
+        }
+        else if (unavailableCount > 1)
+        {
+            names.Add($"{unavailableCount} modalidades indisponíveis");
+        }
+
+        return names.Count == 0
+            ? "Selecione uma ou mais modalidades"
+            : string.Join(", ", names);
+    }
 }
