@@ -2,7 +2,9 @@ using System.Security.Claims;
 using KiaiControl.Contracts.Auth;
 using KiaiControl.Contracts.Fitness;
 using KiaiControl.Core.Common;
+using KiaiControl.UseCases.Clients;
 using KiaiControl.UseCases.Fitness;
+using KiaiControl.UseCases.Modalities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,8 +14,30 @@ namespace KiaiControl.Api.Controllers;
 [Authorize(Roles = "owner,admin,teacher")]
 [Authorize(Policy = PermissionCodes.FitnessManage)]
 [Route("api/v1/fitness-goals")]
-public sealed class FitnessController(OrganizationContext organizationContext, FitnessUseCase fitnessUseCase) : ControllerBase
+public sealed class FitnessController(
+    OrganizationContext organizationContext,
+    FitnessUseCase fitnessUseCase,
+    ClientUseCase clientUseCase,
+    ModalityUseCase modalityUseCase) : ControllerBase
 {
+    [HttpGet("options")]
+    public async Task<ActionResult<FitnessOptionsResponse>> OptionsAsync(CancellationToken cancellationToken)
+    {
+        if (organizationContext.OrganizationId is not Guid organizationId)
+        {
+            return BadRequest("Organization context is required.");
+        }
+
+        var clientsTask = clientUseCase.ListAsync(organizationId, 1, 200, cancellationToken);
+        var modalitiesTask = modalityUseCase.ListAsync(organizationId, 1, 200, cancellationToken);
+        await Task.WhenAll(clientsTask, modalitiesTask);
+        return Ok(new FitnessOptionsResponse
+        {
+            Clients = (await clientsTask).Where(client => client.Status == "active").ToList(),
+            Modalities = (await modalitiesTask).Where(modality => modality.IsActive).ToList()
+        });
+    }
+
     [HttpPost]
     public async Task<ActionResult<FitnessGoalResponse>> CreateAsync(
         [FromBody] CreateFitnessGoalRequest request,

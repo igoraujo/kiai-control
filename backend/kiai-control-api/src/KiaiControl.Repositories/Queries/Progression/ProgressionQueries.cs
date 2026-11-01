@@ -65,11 +65,39 @@ public static class ProgressionQueries
                current_level.graduation_system_id as GraduationSystemId,
                current_level.hierarchy_order as CurrentOrder,
                next_level.hierarchy_order as NextOrder,
-               next_level.requires_manual_evaluation as RequiresManualEvaluation
+               next_level.requires_manual_evaluation as RequiresManualEvaluation,
+               (
+                   coalesce(stats.training_days, 0) >= next_level.min_training_days
+                   and coalesce(stats.attended_count, 0) >= next_level.min_lessons
+                   and (
+                       next_level.min_attendance_percentage is null
+                       or case when coalesce(stats.attendance_count, 0) = 0 then 0
+                               else 100.0 * stats.attended_count / stats.attendance_count end
+                           >= next_level.min_attendance_percentage
+                   )
+                   and (
+                       next_level.min_age is null
+                       or p.birth_date <= (current_date - make_interval(years => next_level.min_age))::date
+                   )
+               ) as IsEligible
         from client_graduations cg
+        join clients c on c.id = cg.client_id and c.organization_id = cg.organization_id
+        join persons p on p.id = c.person_id and p.organization_id = c.organization_id and p.deleted_at is null
         join graduation_levels current_level on current_level.id = cg.current_level_id
         join graduation_levels next_level on next_level.id = @ToLevelId
                                               and next_level.graduation_system_id = current_level.graduation_system_id
+        left join lateral (
+            select count(a.id)::integer as attendance_count,
+                   count(a.id) filter (where a.status in ('present', 'late'))::integer as attended_count,
+                   count(distinct lesson.starts_at::date)::integer as training_days
+            from lessons lesson
+            left join attendances a on a.lesson_id = lesson.id
+                and a.client_id = cg.client_id
+                and a.organization_id = cg.organization_id
+            where lesson.organization_id = cg.organization_id
+              and lesson.modality_id = cg.modality_id
+              and lesson.status = 'completed'
+        ) stats on true
         where cg.organization_id = @OrganizationId and cg.client_id = @ClientId and cg.modality_id = @ModalityId
         for update of cg;
         ";
@@ -158,7 +186,6 @@ public static class ProgressionQueries
                or case when coalesce(stats.attendance_count, 0) = 0 then 0
                        else 100.0 * stats.attended_count / stats.attendance_count end >= next_level.min_attendance_percentage)
           and (next_level.min_age is null or p.birth_date <= (current_date - make_interval(years => next_level.min_age))::date)
-          and next_level.requires_manual_evaluation = false
         order by p.full_name;
         ";
 

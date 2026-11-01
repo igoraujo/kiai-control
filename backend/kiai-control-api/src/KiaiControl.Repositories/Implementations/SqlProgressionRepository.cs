@@ -86,7 +86,8 @@ public sealed class SqlProgressionRepository(IDbConnectionFactory dbConnectionFa
                 graduationEvent.ToLevelId
             },
             transaction);
-        if (current is null || current.NextOrder <= current.CurrentOrder || (current.RequiresManualEvaluation && !manualEvaluationPassed))
+        if (current is null || current.NextOrder <= current.CurrentOrder || !current.IsEligible
+            || (current.RequiresManualEvaluation && !manualEvaluationPassed))
         {
             return null;
         }
@@ -224,5 +225,7 @@ public sealed class SqlProgressionRepository(IDbConnectionFactory dbConnectionFa
         public int NextOrder { get; init; }
 
         public bool RequiresManualEvaluation { get; init; }
+
+        public bool IsEligible { get; init; }
     }
 }

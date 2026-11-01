@@ -35,6 +35,24 @@ public sealed class SqlNotificationRepository(IDbConnectionFactory dbConnectionF
         return items.ToList();
     }
 
+    public async Task<IReadOnlyList<Notification>> ListByOrganizationAsync(
+        Guid organizationId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        var safePage = page < 1 ? 1 : page;
+        var safePageSize = pageSize is < 1 or > 200 ? 50 : pageSize;
+        using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
+        var items = await connection.QueryAsync<Notification>(NotificationQueries.ListByOrganization, new
+        {
+            OrganizationId = organizationId,
+            Offset = (safePage - 1) * safePageSize,
+            PageSize = safePageSize
+        });
+        return items.ToList();
+    }
+
     public async Task<bool> MarkAsReadAsync(Guid organizationId, Guid personId, Guid notificationId, CancellationToken cancellationToken = default)
     {
         using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);

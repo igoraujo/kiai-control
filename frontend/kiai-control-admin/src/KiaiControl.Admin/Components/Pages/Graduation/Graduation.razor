@@ -1,0 +1,449 @@
+@page "/graduation"
+@using KiaiControl.Contracts.Auth
+@inject AdminSession Session
+@inject AdminApiClient Api
+@inject NavigationManager Navigation
+@inject IDialogService DialogService
+
+<PageTitle>Graduação | Kiai Control</PageTitle>
+
+<MudStack Spacing="3">
+    <div>
+        <MudText Typo="Typo.h4">Graduações</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">Configure níveis e acompanhe a evolução dos alunos</MudText>
+    </div>
+
+    @if (_errorMessage is not null)
+    {
+        <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">@_errorMessage</MudAlert>
+    }
+
+    @if (_isLoading)
+    {
+        <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+    }
+    else
+    {
+        <MudPaper Class="pa-4" Elevation="0">
+            <MudText Typo="Typo.h6" GutterBottom="true">Sistema de graduação</MudText>
+            <MudGrid Spacing="2">
+                <MudItem xs="12" md="4">
+                    <MudSelect T="Guid?" Value="_selectedSystemId" ValueChanged="SelectSystemAsync"
+                               Label="Sistema" Placeholder="Selecione um sistema" Variant="Variant.Outlined" Clearable="true">
+                        @foreach (var system in _systems)
+                        {
+                            <MudSelectItem T="Guid?" Value="@((Guid?)system.Id)">@SystemLabel(system)</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="8">
+                    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+                        <MudSelect T="Guid?" @bind-Value="_newSystemModalityId" Label="Modalidade" Variant="Variant.Outlined">
+                            @foreach (var modality in _modalities)
+                            {
+                                <MudSelectItem T="Guid?" Value="@((Guid?)modality.Id)">@modality.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                        <MudTextField @bind-Value="_newSystemName" Label="Nome do sistema" Variant="Variant.Outlined" />
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateSystemAsync"
+                                   Disabled="_isSaving || _newSystemModalityId is null || string.IsNullOrWhiteSpace(_newSystemName)">
+                            Criar sistema
+                        </MudButton>
+                    </MudStack>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+
+        @if (SelectedSystem is not null)
+        {
+            <MudPaper Class="pa-4" Elevation="0">
+                <MudText Typo="Typo.h6">Níveis — @SelectedSystem.Name</MudText>
+                @if (string.IsNullOrWhiteSpace(SelectedSystem.Description) is false)
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">@SelectedSystem.Description</MudText>
+                }
+
+                <MudGrid Spacing="2" Class="mt-2">
+                    <MudItem xs="12" md="3">
+                        <MudTextField @bind-Value="_newLevelName" Label="Nome do nível" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="6" md="2">
+                        <MudNumericField T="int" @bind-Value="_newLevelOrder" Label="Ordem" Min="1" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="6" md="2">
+                        <MudNumericField T="int" @bind-Value="_newLevelMinTrainingDays" Label="Dias de treino" Min="0" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="6" md="2">
+                        <MudNumericField T="int" @bind-Value="_newLevelMinLessons" Label="Aulas mínimas" Min="0" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="6" md="2">
+                        <MudNumericField T="decimal?" @bind-Value="_newLevelAttendance" Label="Frequência mínima (%)" Min="0" Max="100" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" md="1" Class="d-flex align-center">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateLevelAsync"
+                                   Disabled="_isSaving || string.IsNullOrWhiteSpace(_newLevelName)">
+                            Adicionar
+                        </MudButton>
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudCheckBox T="bool" @bind-Value="_newLevelRequiresEvaluation" Label="Exige avaliação manual para promoção" Color="Color.Primary" />
+                    </MudItem>
+                </MudGrid>
+
+                <MudTable Items="_levels" Dense="true" Hover="true" Class="mt-3">
+                    <HeaderContent>
+                        <MudTh>Ordem</MudTh>
+                        <MudTh>Nível</MudTh>
+                        <MudTh>Dias de treino</MudTh>
+                        <MudTh>Aulas</MudTh>
+                        <MudTh>Frequência</MudTh>
+                        <MudTh>Avaliação manual</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.HierarchyOrder</MudTd>
+                        <MudTd>@context.Name</MudTd>
+                        <MudTd>@context.MinTrainingDays</MudTd>
+                        <MudTd>@context.MinLessons</MudTd>
+                        <MudTd>@(context.MinAttendancePercentage is null ? "—" : $"{context.MinAttendancePercentage:N1}%")</MudTd>
+                        <MudTd>@(context.RequiresManualEvaluation ? "Sim" : "Não")</MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent><MudText>Nenhum nível cadastrado. Adicione os níveis em ordem crescente.</MudText></NoRecordsContent>
+                </MudTable>
+            </MudPaper>
+
+            <MudPaper Class="pa-4" Elevation="0">
+                <MudText Typo="Typo.h6">Alunos elegíveis para promoção</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                    A elegibilidade é calculada com base nos critérios do próximo nível do sistema selecionado.
+                </MudText>
+
+                <MudTable Items="_eligibleClients" Dense="true" Hover="true" Loading="_isRefreshing">
+                    <HeaderContent>
+                        <MudTh>Aluno</MudTh>
+                        <MudTh>Nível atual</MudTh>
+                        <MudTh>Próximo nível</MudTh>
+                        <MudTh>Presenças</MudTh>
+                        <MudTh>Frequência</MudTh>
+                        <MudTh>Dias de treino</MudTh>
+                        <MudTh>Ação</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.FullName</MudTd>
+                        <MudTd>@LevelName(context.CurrentLevelId)</MudTd>
+                        <MudTd>@LevelName(context.NextLevelId)</MudTd>
+                        <MudTd>@context.AttendanceCount</MudTd>
+                        <MudTd>@context.AttendancePercentage.ToString("N1")%</MudTd>
+                        <MudTd>@context.TrainingDays</MudTd>
+                        <MudTd>
+                            <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary"
+                                       OnClick="() => PromoteAsync(context)" Disabled="_isSaving">
+                                Registrar graduação
+                            </MudButton>
+                        </MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent><MudText>Nenhum aluno elegível para promoção neste sistema.</MudText></NoRecordsContent>
+                </MudTable>
+
+                <MudDivider Class="my-4" />
+                <MudText Typo="Typo.subtitle1">Cadastrar graduação inicial</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2">
+                    Use para registrar o nível atual de alunos já graduados antes de usar as promoções automáticas.
+                </MudText>
+                <MudGrid Spacing="2">
+                    <MudItem xs="12" md="4">
+                        <MudSelect T="Guid?" @bind-Value="_initialClientId" Label="Aluno" Variant="Variant.Outlined">
+                            @foreach (var client in _clients)
+                            {
+                                <MudSelectItem T="Guid?" Value="@((Guid?)client.Id)">@client.FullName</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudSelect T="Guid?" @bind-Value="_initialLevelId" Label="Nível inicial" Variant="Variant.Outlined">
+                            @foreach (var level in _levels)
+                            {
+                                <MudSelectItem T="Guid?" Value="@((Guid?)level.Id)">@level.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudDatePicker @bind-Date="_initialGrantedAt" Label="Data da graduação" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SetInitialGraduationAsync"
+                                   Disabled="_isSaving || _initialClientId is null || _initialLevelId is null">
+                            Registrar nível
+                        </MudButton>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+        }
+        else
+        {
+            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
+                Selecione um sistema ou crie um sistema para começar a configurar níveis e acompanhar promoções.
+            </MudAlert>
+        }
+    }
+</MudStack>
+
+@code {
+    private IReadOnlyList<GraduationSystemResponse> _systems = [];
+    private IReadOnlyList<ModalityResponse> _modalities = [];
+    private IReadOnlyList<ClientResponse> _clients = [];
+    private IReadOnlyList<GraduationLevelResponse> _levels = [];
+    private IReadOnlyList<EligibleClientResponse> _eligibleClients = [];
+    private Guid? _selectedSystemId;
+    private Guid? _newSystemModalityId;
+    private Guid? _initialClientId;
+    private Guid? _initialLevelId;
+    private string _newSystemName = string.Empty;
+    private string _newLevelName = string.Empty;
+    private int _newLevelOrder = 1;
+    private int _newLevelMinTrainingDays;
+    private int _newLevelMinLessons;
+    private decimal? _newLevelAttendance;
+    private bool _newLevelRequiresEvaluation;
+    private DateTime? _initialGrantedAt = DateTime.Today;
+    private bool _isLoading = true;
+    private bool _isRefreshing;
+    private bool _isSaving;
+    private string? _errorMessage;
+
+    private GraduationSystemResponse? SelectedSystem =>
+        _systems.FirstOrDefault(system => system.Id == _selectedSystemId);
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Session.Current is null)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        if (!Session.Current.User.Permissions.Contains(PermissionCodes.GraduationManage, StringComparer.OrdinalIgnoreCase))
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+
+        try
+        {
+            var systemsTask = Api.ListGraduationSystemsAsync();
+            var optionsTask = Api.GetGraduationOptionsAsync();
+            await Task.WhenAll(systemsTask, optionsTask);
+            _systems = await systemsTask;
+            var options = await optionsTask;
+            _modalities = options.Modalities;
+            _clients = options.Clients;
+            if (_systems.Count > 0)
+            {
+                await SelectSystemAsync(_systems[0].Id);
+            }
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await Session.ClearAsync();
+            Navigation.NavigateTo("/login");
+        }
+        catch (HttpRequestException exception)
+        {
+            _errorMessage = $"Não foi possível carregar os dados de graduação: {exception.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task SelectSystemAsync(Guid? systemId)
+    {
+        _selectedSystemId = systemId;
+        _levels = [];
+        _eligibleClients = [];
+        _initialLevelId = null;
+        if (systemId is null)
+        {
+            return;
+        }
+
+        _isRefreshing = true;
+        _errorMessage = null;
+        try
+        {
+            var levelsTask = Api.ListGraduationLevelsAsync(systemId.Value);
+            var eligibleTask = Api.ListEligibleGraduationClientsAsync(systemId.Value);
+            await Task.WhenAll(levelsTask, eligibleTask);
+            _levels = await levelsTask;
+            _eligibleClients = await eligibleTask;
+            _initialLevelId = _levels.OrderBy(level => level.HierarchyOrder).FirstOrDefault()?.Id;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await Session.ClearAsync();
+            Navigation.NavigateTo("/login");
+        }
+        catch (HttpRequestException exception)
+        {
+            _errorMessage = $"Não foi possível carregar níveis e elegibilidade: {exception.Message}";
+        }
+        finally
+        {
+            _isRefreshing = false;
+        }
+    }
+
+    private async Task CreateSystemAsync()
+    {
+        if (_newSystemModalityId is null || string.IsNullOrWhiteSpace(_newSystemName))
+        {
+            return;
+        }
+
+        _isSaving = true;
+        _errorMessage = null;
+        try
+        {
+            var created = await Api.CreateGraduationSystemAsync(new CreateGraduationSystemRequest
+            {
+                ModalityId = _newSystemModalityId.Value,
+                Name = _newSystemName.Trim()
+            });
+            _systems = await Api.ListGraduationSystemsAsync();
+            _newSystemName = string.Empty;
+            await SelectSystemAsync(created.Id);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await Session.ClearAsync();
+            Navigation.NavigateTo("/login");
+        }
+        catch (HttpRequestException exception)
+        {
+            _errorMessage = $"Não foi possível criar o sistema: {exception.Message}";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task CreateLevelAsync()
+    {
+        if (_selectedSystemId is null || string.IsNullOrWhiteSpace(_newLevelName))
+        {
+            return;
+        }
+
+        _isSaving = true;
+        _errorMessage = null;
+        try
+        {
+            await Api.CreateGraduationLevelAsync(_selectedSystemId.Value, new CreateGraduationLevelRequest
+            {
+                Name = _newLevelName.Trim(),
+                HierarchyOrder = _newLevelOrder,
+                MinTrainingDays = _newLevelMinTrainingDays,
+                MinLessons = _newLevelMinLessons,
+                MinAttendancePercentage = _newLevelAttendance,
+                RequiresManualEvaluation = _newLevelRequiresEvaluation
+            });
+            _newLevelName = string.Empty;
+            _newLevelOrder = _levels.Count + 1;
+            _newLevelMinTrainingDays = 0;
+            _newLevelMinLessons = 0;
+            _newLevelAttendance = null;
+            _newLevelRequiresEvaluation = false;
+            await SelectSystemAsync(_selectedSystemId);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await Session.ClearAsync();
+            Navigation.NavigateTo("/login");
+        }
+        catch (HttpRequestException exception)
+        {
+            _errorMessage = $"Não foi possível adicionar o nível: {exception.Message}";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task SetInitialGraduationAsync()
+    {
+        if (SelectedSystem is null || _initialClientId is null || _initialLevelId is null || _initialGrantedAt is null)
+        {
+            _errorMessage = "Selecione o aluno, o nível e a data da graduação.";
+            return;
+        }
+
+        _isSaving = true;
+        _errorMessage = null;
+        try
+        {
+            await Api.SetInitialGraduationAsync(_initialClientId.Value, new SetClientGraduationRequest
+            {
+                ModalityId = SelectedSystem.ModalityId,
+                LevelId = _initialLevelId.Value,
+                GrantedAt = DateOnly.FromDateTime(_initialGrantedAt.Value)
+            });
+            _initialClientId = null;
+            await SelectSystemAsync(_selectedSystemId);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await Session.ClearAsync();
+            Navigation.NavigateTo("/login");
+        }
+        catch (HttpRequestException exception)
+        {
+            _errorMessage = $"Não foi possível registrar a graduação inicial: {exception.Message}";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task PromoteAsync(EligibleClientResponse client)
+    {
+        if (SelectedSystem is null)
+        {
+            return;
+        }
+
+        var nextLevel = _levels.FirstOrDefault(level => level.Id == client.NextLevelId);
+        if (nextLevel is null)
+        {
+            _errorMessage = "O próximo nível não foi encontrado. Atualize os níveis do sistema e tente novamente.";
+            return;
+        }
+
+        var result = await DialogService.ShowAsync<PromoteClientDialog>(
+            "Registrar graduação",
+            new DialogParameters<PromoteClientDialog>
+            {
+                { dialog => dialog.Client, client },
+                { dialog => dialog.ModalityId, SelectedSystem.ModalityId },
+                { dialog => dialog.NextLevelName, nextLevel.Name },
+                { dialog => dialog.RequiresManualEvaluation, nextLevel.RequiresManualEvaluation }
+            },
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
+        var dialogResult = await result.Result;
+        if (dialogResult is { Canceled: false })
+        {
+            await SelectSystemAsync(_selectedSystemId);
+        }
+    }
+
+    private string LevelName(Guid levelId) =>
+        _levels.FirstOrDefault(level => level.Id == levelId)?.Name ?? "Nível não encontrado";
+
+    private string SystemLabel(GraduationSystemResponse system)
+    {
+        var modality = _modalities.FirstOrDefault(item => item.Id == system.ModalityId)?.Name ?? "Modalidade";
+        return $"{system.Name} · {modality}";
+    }
+}

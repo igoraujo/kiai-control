@@ -1,7 +1,9 @@
 using KiaiControl.Contracts.Auth;
 using KiaiControl.Contracts.Graduation;
 using KiaiControl.Core.Common;
+using KiaiControl.UseCases.Clients;
 using KiaiControl.UseCases.Graduation;
+using KiaiControl.UseCases.Modalities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,8 +13,30 @@ namespace KiaiControl.Api.Controllers;
 [Authorize(Roles = "owner,admin,teacher")]
 [Authorize(Policy = PermissionCodes.GraduationManage)]
 [Route("api/v1")]
-public sealed class GraduationController(OrganizationContext organizationContext, GraduationUseCase graduationUseCase) : ControllerBase
+public sealed class GraduationController(
+    OrganizationContext organizationContext,
+    GraduationUseCase graduationUseCase,
+    ModalityUseCase modalityUseCase,
+    ClientUseCase clientUseCase) : ControllerBase
 {
+    [HttpGet("graduation/options")]
+    public async Task<ActionResult<GraduationOptionsResponse>> OptionsAsync(CancellationToken cancellationToken)
+    {
+        if (organizationContext.OrganizationId is not Guid organizationId)
+        {
+            return BadRequest("Organization context is required.");
+        }
+
+        var modalitiesTask = modalityUseCase.ListAsync(organizationId, 1, 200, cancellationToken);
+        var clientsTask = clientUseCase.ListAsync(organizationId, 1, 200, cancellationToken);
+        await Task.WhenAll(modalitiesTask, clientsTask);
+        return Ok(new GraduationOptionsResponse
+        {
+            Modalities = (await modalitiesTask).Where(modality => modality.IsActive).ToList(),
+            Clients = (await clientsTask).Where(client => client.Status == "active").ToList()
+        });
+    }
+
     [HttpPost("graduation-systems")]
     public async Task<ActionResult<GraduationSystemResponse>> CreateSystemAsync(
         [FromBody] CreateGraduationSystemRequest request,

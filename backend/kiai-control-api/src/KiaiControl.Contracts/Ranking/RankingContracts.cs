@@ -1,5 +1,12 @@
 namespace KiaiControl.Contracts.Ranking;
 
+public sealed class RankingOptionsResponse
+{
+    public IReadOnlyList<KiaiControl.Contracts.Modalities.ModalityResponse> Modalities { get; init; } = [];
+
+    public IReadOnlyList<KiaiControl.Contracts.Clients.ClientResponse> Clients { get; init; } = [];
+}
+
 public sealed class CreateRankingCycleRequest
 {
     public Guid? ModalityId { get; set; }

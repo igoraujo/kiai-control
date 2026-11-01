@@ -1,5 +1,10 @@
 namespace KiaiControl.Contracts.Notifications;
 
+public sealed class NotificationOptionsResponse
+{
+    public IReadOnlyList<KiaiControl.Contracts.Clients.ClientResponse> Clients { get; init; } = [];
+}
+
 public sealed class CreateNotificationRequest
 {
     public Guid PersonId { get; set; }

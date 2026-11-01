@@ -2,10 +2,15 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using KiaiControl.Contracts.Auth;
+using KiaiControl.Contracts.Audit;
 using KiaiControl.Contracts.Attendance;
 using KiaiControl.Contracts.Billing;
+using KiaiControl.Contracts.Fitness;
+using KiaiControl.Contracts.Graduation;
 using KiaiControl.Contracts.Lessons;
 using KiaiControl.Contracts.Modalities;
+using KiaiControl.Contracts.Notifications;
+using KiaiControl.Contracts.Ranking;
 using KiaiControl.Contracts.Reports;
 using KiaiControl.Contracts.Teachers;
 
@@ -99,6 +104,152 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
         Guid? modalityId) =>
         GetListAsync<GraduationReportRow>(
             $"api/v1/reports/graduation?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}{ModalityQuery(modalityId)}");
+
+    public Task<IReadOnlyList<GraduationSystemResponse>> ListGraduationSystemsAsync() =>
+        GetListAsync<GraduationSystemResponse>("api/v1/graduation-systems");
+
+    public async Task<GraduationOptionsResponse> GetGraduationOptionsAsync()
+    {
+        using var response = await SendAuthorizedAsync(HttpMethod.Get, "api/v1/graduation/options");
+        return await response.Content.ReadFromJsonAsync<GraduationOptionsResponse>()
+            ?? throw new HttpRequestException("The API returned empty graduation options.");
+    }
+
+    public Task<GraduationSystemResponse> CreateGraduationSystemAsync(CreateGraduationSystemRequest request) =>
+        CreateAsync<CreateGraduationSystemRequest, GraduationSystemResponse>("graduation-systems", request);
+
+    public Task<IReadOnlyList<GraduationLevelResponse>> ListGraduationLevelsAsync(Guid systemId) =>
+        GetListAsync<GraduationLevelResponse>($"api/v1/graduation-systems/{systemId}/levels");
+
+    public Task<GraduationLevelResponse> CreateGraduationLevelAsync(
+        Guid systemId,
+        CreateGraduationLevelRequest request) =>
+        CreateAsync<CreateGraduationLevelRequest, GraduationLevelResponse>(
+            $"graduation-systems/{systemId}/levels", request);
+
+    public Task<IReadOnlyList<EligibleClientResponse>> ListEligibleGraduationClientsAsync(Guid systemId) =>
+        GetListAsync<EligibleClientResponse>(
+            $"api/v1/graduation/eligible-clients?systemId={systemId:D}");
+
+    public Task<ClientGraduationResponse> SetInitialGraduationAsync(
+        Guid clientId,
+        SetClientGraduationRequest request) =>
+        CreateAsync<SetClientGraduationRequest, ClientGraduationResponse>(
+            $"clients/{clientId}/graduations", request);
+
+    public Task<GraduationEventResponse> PromoteClientAsync(
+        Guid clientId,
+        PromoteClientRequest request) =>
+        CreateAsync<PromoteClientRequest, GraduationEventResponse>(
+            $"clients/{clientId}/graduation-events", request);
+
+    public async Task<FitnessOptionsResponse> GetFitnessOptionsAsync()
+    {
+        using var response = await SendAuthorizedAsync(HttpMethod.Get, "api/v1/fitness-goals/options");
+        return await response.Content.ReadFromJsonAsync<FitnessOptionsResponse>()
+            ?? throw new HttpRequestException("The API returned empty fitness options.");
+    }
+
+    public Task<IReadOnlyList<FitnessGoalResponse>> ListFitnessGoalsAsync(
+        int page = 1,
+        int pageSize = 50,
+        Guid? clientId = null) =>
+        ListAsync<FitnessGoalResponse>("fitness-goals", page, pageSize, clientId);
+
+    public Task<FitnessGoalResponse> CreateFitnessGoalAsync(CreateFitnessGoalRequest request) =>
+        CreateAsync<CreateFitnessGoalRequest, FitnessGoalResponse>("fitness-goals", request);
+
+    public Task<FitnessProgressResponse> RecordFitnessProgressAsync(
+        Guid goalId,
+        RecordFitnessProgressRequest request) =>
+        CreateAsync<RecordFitnessProgressRequest, FitnessProgressResponse>(
+            $"fitness-goals/{goalId}/progress", request);
+
+    public async Task CancelFitnessGoalAsync(Guid goalId)
+    {
+        using var response = await SendAuthorizedAsync(HttpMethod.Patch, $"api/v1/fitness-goals/{goalId}/cancel");
+    }
+
+    public async Task<RankingOptionsResponse> GetRankingOptionsAsync()
+    {
+        using var response = await SendAuthorizedAsync(HttpMethod.Get, "api/v1/rankings/options");
+        return await response.Content.ReadFromJsonAsync<RankingOptionsResponse>()
+            ?? throw new HttpRequestException("The API returned empty ranking options.");
+    }
+
+    public Task<IReadOnlyList<RankingCycleResponse>> ListRankingCyclesAsync(int page = 1, int pageSize = 50) =>
+        ListAsync<RankingCycleResponse>("rankings/history", page, pageSize);
+
+    public Task<RankingCycleResponse> CreateRankingCycleAsync(CreateRankingCycleRequest request) =>
+        CreateAsync<CreateRankingCycleRequest, RankingCycleResponse>("ranking-cycles", request);
+
+    public Task<IReadOnlyList<RankingEntryResponse>> ListCurrentRankingAsync(int page = 1, int pageSize = 50) =>
+        ListAsync<RankingEntryResponse>("rankings/current", page, pageSize);
+
+    public Task<IReadOnlyList<RankingEntryResponse>> ListRankingEntriesAsync(
+        Guid cycleId,
+        int page = 1,
+        int pageSize = 50) =>
+        ListAsync<RankingEntryResponse>($"ranking-cycles/{cycleId}/entries", page, pageSize);
+
+    public async Task<IReadOnlyList<RankingEntryResponse>> RecalculateRankingAsync(Guid cycleId)
+    {
+        using var response = await SendAuthorizedAsync(HttpMethod.Post, $"api/v1/ranking-cycles/{cycleId}/recalculate");
+        return await response.Content.ReadFromJsonAsync<List<RankingEntryResponse>>()
+            ?? throw new HttpRequestException("The API returned an empty ranking response.");
+    }
+
+    public Task<IReadOnlyList<MedalResponse>> ListMedalsAsync() =>
+        GetListAsync<MedalResponse>("api/v1/medals");
+
+    public Task<MedalResponse> CreateMedalAsync(CreateMedalRequest request) =>
+        CreateAsync<CreateMedalRequest, MedalResponse>("medals", request);
+
+    public Task<PersonMedalResponse> AwardMedalAsync(Guid medalId, AwardMedalRequest request) =>
+        CreateAsync<AwardMedalRequest, PersonMedalResponse>($"medals/{medalId}/awards", request);
+
+    public Task<IReadOnlyList<PersonMedalResponse>> ListClientMedalsAsync(Guid clientId) =>
+        GetListAsync<PersonMedalResponse>($"api/v1/clients/{clientId}/medals");
+
+    public Task<IReadOnlyList<NotificationResponse>> ListMyNotificationsAsync(int page = 1, int pageSize = 50) =>
+        ListAsync<NotificationResponse>("notifications", page, pageSize);
+
+    public Task<IReadOnlyList<NotificationResponse>> ListNotificationOutboxAsync(int page = 1, int pageSize = 50) =>
+        GetListAsync<NotificationResponse>($"api/v1/notifications/outbox?page={page}&pageSize={pageSize}");
+
+    public async Task<NotificationOptionsResponse> GetNotificationOptionsAsync()
+    {
+        using var response = await SendAuthorizedAsync(HttpMethod.Get, "api/v1/notifications/options");
+        return await response.Content.ReadFromJsonAsync<NotificationOptionsResponse>()
+            ?? throw new HttpRequestException("The API returned empty notification options.");
+    }
+
+    public Task<NotificationResponse> CreateNotificationAsync(CreateNotificationRequest request) =>
+        CreateAsync<CreateNotificationRequest, NotificationResponse>("notifications", request);
+
+    public async Task MarkNotificationAsReadAsync(Guid notificationId)
+    {
+        using var response = await SendAuthorizedAsync(HttpMethod.Patch, $"api/v1/notifications/{notificationId}/read");
+    }
+
+    public Task<IReadOnlyList<AuditLogResponse>> ListAuditLogsAsync(
+        DateTimeOffset? from,
+        DateTimeOffset? to,
+        int page = 1,
+        int pageSize = 50)
+    {
+        var query = $"?page={page}&pageSize={pageSize}";
+        if (from is not null)
+        {
+            query += $"&from={Uri.EscapeDataString(from.Value.ToString("O"))}";
+        }
+        if (to is not null)
+        {
+            query += $"&to={Uri.EscapeDataString(to.Value.ToString("O"))}";
+        }
+
+        return GetListAsync<AuditLogResponse>($"api/v1/audit-logs{query}");
+    }
 
     public Task<IReadOnlyList<ModalityResponse>> ListAssignableClientModalitiesAsync() =>
         ListAsync<ModalityResponse>("clients/modalities", page: 1, pageSize: 200);

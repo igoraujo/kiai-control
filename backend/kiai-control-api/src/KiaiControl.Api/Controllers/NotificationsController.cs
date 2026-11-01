@@ -2,6 +2,7 @@ using System.Security.Claims;
 using KiaiControl.Contracts.Auth;
 using KiaiControl.Contracts.Notifications;
 using KiaiControl.Core.Common;
+using KiaiControl.UseCases.Clients;
 using KiaiControl.UseCases.Notifications;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -14,8 +15,25 @@ namespace KiaiControl.Api.Controllers;
 [Route("api/v1/notifications")]
 public sealed class NotificationsController(
     OrganizationContext organizationContext,
-    NotificationUseCase notificationUseCase) : ControllerBase
+    NotificationUseCase notificationUseCase,
+    ClientUseCase clientUseCase) : ControllerBase
 {
+    [HttpGet("options")]
+    [Authorize(Policy = PermissionCodes.NotificationsManage)]
+    public async Task<ActionResult<NotificationOptionsResponse>> OptionsAsync(CancellationToken cancellationToken)
+    {
+        if (organizationContext.OrganizationId is not Guid organizationId)
+        {
+            return BadRequest("Organization context is required.");
+        }
+
+        var clients = await clientUseCase.ListAsync(organizationId, 1, 200, cancellationToken);
+        return Ok(new NotificationOptionsResponse
+        {
+            Clients = clients.Where(client => client.Status == "active").ToList()
+        });
+    }
+
     [HttpPost]
     [Authorize(Roles = "owner,admin,teacher,reception")]
     [Authorize(Policy = PermissionCodes.NotificationsManage)]
@@ -54,6 +72,21 @@ public sealed class NotificationsController(
 
         var items = await notificationUseCase.ListMineAsync(organizationId, personId, page, pageSize, cancellationToken);
         return Ok(items);
+    }
+
+    [HttpGet("outbox")]
+    [Authorize(Policy = PermissionCodes.NotificationsManage)]
+    public async Task<ActionResult<IReadOnlyList<NotificationResponse>>> ListOrganizationAsync(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50,
+        CancellationToken cancellationToken = default)
+    {
+        if (organizationContext.OrganizationId is not Guid organizationId)
+        {
+            return BadRequest("Organization context is required.");
+        }
+
+        return Ok(await notificationUseCase.ListOrganizationAsync(organizationId, page, pageSize, cancellationToken));
     }
 
     [HttpPatch("{id:guid}/read")]

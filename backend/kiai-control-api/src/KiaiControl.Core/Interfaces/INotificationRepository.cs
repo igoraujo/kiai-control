@@ -13,5 +13,11 @@ public interface INotificationRepository
         int pageSize,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<Notification>> ListByOrganizationAsync(
+        Guid organizationId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+
     Task<bool> MarkAsReadAsync(Guid organizationId, Guid personId, Guid notificationId, CancellationToken cancellationToken = default);
 }

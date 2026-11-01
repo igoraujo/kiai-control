@@ -39,6 +39,11 @@
     }
     @if (HasPermission(PermissionCodes.TeachersManage)
         || HasPermission(PermissionCodes.ModalitiesManage)
+        || HasPermission(PermissionCodes.GraduationManage)
+        || HasPermission(PermissionCodes.FitnessManage)
+        || HasPermission(PermissionCodes.RankingManage)
+        || CanReadAudit
+        || HasPermission(PermissionCodes.NotificationsRead)
         || HasPermission(PermissionCodes.AccessPermissionsManage))
     {
         <MudText Typo="Typo.overline" Class="menu-kicker">Gestão</MudText>
@@ -50,6 +55,26 @@
     @if (HasPermission(PermissionCodes.ModalitiesManage))
     {
         <MudNavLink Href="/modalities" Icon="@Icons.Material.Filled.SportsMartialArts">Modalidades</MudNavLink>
+    }
+    @if (HasPermission(PermissionCodes.GraduationManage))
+    {
+        <MudNavLink Href="/graduation" Icon="@Icons.Material.Filled.MilitaryTech">Graduações</MudNavLink>
+    }
+    @if (HasPermission(PermissionCodes.FitnessManage))
+    {
+        <MudNavLink Href="/fitness" Icon="@Icons.Material.Filled.FitnessCenter">Metas fitness</MudNavLink>
+    }
+    @if (HasPermission(PermissionCodes.RankingManage))
+    {
+        <MudNavLink Href="/rankings" Icon="@Icons.Material.Filled.Leaderboard">Rankings e medalhas</MudNavLink>
+    }
+    @if (HasPermission(PermissionCodes.NotificationsRead))
+    {
+        <MudNavLink Href="/notifications" Icon="@Icons.Material.Filled.Notifications">Notificações</MudNavLink>
+    }
+    @if (CanReadAudit)
+    {
+        <MudNavLink Href="/audit" Icon="@Icons.Material.Filled.ManageSearch">Auditoria</MudNavLink>
     }
     @if (HasPermission(PermissionCodes.AccessPermissionsManage))
     {
@@ -74,4 +99,10 @@
 @code {
     private bool HasPermission(string permission) =>
         Session.Current?.User.Permissions.Contains(permission, StringComparer.OrdinalIgnoreCase) == true;
+
+    private bool CanReadAudit =>
+        HasPermission(PermissionCodes.AuditRead)
+        && Session.Current?.User.Roles.Any(role =>
+            role.Equals("owner", StringComparison.OrdinalIgnoreCase)
+            || role.Equals("admin", StringComparison.OrdinalIgnoreCase)) == true;
 }

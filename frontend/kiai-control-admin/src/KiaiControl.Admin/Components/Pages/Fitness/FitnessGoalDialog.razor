@@ -1,0 +1,110 @@
+@inherits FormDialogBase
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="Form">
+            <MudStack Spacing="2">
+                @if (ErrorMessage is not null)
+                {
+                    <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">@ErrorMessage</MudAlert>
+                }
+                <MudSelect T="Guid?" @bind-Value="_clientId" Label="Aluno" Required="true"
+                           RequiredError="Selecione um aluno" Variant="Variant.Outlined">
+                    @foreach (var client in Clients)
+                    {
+                        <MudSelectItem T="Guid?" Value="@((Guid?)client.Id)">@client.FullName</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudSelect T="Guid?" @bind-Value="_modalityId" Label="Modalidade (opcional)" Clearable="true"
+                           Variant="Variant.Outlined">
+                    @foreach (var modality in Modalities)
+                    {
+                        <MudSelectItem T="Guid?" Value="@((Guid?)modality.Id)">@modality.Name</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudTextField @bind-Value="_title" Label="Meta" Required="true" RequiredError="Informe o nome da meta"
+                              MaxLength="160" Variant="Variant.Outlined" />
+                <MudTextField @bind-Value="_description" Label="Descrição" Lines="2" MaxLength="5000"
+                              Variant="Variant.Outlined" />
+                <MudSelect T="string" @bind-Value="_goalType" Label="Tipo de meta" Variant="Variant.Outlined">
+                    @foreach (var type in GoalTypes)
+                    {
+                        <MudSelectItem Value="@type.Value">@type.Label</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudStack Row="true" Spacing="2">
+                    <MudNumericField T="decimal" @bind-Value="_targetValue" Label="Alvo" Min="0.01m" Required="true"
+                                     RequiredError="Informe um alvo maior que zero" Variant="Variant.Outlined" />
+                    <MudTextField @bind-Value="_unit" Label="Unidade (ex.: kg, cm, aulas)" MaxLength="30"
+                                  Variant="Variant.Outlined" />
+                </MudStack>
+                <MudStack Row="true" Spacing="2">
+                    <MudDatePicker @bind-Date="_startsAt" Label="Início" DateFormat="dd/MM/yyyy" Required="true"
+                                   RequiredError="Informe o início" Variant="Variant.Outlined" />
+                    <MudDatePicker @bind-Date="_dueDate" Label="Prazo" DateFormat="dd/MM/yyyy" Required="true"
+                                   RequiredError="Informe o prazo" Variant="Variant.Outlined" />
+                </MudStack>
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Disabled="IsSaving">Cancelar</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SubmitAsync" Disabled="IsSaving || Clients.Count == 0">
+            Criar meta
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter] public IReadOnlyList<ClientResponse> Clients { get; set; } = [];
+    [Parameter] public IReadOnlyList<ModalityResponse> Modalities { get; set; } = [];
+
+    private static readonly (string Value, string Label)[] GoalTypes =
+    [
+        ("training_days", "Dias de treino"),
+        ("attendance_rate", "Frequência"),
+        ("load", "Carga"),
+        ("body_measurement", "Medida corporal"),
+        ("weight", "Peso"),
+        ("conditioning", "Condicionamento"),
+        ("score", "Pontuação"),
+        ("category", "Categoria"),
+        ("custom", "Personalizada")
+    ];
+
+    private Guid? _clientId;
+    private Guid? _modalityId;
+    private string _title = string.Empty;
+    private string? _description;
+    private string _goalType = "training_days";
+    private decimal _targetValue = 1;
+    private string? _unit;
+    private DateTime? _startsAt = DateTime.Today;
+    private DateTime? _dueDate = DateTime.Today.AddMonths(1);
+
+    protected override Task SaveCoreAsync()
+    {
+        if (_clientId is null || _startsAt is null || _dueDate is null)
+        {
+            throw new ArgumentException("Selecione o aluno e informe as datas da meta.");
+        }
+
+        if (_dueDate.Value.Date < _startsAt.Value.Date)
+        {
+            throw new ArgumentException("O prazo não pode ser anterior ao início.");
+        }
+
+        return Api.CreateFitnessGoalAsync(new CreateFitnessGoalRequest
+        {
+            ClientId = _clientId.Value,
+            ModalityId = _modalityId,
+            Title = _title.Trim(),
+            Description = _description?.Trim(),
+            GoalType = _goalType,
+            TargetValue = _targetValue,
+            Unit = _unit?.Trim(),
+            StartsAt = DateOnly.FromDateTime(_startsAt.Value),
+            DueDate = DateOnly.FromDateTime(_dueDate.Value)
+        });
+    }
+}

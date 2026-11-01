@@ -45,6 +45,24 @@ public static class NotificationQueries
         order by created_at desc
         offset @Offset rows fetch next @PageSize rows only;";
 
+    public const string ListByOrganization = @"
+        select
+            id,
+            organization_id as OrganizationId,
+            person_id as PersonId,
+            title,
+            body,
+            channel::text as Channel,
+            status::text as Status,
+            scheduled_at as ScheduledAt,
+            sent_at as SentAt,
+            read_at as ReadAt,
+            created_at as CreatedAt
+        from notifications
+        where organization_id = @OrganizationId
+        order by created_at desc
+        offset @Offset rows fetch next @PageSize rows only;";
+
     public const string MarkAsRead = @"
         update notifications
         set read_at = now(), status = 'read'

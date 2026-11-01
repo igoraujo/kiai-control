@@ -1,5 +1,12 @@
 namespace KiaiControl.Contracts.Fitness;
 
+public sealed class FitnessOptionsResponse
+{
+    public IReadOnlyList<KiaiControl.Contracts.Clients.ClientResponse> Clients { get; init; } = [];
+
+    public IReadOnlyList<KiaiControl.Contracts.Modalities.ModalityResponse> Modalities { get; init; } = [];
+}
+
 public sealed class CreateFitnessGoalRequest
 {
     public Guid ClientId { get; set; }

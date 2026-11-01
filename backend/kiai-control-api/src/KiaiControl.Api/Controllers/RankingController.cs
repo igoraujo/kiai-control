@@ -1,6 +1,8 @@
 using KiaiControl.Contracts.Auth;
 using KiaiControl.Contracts.Ranking;
 using KiaiControl.Core.Common;
+using KiaiControl.UseCases.Clients;
+using KiaiControl.UseCases.Modalities;
 using KiaiControl.UseCases.Ranking;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -11,8 +13,30 @@ namespace KiaiControl.Api.Controllers;
 [Authorize(Roles = "owner,admin,teacher")]
 [Authorize(Policy = PermissionCodes.RankingManage)]
 [Route("api/v1")]
-public sealed class RankingController(OrganizationContext organizationContext, RankingUseCase rankingUseCase) : ControllerBase
+public sealed class RankingController(
+    OrganizationContext organizationContext,
+    RankingUseCase rankingUseCase,
+    ClientUseCase clientUseCase,
+    ModalityUseCase modalityUseCase) : ControllerBase
 {
+    [HttpGet("rankings/options")]
+    public async Task<ActionResult<RankingOptionsResponse>> OptionsAsync(CancellationToken cancellationToken)
+    {
+        if (organizationContext.OrganizationId is not Guid organizationId)
+        {
+            return BadRequest("Organization context is required.");
+        }
+
+        var clientsTask = clientUseCase.ListAsync(organizationId, 1, 200, cancellationToken);
+        var modalitiesTask = modalityUseCase.ListAsync(organizationId, 1, 200, cancellationToken);
+        await Task.WhenAll(clientsTask, modalitiesTask);
+        return Ok(new RankingOptionsResponse
+        {
+            Clients = (await clientsTask).Where(client => client.Status == "active").ToList(),
+            Modalities = (await modalitiesTask).Where(modality => modality.IsActive).ToList()
+        });
+    }
+
     [HttpPost("ranking-cycles")]
     [Authorize(Roles = "owner,admin")]
     public async Task<ActionResult<RankingCycleResponse>> CreateCycleAsync(

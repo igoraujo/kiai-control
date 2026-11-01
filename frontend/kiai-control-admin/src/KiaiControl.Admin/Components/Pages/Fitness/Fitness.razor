@@ -1,0 +1,284 @@
+@page "/fitness"
+@using KiaiControl.Contracts.Auth
+@inject AdminSession Session
+@inject AdminApiClient Api
+@inject NavigationManager Navigation
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Metas fitness | Kiai Control</PageTitle>
+
+<MudStack Spacing="3">
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+        <div>
+            <MudText Typo="Typo.h4">Metas e progresso fitness</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">Defina objetivos, registre evolução e acompanhe resultados</MudText>
+        </div>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="CreateGoalAsync" Disabled="_isLoading || _clients.Count == 0">
+            Nova meta
+        </MudButton>
+    </MudStack>
+
+    @if (_errorMessage is not null)
+    {
+        <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">
+            @_errorMessage
+            <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="LoadAsync">Tentar novamente</MudButton>
+        </MudAlert>
+    }
+
+    @if (_isLoading)
+    {
+        <MudSkeleton Height="280px" />
+    }
+    else
+    {
+        <MudPaper Class="pa-4" Elevation="0">
+            <MudSelect T="Guid?" Value="_selectedClientId" ValueChanged="FilterByClientAsync"
+                       Label="Filtrar por aluno" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
+                @foreach (var client in _clients)
+                {
+                    <MudSelectItem T="Guid?" Value="@((Guid?)client.Id)">@client.FullName</MudSelectItem>
+                }
+            </MudSelect>
+        </MudPaper>
+
+        <MudTable Items="_goals" Hover="true" Dense="true">
+            <HeaderContent>
+                <MudTh>Aluno</MudTh>
+                <MudTh>Meta</MudTh>
+                <MudTh>Tipo / modalidade</MudTh>
+                <MudTh>Progresso</MudTh>
+                <MudTh>Período</MudTh>
+                <MudTh>Situação</MudTh>
+                <MudTh Style="text-align:right">Ações</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@ClientName(context.ClientId)</MudTd>
+                <MudTd>
+                    <MudText Typo="Typo.body2">@context.Title</MudText>
+                    @if (!string.IsNullOrWhiteSpace(context.Description))
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Description</MudText>
+                    }
+                </MudTd>
+                <MudTd>
+                    <MudText Typo="Typo.body2">@GoalTypeLabel(context.GoalType)</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@ModalityName(context.ModalityId)</MudText>
+                </MudTd>
+                <MudTd>
+                    <MudText Typo="Typo.body2">@context.CurrentValue.ToString("N2") / @context.TargetValue.ToString("N2") @context.Unit</MudText>
+                    <MudProgressLinear Value="@Progress(context)" Color="@(context.Status == "achieved" ? Color.Success : Color.Primary)" />
+                </MudTd>
+                <MudTd>@context.StartsAt.ToString("dd/MM/yyyy") – @context.DueDate.ToString("dd/MM/yyyy")</MudTd>
+                <MudTd>
+                    <MudChip T="string" Size="Size.Small" Color="@StatusColor(context.Status)">@StatusLabel(context.Status)</MudChip>
+                </MudTd>
+                <MudTd Style="text-align:right">
+                    @if (context.Status == "active")
+                    {
+                        <MudIconButton Icon="@Icons.Material.Filled.AddChart" Size="Size.Small" Color="Color.Primary"
+                                       aria-label="Registrar progresso" OnClick="() => RecordProgressAsync(context)" Disabled="_isSaving" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Cancel" Size="Size.Small" Color="Color.Error"
+                                       aria-label="Cancelar meta" OnClick="() => CancelGoalAsync(context)" Disabled="_isSaving" />
+                    }
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudText>Nenhuma meta fitness encontrada para os filtros selecionados.</MudText>
+            </NoRecordsContent>
+        </MudTable>
+
+        <MudStack Row="true" Justify="Justify.FlexEnd" AlignItems="AlignItems.Center" Spacing="2">
+            <MudText Typo="Typo.caption">Página @_page · até @_pageSize metas por página</MudText>
+            <MudButton Variant="Variant.Outlined" Disabled="@(_page <= 1 || _isLoading)" OnClick="() => ChangePageAsync(_page - 1)">Anterior</MudButton>
+            <MudButton Variant="Variant.Outlined" Disabled="@(_goals.Count < _pageSize || _isLoading)" OnClick="() => ChangePageAsync(_page + 1)">Próxima</MudButton>
+        </MudStack>
+    }
+</MudStack>
+
+@code {
+    private const int _pageSize = 50;
+    private IReadOnlyList<ClientResponse> _clients = [];
+    private IReadOnlyList<ModalityResponse> _modalities = [];
+    private IReadOnlyList<FitnessGoalResponse> _goals = [];
+    private Guid? _selectedClientId;
+    private int _page = 1;
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Session.Current is null)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        if (!Session.Current.User.Permissions.Contains(PermissionCodes.FitnessManage, StringComparer.OrdinalIgnoreCase))
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+        try
+        {
+            var optionsTask = Api.GetFitnessOptionsAsync();
+            var goalsTask = Api.ListFitnessGoalsAsync(_page, _pageSize, _selectedClientId);
+            await Task.WhenAll(optionsTask, goalsTask);
+            var options = await optionsTask;
+            _clients = options.Clients;
+            _modalities = options.Modalities;
+            _goals = await goalsTask;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await Session.ClearAsync();
+            Navigation.NavigateTo("/login");
+        }
+        catch (HttpRequestException exception)
+        {
+            _errorMessage = $"Não foi possível carregar as metas fitness: {exception.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task FilterByClientAsync(Guid? clientId)
+    {
+        _selectedClientId = clientId;
+        _page = 1;
+        await LoadAsync();
+    }
+
+    private async Task ChangePageAsync(int page)
+    {
+        if (page < 1)
+        {
+            return;
+        }
+
+        _page = page;
+        await LoadAsync();
+    }
+
+    private async Task CreateGoalAsync()
+    {
+        var dialog = await DialogService.ShowAsync<FitnessGoalDialog>(
+            "Nova meta fitness",
+            new DialogParameters<FitnessGoalDialog>
+            {
+                { component => component.Clients, _clients },
+                { component => component.Modalities, _modalities }
+            },
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
+        if (await dialog.Result is { Canceled: false })
+        {
+            Snackbar.Add("Meta fitness criada.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+
+    private async Task RecordProgressAsync(FitnessGoalResponse goal)
+    {
+        var dialog = await DialogService.ShowAsync<FitnessProgressDialog>(
+            "Registrar progresso",
+            new DialogParameters<FitnessProgressDialog>
+            {
+                { component => component.Goal, goal },
+                { component => component.ClientName, ClientName(goal.ClientId) }
+            },
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
+        if (await dialog.Result is { Canceled: false })
+        {
+            Snackbar.Add("Progresso registrado.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+
+    private async Task CancelGoalAsync(FitnessGoalResponse goal)
+    {
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Cancelar meta",
+            $"Deseja cancelar a meta “{goal.Title}” de {ClientName(goal.ClientId)}?",
+            yesText: "Cancelar meta",
+            cancelText: "Manter meta");
+        if (confirmed != true)
+        {
+            return;
+        }
+
+        _isSaving = true;
+        _errorMessage = null;
+        try
+        {
+            await Api.CancelFitnessGoalAsync(goal.Id);
+            Snackbar.Add("Meta fitness cancelada.", Severity.Success);
+            await LoadAsync();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await Session.ClearAsync();
+            Navigation.NavigateTo("/login");
+        }
+        catch (HttpRequestException exception)
+        {
+            _errorMessage = $"Não foi possível cancelar a meta: {exception.Message}";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private string ClientName(Guid clientId) =>
+        _clients.FirstOrDefault(client => client.Id == clientId)?.FullName ?? "Aluno não disponível";
+
+    private string ModalityName(Guid? modalityId) =>
+        modalityId is null ? "Todas as modalidades"
+            : _modalities.FirstOrDefault(modality => modality.Id == modalityId)?.Name ?? "Modalidade não disponível";
+
+    private static double Progress(FitnessGoalResponse goal) =>
+        goal.TargetValue <= 0 ? 0 : (double)Math.Clamp(goal.CurrentValue / goal.TargetValue * 100, 0, 100);
+
+    private static string GoalTypeLabel(string type) => type switch
+    {
+        "training_days" => "Dias de treino",
+        "attendance_rate" => "Frequência",
+        "load" => "Carga",
+        "body_measurement" => "Medida corporal",
+        "weight" => "Peso",
+        "conditioning" => "Condicionamento",
+        "score" => "Pontuação",
+        "category" => "Categoria",
+        "custom" => "Personalizada",
+        _ => type
+    };
+
+    private static string StatusLabel(string status) => status switch
+    {
+        "active" => "Ativa",
+        "achieved" => "Concluída",
+        "canceled" => "Cancelada",
+        _ => status
+    };
+
+    private static Color StatusColor(string status) => status switch
+    {
+        "active" => Color.Primary,
+        "achieved" => Color.Success,
+        "canceled" => Color.Default,
+        _ => Color.Info
+    };
+}

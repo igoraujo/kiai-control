@@ -1,5 +1,12 @@
 namespace KiaiControl.Contracts.Graduation;
 
+public sealed class GraduationOptionsResponse
+{
+    public IReadOnlyList<KiaiControl.Contracts.Modalities.ModalityResponse> Modalities { get; init; } = [];
+
+    public IReadOnlyList<KiaiControl.Contracts.Clients.ClientResponse> Clients { get; init; } = [];
+}
+
 public sealed class CreateGraduationSystemRequest
 {
     public Guid ModalityId { get; set; }

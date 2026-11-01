@@ -118,6 +118,8 @@ public sealed class SqlModalityScheduleRepositoryTests(PostgreSqlFixture fixture
         var reportRepository = provider.GetRequiredService<IReportRepository>();
         var rankingRepository = provider.GetRequiredService<IRankingRepository>();
         var progressionRepository = provider.GetRequiredService<IProgressionRepository>();
+        var notificationRepository = provider.GetRequiredService<INotificationRepository>();
+        var auditLogRepository = provider.GetRequiredService<IAuditLogRepository>();
 
         var schedule = await scheduleRepository.CreateAsync(new ModalitySchedule
         {
@@ -243,6 +245,25 @@ public sealed class SqlModalityScheduleRepositoryTests(PostgreSqlFixture fixture
         Assert.NotNull(cycle);
         var ranking = await rankingRepository.RecalculateAsync(organizationId, cycle.Id);
         Assert.Equal(authorizedClientId, Assert.Single(ranking!).ClientId);
+        var medal = await rankingRepository.CreateMedalAsync(new Medal
+        {
+            OrganizationId = organizationId,
+            Code = "presenca-constante",
+            Name = "Presença constante",
+            PointsBonus = 5,
+            IsActive = true
+        });
+        Assert.NotNull(medal);
+        var medalAward = await rankingRepository.AwardMedalAsync(new PersonMedal
+        {
+            OrganizationId = organizationId,
+            PersonId = authorizedPersonId,
+            MedalId = medal.Id,
+            Reason = "Participação exemplar"
+        });
+        Assert.NotNull(medalAward);
+        Assert.Equal(medal.Id, Assert.Single(await rankingRepository.ListClientMedalsAsync(
+            organizationId, authorizedClientId)).MedalId);
 
         var systemId = Guid.NewGuid();
         var currentLevelId = Guid.NewGuid();
@@ -257,9 +278,10 @@ public sealed class SqlModalityScheduleRepositoryTests(PostgreSqlFixture fixture
                 insert into graduation_levels (id, graduation_system_id, name, hierarchy_order)
                 values (@currentLevelId, @systemId, 'White', 1);
                 insert into graduation_levels (
-                    id, graduation_system_id, name, hierarchy_order, min_training_days, min_lessons
+                    id, graduation_system_id, name, hierarchy_order, min_training_days, min_lessons,
+                    requires_manual_evaluation
                 )
-                values (@nextLevelId, @systemId, 'Yellow', 2, 1, 1);
+                values (@nextLevelId, @systemId, 'Yellow', 2, 1, 1, true);
                 insert into client_graduations (
                     id, organization_id, client_id, modality_id, current_level_id, granted_at
                 )
@@ -277,7 +299,124 @@ public sealed class SqlModalityScheduleRepositoryTests(PostgreSqlFixture fixture
         }
 
         var eligibleForGraduation = await progressionRepository.ListEligibleClientsAsync(organizationId, systemId);
-        Assert.Equal(authorizedClientId, Assert.Single(eligibleForGraduation).ClientId);
+        var eligibleClient = Assert.Single(eligibleForGraduation);
+        Assert.Equal(authorizedClientId, eligibleClient.ClientId);
+        Assert.Equal(nextLevelId, eligibleClient.NextLevelId);
+
+        var promotionRequest = new GraduationEvent
+        {
+            OrganizationId = organizationId,
+            ClientId = authorizedClientId,
+            ModalityId = modalityId,
+            ToLevelId = nextLevelId,
+            EventDate = new DateOnly(2026, 1, 5),
+            Justification = "Aprovado em avaliação"
+        };
+        Assert.Null(await progressionRepository.PromoteClientAsync(promotionRequest, manualEvaluationPassed: false));
+        var promotion = await progressionRepository.PromoteClientAsync(promotionRequest, manualEvaluationPassed: true);
+        Assert.NotNull(promotion);
+        Assert.Equal(currentLevelId, promotion.FromLevelId);
+        Assert.Equal(nextLevelId, promotion.ToLevelId);
+        var graduationEvents = await progressionRepository.ListClientGraduationEventsAsync(
+            organizationId, authorizedClientId, modalityId);
+        Assert.Equal(promotion.Id, Assert.Single(graduationEvents).Id);
+
+        await using (var connection = new NpgsqlConnection(fixture.ConnectionString))
+        {
+            await connection.OpenAsync();
+            await using var command = new NpgsqlCommand(
+                """
+                select current_level_id = @nextLevelId and granted_at = @grantedAt
+                from client_graduations
+                where organization_id = @organizationId and client_id = @clientId and modality_id = @modalityId;
+                """,
+                connection);
+            command.Parameters.AddWithValue("nextLevelId", nextLevelId);
+            command.Parameters.AddWithValue("grantedAt", new DateOnly(2026, 1, 5));
+            command.Parameters.AddWithValue("organizationId", organizationId);
+            command.Parameters.AddWithValue("clientId", authorizedClientId);
+            command.Parameters.AddWithValue("modalityId", modalityId);
+            Assert.True((bool)(await command.ExecuteScalarAsync())!);
+        }
+
+        var fitnessGoal = await progressionRepository.CreateFitnessGoalAsync(new FitnessGoal
+        {
+            OrganizationId = organizationId,
+            ClientId = authorizedClientId,
+            ModalityId = modalityId,
+            Title = "Treinar 12 dias",
+            GoalType = "training_days",
+            TargetValue = 12,
+            Unit = "dias",
+            StartsAt = new DateOnly(2026, 1, 1),
+            DueDate = new DateOnly(2026, 2, 1)
+        });
+        Assert.NotNull(fitnessGoal);
+        var progress = await progressionRepository.RecordFitnessProgressAsync(organizationId, new FitnessProgressRecord
+        {
+            FitnessGoalId = fitnessGoal.Id,
+            RecordedValue = 12,
+            Notes = "Meta atingida"
+        });
+        Assert.NotNull(progress);
+        Assert.Equal(12m, progress.RecordedValue);
+        var achievedGoal = Assert.Single(await progressionRepository.ListFitnessGoalsAsync(
+            organizationId, authorizedClientId, 1, 20));
+        Assert.Equal("achieved", achievedGoal.Status);
+        Assert.False(await progressionRepository.CancelFitnessGoalAsync(organizationId, fitnessGoal.Id));
+
+        var cancellableGoal = await progressionRepository.CreateFitnessGoalAsync(new FitnessGoal
+        {
+            OrganizationId = organizationId,
+            ClientId = authorizedClientId,
+            Title = "Meta temporária",
+            GoalType = "custom",
+            TargetValue = 5,
+            StartsAt = new DateOnly(2026, 1, 1),
+            DueDate = new DateOnly(2026, 2, 1)
+        });
+        Assert.NotNull(cancellableGoal);
+        Assert.True(await progressionRepository.CancelFitnessGoalAsync(organizationId, cancellableGoal.Id));
+        Assert.False(await progressionRepository.CancelFitnessGoalAsync(organizationId, cancellableGoal.Id));
+
+        var notification = await notificationRepository.CreateAsync(new Notification
+        {
+            OrganizationId = organizationId,
+            PersonId = authorizedPersonId,
+            Title = "Aviso de aula",
+            Body = "A aula começa às 18h.",
+            Channel = "in_app"
+        });
+        Assert.NotNull(notification);
+        Assert.Equal("sent", notification.Status);
+        var outbox = Assert.Single(await notificationRepository.ListByOrganizationAsync(organizationId, 1, 20));
+        Assert.Equal(notification.Id, outbox.Id);
+        Assert.Equal(authorizedPersonId, outbox.PersonId);
+        var inbox = Assert.Single(await notificationRepository.ListByPersonAsync(organizationId, authorizedPersonId, 1, 20));
+        Assert.Equal(notification.Id, inbox.Id);
+        Assert.True(await notificationRepository.MarkAsReadAsync(organizationId, authorizedPersonId, notification.Id));
+        Assert.NotNull(Assert.Single(await notificationRepository.ListByPersonAsync(
+            organizationId, authorizedPersonId, 1, 20)).ReadAt);
+        Assert.False(await notificationRepository.MarkAsReadAsync(organizationId, unauthorizedPersonId, notification.Id));
+
+        var auditFrom = DateTimeOffset.UtcNow.AddMinutes(-1);
+        await auditLogRepository.RecordAsync(new AuditLog
+        {
+            OrganizationId = organizationId,
+            ActorPersonId = teacherPersonId,
+            Action = "POST",
+            EntityName = "lessons",
+            EntityId = firstGeneration[0].Id,
+            Metadata = """{"method":"POST","statusCode":201}""",
+            IpAddress = "127.0.0.1",
+            UserAgent = "integration-test"
+        });
+        var auditLogs = await auditLogRepository.ListAsync(
+            organizationId, auditFrom, DateTimeOffset.UtcNow.AddMinutes(1), 1, 20);
+        var auditLog = Assert.Single(auditLogs);
+        Assert.Equal("POST", auditLog.Action);
+        Assert.Equal(firstGeneration[0].Id, auditLog.EntityId);
+        Assert.Empty(await auditLogRepository.ListAsync(Guid.NewGuid(), auditFrom, null, 1, 20));
 
         Assert.True(await scheduleRepository.DeactivateAsync(organizationId, modalityId, schedule.Id));
         Assert.Empty(await scheduleRepository.ListAsync(organizationId, modalityId));

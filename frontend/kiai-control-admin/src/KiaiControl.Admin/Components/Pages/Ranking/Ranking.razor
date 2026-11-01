@@ -1,0 +1,535 @@
+@page "/rankings"
+@using KiaiControl.Contracts.Auth
+@inject AdminSession Session
+@inject AdminApiClient Api
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>Rankings e medalhas | Kiai Control</PageTitle>
+
+<MudStack Spacing="3">
+    <div>
+        <MudText Typo="Typo.h4">Rankings e medalhas</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">Acompanhe ciclos, classificações e reconheça as conquistas dos alunos</MudText>
+    </div>
+
+    @if (_errorMessage is not null)
+    {
+        <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">
+            @_errorMessage
+            <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="LoadAsync">Tentar novamente</MudButton>
+        </MudAlert>
+    }
+
+    @if (_isLoading)
+    {
+        <MudSkeleton Height="280px" />
+    }
+    else
+    {
+        @if (_canManageCycles)
+        {
+            <MudPaper Class="pa-4" Elevation="0">
+                <MudText Typo="Typo.h6">Criar ciclo de ranking</MudText>
+                <MudGrid Spacing="2" Class="mt-1">
+                    <MudItem xs="12" md="3">
+                        <MudTextField @bind-Value="_newCycleName" Label="Nome do ciclo" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudSelect T="Guid?" @bind-Value="_newCycleModalityId" Label="Modalidade (opcional)" Clearable="true" Variant="Variant.Outlined">
+                            @foreach (var modality in _modalities)
+                            {
+                                <MudSelectItem T="Guid?" Value="@((Guid?)modality.Id)">@modality.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="6" md="2">
+                        <MudDatePicker @bind-Date="_newCycleStart" Label="Início" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="6" md="2">
+                        <MudDatePicker @bind-Date="_newCycleEnd" Label="Término" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" md="2" Class="d-flex align-center">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateCycleAsync"
+                                   Disabled="_isSaving || string.IsNullOrWhiteSpace(_newCycleName)">
+                            Criar ciclo
+                        </MudButton>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+        }
+
+        <MudPaper Class="pa-4" Elevation="0">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+                <div>
+                    <MudText Typo="Typo.h6">Classificação atual</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">Resultados do ciclo aberto que inclui a data de hoje</MudText>
+                </div>
+                <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="RefreshCurrentAsync" Disabled="_isSaving">
+                    Atualizar
+                </MudButton>
+            </MudStack>
+            <MudTable Items="_currentRanking" Dense="true" Hover="true" Loading="_isRefreshing" Class="mt-3">
+                <HeaderContent>
+                    <MudTh>Posição</MudTh>
+                    <MudTh>Aluno</MudTh>
+                    <MudTh>Pontos</MudTh>
+                    <MudTh>Presenças</MudTh>
+                    <MudTh>Sequência</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd><MudChip T="string" Size="Size.Small" Color="@(context.Position <= 3 ? Color.Primary : Color.Default)">#@context.Position</MudChip></MudTd>
+                    <MudTd>@context.ClientName</MudTd>
+                    <MudTd>@context.Points</MudTd>
+                    <MudTd>@context.AttendanceCount</MudTd>
+                    <MudTd>@context.StreakCount</MudTd>
+                </RowTemplate>
+                <NoRecordsContent><MudText>Nenhum resultado atual. Recalcule um ciclo aberto para publicar a classificação.</MudText></NoRecordsContent>
+            </MudTable>
+        </MudPaper>
+
+        <MudPaper Class="pa-4" Elevation="0">
+            <MudStack Spacing="2">
+                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+                    <MudText Typo="Typo.h6">Ciclos e resultados</MudText>
+                    @if (_selectedCycle is not null && _selectedCycle.Status == "open" && _canManageCycles)
+                    {
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Calculate"
+                                   OnClick="RecalculateAsync" Disabled="_isSaving">
+                            Recalcular ranking
+                        </MudButton>
+                    }
+                </MudStack>
+                <MudSelect T="Guid?" Value="_selectedCycleId" ValueChanged="SelectCycleAsync"
+                           Label="Ciclo" Placeholder="Selecione um ciclo" Variant="Variant.Outlined" Clearable="true">
+                    @foreach (var cycle in _cycles)
+                    {
+                        <MudSelectItem T="Guid?" Value="@((Guid?)cycle.Id)">@CycleLabel(cycle)</MudSelectItem>
+                    }
+                </MudSelect>
+                @if (_selectedCycle is not null)
+                {
+                    <MudTable Items="_cycleEntries" Dense="true" Hover="true" Loading="_isRefreshing">
+                        <HeaderContent>
+                            <MudTh>Posição</MudTh>
+                            <MudTh>Aluno</MudTh>
+                            <MudTh>Pontos</MudTh>
+                            <MudTh>Presenças</MudTh>
+                            <MudTh>Sequência</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>#@context.Position</MudTd>
+                            <MudTd>@context.ClientName</MudTd>
+                            <MudTd>@context.Points</MudTd>
+                            <MudTd>@context.AttendanceCount</MudTd>
+                            <MudTd>@context.StreakCount</MudTd>
+                        </RowTemplate>
+                        <NoRecordsContent>
+                            <MudText>Este ciclo ainda não tem resultados. Recalcule-o se estiver aberto.</MudText>
+                        </NoRecordsContent>
+                    </MudTable>
+                }
+                else
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">Nenhum ciclo cadastrado.</MudText>
+                }
+            </MudStack>
+        </MudPaper>
+
+        <MudGrid Spacing="3">
+            <MudItem xs="12" lg="5">
+                @if (_canManageCycles)
+                {
+                    <MudPaper Class="pa-4" Elevation="0">
+                        <MudText Typo="Typo.h6">Cadastrar medalha</MudText>
+                        <MudStack Spacing="2" Class="mt-2">
+                            <MudTextField @bind-Value="_newMedalName" Label="Nome" Variant="Variant.Outlined" />
+                            <MudTextField @bind-Value="_newMedalCode" Label="Código único" HelperText="Ex.: consistencia-30-dias" Variant="Variant.Outlined" />
+                            <MudTextField @bind-Value="_newMedalDescription" Label="Descrição" Lines="2" Variant="Variant.Outlined" />
+                            <MudNumericField T="int" @bind-Value="_newMedalPoints" Label="Bônus de pontos" Min="0" Variant="Variant.Outlined" />
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateMedalAsync"
+                                       Disabled="_isSaving || string.IsNullOrWhiteSpace(_newMedalName) || string.IsNullOrWhiteSpace(_newMedalCode)">
+                                Criar medalha
+                            </MudButton>
+                        </MudStack>
+                    </MudPaper>
+                }
+            </MudItem>
+
+            <MudItem xs="12" lg="@(_canManageCycles ? 7 : 12)">
+                <MudPaper Class="pa-4" Elevation="0">
+                    <MudText Typo="Typo.h6">Medalhas</MudText>
+                    <MudTable Items="_medals" Dense="true" Hover="true" Class="mt-2">
+                        <HeaderContent>
+                            <MudTh>Medalha</MudTh>
+                            <MudTh>Bônus</MudTh>
+                            <MudTh>Situação</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>
+                                <MudText Typo="Typo.body2">@context.Name</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Description</MudText>
+                            </MudTd>
+                            <MudTd>@context.PointsBonus pontos</MudTd>
+                            <MudTd>@(context.IsActive ? "Ativa" : "Inativa")</MudTd>
+                        </RowTemplate>
+                        <NoRecordsContent><MudText>Nenhuma medalha cadastrada.</MudText></NoRecordsContent>
+                    </MudTable>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+
+        <MudPaper Class="pa-4" Elevation="0">
+            <MudText Typo="Typo.h6">Conceder medalha</MudText>
+            <MudGrid Spacing="2" Class="mt-1">
+                <MudItem xs="12" md="3">
+                    <MudSelect T="Guid?" Value="_awardClientId" ValueChanged="SelectAwardClientAsync" Label="Aluno"
+                               Variant="Variant.Outlined">
+                        @foreach (var client in _clients)
+                        {
+                            <MudSelectItem T="Guid?" Value="@((Guid?)client.Id)">@client.FullName</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudSelect T="Guid?" @bind-Value="_awardMedalId" Label="Medalha" Variant="Variant.Outlined">
+                        @foreach (var medal in _medals.Where(medal => medal.IsActive))
+                        {
+                            <MudSelectItem T="Guid?" Value="@((Guid?)medal.Id)">@medal.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudTextField @bind-Value="_awardReason" Label="Motivo (opcional)" MaxLength="255" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" md="2" Class="d-flex align-center">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AwardMedalAsync"
+                               Disabled="_isSaving || _awardClientId is null || _awardMedalId is null">
+                        Conceder
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
+            @if (_awardClientId is not null)
+            {
+                <MudText Typo="Typo.subtitle2" Class="mt-4">Medalhas de @ClientName(_awardClientId.Value)</MudText>
+                <MudTable Items="_clientMedals" Dense="true" Hover="true">
+                    <HeaderContent><MudTh>Medalha</MudTh><MudTh>Data</MudTh><MudTh>Motivo</MudTh></HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@MedalName(context.MedalId)</MudTd>
+                        <MudTd>@context.AwardedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
+                        <MudTd>@(context.Reason ?? "—")</MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent><MudText>Este aluno ainda não recebeu medalhas.</MudText></NoRecordsContent>
+                </MudTable>
+            }
+        </MudPaper>
+    }
+</MudStack>
+
+@code {
+    private const int PageSize = 50;
+    private IReadOnlyList<ClientResponse> _clients = [];
+    private IReadOnlyList<ModalityResponse> _modalities = [];
+    private IReadOnlyList<RankingCycleResponse> _cycles = [];
+    private IReadOnlyList<RankingEntryResponse> _currentRanking = [];
+    private IReadOnlyList<RankingEntryResponse> _cycleEntries = [];
+    private IReadOnlyList<MedalResponse> _medals = [];
+    private IReadOnlyList<PersonMedalResponse> _clientMedals = [];
+    private Guid? _selectedCycleId;
+    private Guid? _newCycleModalityId;
+    private Guid? _awardClientId;
+    private Guid? _awardMedalId;
+    private string _newCycleName = string.Empty;
+    private DateTime? _newCycleStart = DateTime.Today;
+    private DateTime? _newCycleEnd = DateTime.Today.AddMonths(1);
+    private string _newMedalName = string.Empty;
+    private string _newMedalCode = string.Empty;
+    private string? _newMedalDescription;
+    private int _newMedalPoints;
+    private string? _awardReason;
+    private bool _canManageCycles;
+    private bool _isLoading = true;
+    private bool _isRefreshing;
+    private bool _isSaving;
+    private string? _errorMessage;
+
+    private RankingCycleResponse? _selectedCycle =>
+        _cycles.FirstOrDefault(cycle => cycle.Id == _selectedCycleId);
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Session.Current is null)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        if (!Session.Current.User.Permissions.Contains(PermissionCodes.RankingManage, StringComparer.OrdinalIgnoreCase))
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+
+        _canManageCycles = Session.Current.User.Roles.Any(role =>
+            role.Equals("owner", StringComparison.OrdinalIgnoreCase)
+            || role.Equals("admin", StringComparison.OrdinalIgnoreCase));
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+        try
+        {
+            var optionsTask = Api.GetRankingOptionsAsync();
+            var cyclesTask = Api.ListRankingCyclesAsync(pageSize: PageSize);
+            var medalsTask = Api.ListMedalsAsync();
+            var currentTask = Api.ListCurrentRankingAsync(pageSize: PageSize);
+            await Task.WhenAll(optionsTask, cyclesTask, medalsTask, currentTask);
+            var options = await optionsTask;
+            _clients = options.Clients;
+            _modalities = options.Modalities;
+            _cycles = await cyclesTask;
+            _medals = await medalsTask;
+            _currentRanking = await currentTask;
+            if (_selectedCycleId is null || !_cycles.Any(cycle => cycle.Id == _selectedCycleId))
+            {
+                _selectedCycleId = _cycles.FirstOrDefault()?.Id;
+            }
+
+            if (_selectedCycleId is not null)
+            {
+                _cycleEntries = await Api.ListRankingEntriesAsync(_selectedCycleId.Value, pageSize: PageSize);
+            }
+            if (_awardClientId is not null)
+            {
+                _clientMedals = await Api.ListClientMedalsAsync(_awardClientId.Value);
+            }
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await Session.ClearAsync();
+            Navigation.NavigateTo("/login");
+        }
+        catch (HttpRequestException exception)
+        {
+            _errorMessage = $"Não foi possível carregar rankings e medalhas: {exception.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task CreateCycleAsync()
+    {
+        if (_newCycleStart is null || _newCycleEnd is null || _newCycleEnd.Value.Date < _newCycleStart.Value.Date)
+        {
+            _errorMessage = "Informe um período de ciclo válido.";
+            return;
+        }
+
+        await RunOperationAsync(async () =>
+        {
+            var cycle = await Api.CreateRankingCycleAsync(new CreateRankingCycleRequest
+            {
+                ModalityId = _newCycleModalityId,
+                Name = _newCycleName.Trim(),
+                StartsAt = DateOnly.FromDateTime(_newCycleStart.Value),
+                EndsAt = DateOnly.FromDateTime(_newCycleEnd.Value)
+            });
+            _newCycleName = string.Empty;
+            _selectedCycleId = cycle.Id;
+            Snackbar.Add("Ciclo de ranking criado.", Severity.Success);
+            await LoadAsync();
+        });
+    }
+
+    private async Task SelectCycleAsync(Guid? cycleId)
+    {
+        _selectedCycleId = cycleId;
+        _cycleEntries = [];
+        if (cycleId is null)
+        {
+            return;
+        }
+
+        _isRefreshing = true;
+        try
+        {
+            _cycleEntries = await Api.ListRankingEntriesAsync(cycleId.Value, pageSize: PageSize);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await Session.ClearAsync();
+            Navigation.NavigateTo("/login");
+        }
+        catch (HttpRequestException exception)
+        {
+            _errorMessage = $"Não foi possível carregar os resultados do ciclo: {exception.Message}";
+        }
+        finally
+        {
+            _isRefreshing = false;
+        }
+    }
+
+    private async Task RecalculateAsync()
+    {
+        if (_selectedCycle is null)
+        {
+            return;
+        }
+
+        await RunOperationAsync(async () =>
+        {
+            _cycleEntries = await Api.RecalculateRankingAsync(_selectedCycle.Id);
+            _currentRanking = await Api.ListCurrentRankingAsync(pageSize: PageSize);
+            Snackbar.Add("Ranking recalculado.", Severity.Success);
+        });
+    }
+
+    private async Task RefreshCurrentAsync()
+    {
+        _isRefreshing = true;
+        try
+        {
+            _currentRanking = await Api.ListCurrentRankingAsync(pageSize: PageSize);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await Session.ClearAsync();
+            Navigation.NavigateTo("/login");
+        }
+        catch (HttpRequestException exception)
+        {
+            _errorMessage = $"Não foi possível atualizar o ranking: {exception.Message}";
+        }
+        finally
+        {
+            _isRefreshing = false;
+        }
+    }
+
+    private async Task CreateMedalAsync()
+    {
+        await RunOperationAsync(async () =>
+        {
+            await Api.CreateMedalAsync(new CreateMedalRequest
+            {
+                Code = _newMedalCode.Trim(),
+                Name = _newMedalName.Trim(),
+                Description = _newMedalDescription?.Trim(),
+                PointsBonus = _newMedalPoints
+            });
+            _newMedalCode = string.Empty;
+            _newMedalName = string.Empty;
+            _newMedalDescription = null;
+            _newMedalPoints = 0;
+            _medals = await Api.ListMedalsAsync();
+            Snackbar.Add("Medalha criada.", Severity.Success);
+        });
+    }
+
+    private async Task SelectAwardClientAsync(Guid? clientId)
+    {
+        _awardClientId = clientId;
+        _clientMedals = [];
+        if (clientId is null)
+        {
+            return;
+        }
+
+        try
+        {
+            _clientMedals = await Api.ListClientMedalsAsync(clientId.Value);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await Session.ClearAsync();
+            Navigation.NavigateTo("/login");
+        }
+        catch (HttpRequestException exception)
+        {
+            _errorMessage = $"Não foi possível carregar as medalhas do aluno: {exception.Message}";
+        }
+    }
+
+    private async Task AwardMedalAsync()
+    {
+        if (_awardClientId is null || _awardMedalId is null)
+        {
+            _errorMessage = "Selecione o aluno e a medalha.";
+            return;
+        }
+
+        var client = _clients.FirstOrDefault(item => item.Id == _awardClientId.Value);
+        if (client is null)
+        {
+            _errorMessage = "O aluno selecionado não está mais disponível. Atualize a página e tente novamente.";
+            return;
+        }
+
+        await RunOperationAsync(async () =>
+        {
+            await Api.AwardMedalAsync(_awardMedalId.Value, new AwardMedalRequest
+            {
+                PersonId = client.PersonId,
+                Reason = _awardReason?.Trim()
+            });
+            _awardReason = null;
+            _clientMedals = await Api.ListClientMedalsAsync(client.Id);
+            Snackbar.Add("Medalha concedida.", Severity.Success);
+        });
+    }
+
+    private async Task RunOperationAsync(Func<Task> operation)
+    {
+        if (_isSaving)
+        {
+            return;
+        }
+
+        _isSaving = true;
+        _errorMessage = null;
+        try
+        {
+            await operation();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await Session.ClearAsync();
+            Navigation.NavigateTo("/login");
+        }
+        catch (HttpRequestException exception)
+        {
+            _errorMessage = exception.Message;
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private string ClientName(Guid clientId) =>
+        _clients.FirstOrDefault(client => client.Id == clientId)?.FullName ?? "Aluno não disponível";
+
+    private string MedalName(Guid medalId) =>
+        _medals.FirstOrDefault(medal => medal.Id == medalId)?.Name ?? "Medalha não disponível";
+
+    private string CycleLabel(RankingCycleResponse cycle)
+    {
+        var modality = cycle.ModalityId is null
+            ? "Todas as modalidades"
+            : _modalities.FirstOrDefault(item => item.Id == cycle.ModalityId)?.Name ?? "Modalidade";
+        return $"{cycle.Name} · {cycle.StartsAt:dd/MM/yyyy} a {cycle.EndsAt:dd/MM/yyyy} · {modality} · {StatusLabel(cycle.Status)}";
+    }
+
+    private static string StatusLabel(string status) => status switch
+    {
+        "open" => "Aberto",
+        "closed" => "Encerrado",
+        _ => status
+    };
+}

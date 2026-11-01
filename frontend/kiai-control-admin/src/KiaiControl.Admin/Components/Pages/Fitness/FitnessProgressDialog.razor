@@ -1,0 +1,45 @@
+@inherits FormDialogBase
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="Form">
+            <MudStack Spacing="2">
+                @if (ErrorMessage is not null)
+                {
+                    <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">@ErrorMessage</MudAlert>
+                }
+                <MudText Typo="Typo.body1"><strong>@Goal.Title</strong> · @ClientName</MudText>
+                <MudText Typo="Typo.body2">
+                    Atual: @Goal.CurrentValue.ToString("N2") @Goal.Unit · Alvo: @Goal.TargetValue.ToString("N2") @Goal.Unit
+                </MudText>
+                <MudNumericField T="decimal" @bind-Value="_recordedValue" Label="Novo progresso" Min="0"
+                                 Required="true" RequiredError="Informe o progresso" Variant="Variant.Outlined" />
+                <MudTextField @bind-Value="_notes" Label="Observações" Lines="3" MaxLength="255"
+                              Variant="Variant.Outlined" />
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Disabled="IsSaving">Cancelar</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SubmitAsync" Disabled="IsSaving">
+            Registrar progresso
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter, EditorRequired] public FitnessGoalResponse Goal { get; set; } = default!;
+    [Parameter] public string ClientName { get; set; } = string.Empty;
+
+    private decimal _recordedValue;
+    private string? _notes;
+
+    protected override void OnInitialized() => _recordedValue = Goal.CurrentValue;
+
+    protected override Task SaveCoreAsync() =>
+        Api.RecordFitnessProgressAsync(Goal.Id, new RecordFitnessProgressRequest
+        {
+            RecordedValue = _recordedValue,
+            Notes = _notes?.Trim()
+        });
+}

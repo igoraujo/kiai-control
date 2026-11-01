@@ -1,0 +1,60 @@
+@inherits FormDialogBase
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="Form">
+            <MudStack Spacing="2">
+                @if (ErrorMessage is not null)
+                {
+                    <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">@ErrorMessage</MudAlert>
+                }
+                <MudText Typo="Typo.body1">Promover <strong>@Client.FullName</strong> para <strong>@NextLevelName</strong>?</MudText>
+                <MudText Typo="Typo.body2">
+                    Critérios atuais: @Client.AttendanceCount presenças · @Client.AttendancePercentage.ToString("N1")% de frequência · @Client.TrainingDays dias de treino.
+                </MudText>
+                <MudDatePicker @bind-Date="_eventDate" Label="Data da graduação" DateFormat="dd/MM/yyyy" Required="true"
+                               RequiredError="Informe a data" Variant="Variant.Outlined" />
+                @if (RequiresManualEvaluation)
+                {
+                    <MudCheckBox T="bool" @bind-Value="_manualEvaluationPassed" Label="Avaliação manual aprovada" Color="Color.Primary" />
+                }
+                <MudTextField @bind-Value="_justification" Label="Observações" Lines="3" MaxLength="255"
+                              Variant="Variant.Outlined" />
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Disabled="IsSaving">Cancelar</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SubmitAsync" Disabled="IsSaving">
+            Confirmar graduação
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter, EditorRequired] public EligibleClientResponse Client { get; set; } = default!;
+    [Parameter, EditorRequired] public Guid ModalityId { get; set; }
+    [Parameter, EditorRequired] public string NextLevelName { get; set; } = string.Empty;
+    [Parameter] public bool RequiresManualEvaluation { get; set; }
+
+    private DateTime? _eventDate = DateTime.Today;
+    private bool _manualEvaluationPassed;
+    private string? _justification;
+
+    protected override Task SaveCoreAsync()
+    {
+        if (_eventDate is null)
+        {
+            throw new ArgumentException("Informe a data da graduação.");
+        }
+
+        return Api.PromoteClientAsync(Client.ClientId, new PromoteClientRequest
+        {
+            ModalityId = ModalityId,
+            ToLevelId = Client.NextLevelId,
+            EventDate = DateOnly.FromDateTime(_eventDate.Value),
+            Justification = _justification?.Trim(),
+            ManualEvaluationPassed = _manualEvaluationPassed
+        });
+    }
+}

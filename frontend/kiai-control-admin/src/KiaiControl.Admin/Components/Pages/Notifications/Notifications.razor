@@ -1,0 +1,287 @@
+@page "/notifications"
+@using KiaiControl.Contracts.Auth
+@inject AdminSession Session
+@inject AdminApiClient Api
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>Notificações | Kiai Control</PageTitle>
+
+<MudStack Spacing="3">
+    <div>
+        <MudText Typo="Typo.h4">Notificações</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">Caixa de entrada da sua conta e comunicados aos alunos</MudText>
+    </div>
+
+    @if (_errorMessage is not null)
+    {
+        <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">
+            @_errorMessage
+            <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="LoadAsync">Tentar novamente</MudButton>
+        </MudAlert>
+    }
+
+    @if (_isLoading)
+    {
+        <MudSkeleton Height="280px" />
+    }
+    else
+    {
+        @if (_canManage)
+        {
+            <MudPaper Class="pa-4" Elevation="0">
+                <MudText Typo="Typo.h6">Enviar comunicado no aplicativo</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                    O comunicado será registrado na caixa de entrada do aluno. Envio por e-mail ou push depende da integração de provedores externos.
+                </MudText>
+                <MudGrid Spacing="2">
+                    <MudItem xs="12" md="3">
+                        <MudSelect T="Guid?" @bind-Value="_recipientId" Label="Aluno" Variant="Variant.Outlined">
+                            @foreach (var client in _clients)
+                            {
+                                <MudSelectItem T="Guid?" Value="@((Guid?)client.Id)">@client.FullName</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudTextField @bind-Value="_title" Label="Título" MaxLength="160" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudTextField @bind-Value="_body" Label="Mensagem" Lines="2" MaxLength="10000" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" md="2" Class="d-flex align-center">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SendAsync"
+                                   Disabled="_isSaving || _recipientId is null || string.IsNullOrWhiteSpace(_title) || string.IsNullOrWhiteSpace(_body)">
+                            Registrar comunicado
+                        </MudButton>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+
+            <MudPaper Class="pa-4" Elevation="0">
+                <MudText Typo="Typo.h6">Comunicados da organização</MudText>
+                <MudTable Items="_outbox" Dense="true" Hover="true" Class="mt-2">
+                    <HeaderContent>
+                        <MudTh>Destinatário</MudTh>
+                        <MudTh>Título</MudTh>
+                        <MudTh>Canal</MudTh>
+                        <MudTh>Situação</MudTh>
+                        <MudTh>Registrada em</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@ClientNameByPerson(context.PersonId)</MudTd>
+                        <MudTd>
+                            <MudText Typo="Typo.body2">@context.Title</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Body</MudText>
+                        </MudTd>
+                        <MudTd>@ChannelLabel(context.Channel)</MudTd>
+                        <MudTd>@StatusLabel(context.Status)</MudTd>
+                        <MudTd>@context.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent><MudText>Nenhum comunicado registrado.</MudText></NoRecordsContent>
+                </MudTable>
+            </MudPaper>
+        }
+
+        <MudPaper Class="pa-4" Elevation="0">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                <div>
+                    <MudText Typo="Typo.h6">Minha caixa de entrada</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">@_inbox.Count(notification => notification.ReadAt is null) não lida(s)</MudText>
+                </div>
+                <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadAsync" Disabled="_isSaving">
+                    Atualizar
+                </MudButton>
+            </MudStack>
+            <MudTable Items="_inbox" Dense="true" Hover="true" Loading="_isSaving" Class="mt-2">
+                <HeaderContent>
+                    <MudTh>Título</MudTh>
+                    <MudTh>Mensagem</MudTh>
+                    <MudTh>Canal</MudTh>
+                    <MudTh>Recebida em</MudTh>
+                    <MudTh>Situação</MudTh>
+                    <MudTh Style="text-align:right">Ação</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.Title</MudTd>
+                    <MudTd>@context.Body</MudTd>
+                    <MudTd>@ChannelLabel(context.Channel)</MudTd>
+                    <MudTd>@context.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
+                    <MudTd>
+                        <MudChip T="string" Size="Size.Small" Color="@(context.ReadAt is null ? Color.Warning : Color.Success)">
+                            @(context.ReadAt is null ? "Não lida" : "Lida")
+                        </MudChip>
+                    </MudTd>
+                    <MudTd Style="text-align:right">
+                        @if (context.ReadAt is null)
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.MarkEmailRead" Size="Size.Small" Color="Color.Primary"
+                                           aria-label="Marcar como lida" OnClick="() => MarkAsReadAsync(context)" Disabled="_isSaving" />
+                        }
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent><MudText>Nenhuma notificação recebida.</MudText></NoRecordsContent>
+            </MudTable>
+        </MudPaper>
+    }
+</MudStack>
+
+@code {
+    private IReadOnlyList<ClientResponse> _clients = [];
+    private IReadOnlyList<NotificationResponse> _inbox = [];
+    private IReadOnlyList<NotificationResponse> _outbox = [];
+    private Guid? _recipientId;
+    private string _title = string.Empty;
+    private string _body = string.Empty;
+    private bool _canManage;
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Session.Current is null)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        if (!Session.Current.User.Permissions.Contains(PermissionCodes.NotificationsRead, StringComparer.OrdinalIgnoreCase))
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+
+        _canManage = Session.Current.User.Permissions.Contains(
+            PermissionCodes.NotificationsManage, StringComparer.OrdinalIgnoreCase);
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+        try
+        {
+            var inboxTask = Api.ListMyNotificationsAsync(pageSize: 50);
+            if (_canManage)
+            {
+                var optionsTask = Api.GetNotificationOptionsAsync();
+                var outboxTask = Api.ListNotificationOutboxAsync(pageSize: 50);
+                await Task.WhenAll(inboxTask, optionsTask, outboxTask);
+                _inbox = await inboxTask;
+                _clients = (await optionsTask).Clients;
+                _outbox = await outboxTask;
+            }
+            else
+            {
+                _inbox = await inboxTask;
+            }
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await Session.ClearAsync();
+            Navigation.NavigateTo("/login");
+        }
+        catch (HttpRequestException exception)
+        {
+            _errorMessage = $"Não foi possível carregar as notificações: {exception.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task SendAsync()
+    {
+        if (_recipientId is null || string.IsNullOrWhiteSpace(_title) || string.IsNullOrWhiteSpace(_body))
+        {
+            _errorMessage = "Selecione o aluno e preencha o título e a mensagem.";
+            return;
+        }
+
+        _isSaving = true;
+        _errorMessage = null;
+        try
+        {
+            var client = _clients.FirstOrDefault(item => item.Id == _recipientId.Value);
+            if (client is null)
+            {
+                _errorMessage = "O aluno selecionado não está mais disponível. Atualize os dados e tente novamente.";
+                return;
+            }
+
+            await Api.CreateNotificationAsync(new CreateNotificationRequest
+            {
+                PersonId = client.PersonId,
+                Title = _title.Trim(),
+                Body = _body.Trim(),
+                Channel = "in_app"
+            });
+            _recipientId = null;
+            _title = string.Empty;
+            _body = string.Empty;
+            Snackbar.Add("Comunicado registrado para o aluno.", Severity.Success);
+            await LoadAsync();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await Session.ClearAsync();
+            Navigation.NavigateTo("/login");
+        }
+        catch (HttpRequestException exception)
+        {
+            _errorMessage = $"Não foi possível registrar o comunicado: {exception.Message}";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task MarkAsReadAsync(NotificationResponse notification)
+    {
+        _isSaving = true;
+        _errorMessage = null;
+        try
+        {
+            await Api.MarkNotificationAsReadAsync(notification.Id);
+            _inbox = await Api.ListMyNotificationsAsync(pageSize: 50);
+            Snackbar.Add("Notificação marcada como lida.", Severity.Success);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await Session.ClearAsync();
+            Navigation.NavigateTo("/login");
+        }
+        catch (HttpRequestException exception)
+        {
+            _errorMessage = $"Não foi possível atualizar a notificação: {exception.Message}";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private string ClientNameByPerson(Guid personId) =>
+        _clients.FirstOrDefault(client => client.PersonId == personId)?.FullName ?? "Destinatário não disponível";
+
+    private static string ChannelLabel(string channel) => channel switch
+    {
+        "in_app" => "No aplicativo",
+        "email" => "E-mail",
+        "push" => "Push",
+        _ => channel
+    };
+
+    private static string StatusLabel(string status) => status switch
+    {
+        "sent" => "Registrada",
+        "pending" => "Agendada",
+        "read" => "Lida",
+        "failed" => "Falha",
+        _ => status
+    };
+}

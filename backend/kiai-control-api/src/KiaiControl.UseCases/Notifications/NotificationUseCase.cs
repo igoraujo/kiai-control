@@ -59,6 +59,22 @@ public sealed class NotificationUseCase(INotificationRepository notificationRepo
         return notifications.Select(ToResponse).ToList();
     }
 
+    public async Task<IReadOnlyList<NotificationResponse>> ListOrganizationAsync(
+        Guid organizationId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken)
+    {
+        if (organizationId == Guid.Empty)
+        {
+            throw new ArgumentException("OrganizationId is required.");
+        }
+
+        var notifications = await notificationRepository.ListByOrganizationAsync(
+            organizationId, page, pageSize, cancellationToken);
+        return notifications.Select(ToResponse).ToList();
+    }
+
     public Task<bool> MarkMineAsReadAsync(
         Guid organizationId,
         Guid personId,

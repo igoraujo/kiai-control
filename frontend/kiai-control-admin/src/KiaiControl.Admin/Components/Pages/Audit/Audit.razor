@@ -1,0 +1,228 @@
+@page "/audit"
+@using System.Text.RegularExpressions
+@using KiaiControl.Contracts.Auth
+@inject AdminSession Session
+@inject AdminApiClient Api
+@inject NavigationManager Navigation
+
+<PageTitle>Auditoria | Kiai Control</PageTitle>
+
+<MudStack Spacing="3">
+    <div>
+        <MudText Typo="Typo.h4">Auditoria</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">Histórico de alterações registradas na organização</MudText>
+    </div>
+
+    @if (_errorMessage is not null)
+    {
+        <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">
+            @_errorMessage
+            <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="LoadAsync">Tentar novamente</MudButton>
+        </MudAlert>
+    }
+
+    @if (_isLoading)
+    {
+        <MudSkeleton Height="280px" />
+    }
+    else
+    {
+        <MudPaper Class="pa-4" Elevation="0">
+            <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+                <MudDatePicker @bind-Date="_fromDate" Label="De" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" />
+                <MudDatePicker @bind-Date="_toDate" Label="Até" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" />
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.FilterAlt"
+                           OnClick="ApplyFilterAsync" Disabled="_isRefreshing">
+                    Filtrar
+                </MudButton>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Exibindo até @PageSize registros por página.</MudText>
+            </MudStack>
+        </MudPaper>
+
+        <MudTable Items="_logs" Dense="true" Hover="true" Loading="_isRefreshing">
+            <HeaderContent>
+                <MudTh>Data e hora</MudTh>
+                <MudTh>Ação</MudTh>
+                <MudTh>Registro</MudTh>
+                <MudTh>Origem</MudTh>
+                <MudTh>IP</MudTh>
+                <MudTh>Detalhes</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</MudTd>
+                <MudTd>@ActionLabel(context.Action)</MudTd>
+                <MudTd>@EntityLabel(context.EntityName)</MudTd>
+                <MudTd>@ActorLabel(context)</MudTd>
+                <MudTd>@(context.IpAddress ?? "—")</MudTd>
+                <MudTd>
+                    <MudExpansionPanels Elevation="0">
+                        <MudExpansionPanel Text="Ver detalhes">
+                            <MudText Typo="Typo.caption">Agente: @(context.UserAgent ?? "Não informado")</MudText>
+                            @if (!string.IsNullOrWhiteSpace(context.Metadata))
+                            {
+                                <MudText Typo="Typo.caption" Class="d-block mt-2">Metadados</MudText>
+                                <pre>@SanitizeMetadata(context.Metadata)</pre>
+                            }
+                        </MudExpansionPanel>
+                    </MudExpansionPanels>
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudText>Nenhum registro de auditoria encontrado para o período.</MudText>
+            </NoRecordsContent>
+        </MudTable>
+
+        <MudStack Row="true" Justify="Justify.FlexEnd" AlignItems="AlignItems.Center" Spacing="2">
+            <MudText Typo="Typo.caption">Página @_page</MudText>
+            <MudButton Variant="Variant.Outlined" Disabled="@(_page <= 1 || _isRefreshing)" OnClick="() => ChangePageAsync(_page - 1)">Anterior</MudButton>
+            <MudButton Variant="Variant.Outlined" Disabled="@(_logs.Count < PageSize || _isRefreshing)" OnClick="() => ChangePageAsync(_page + 1)">Próxima</MudButton>
+        </MudStack>
+    }
+</MudStack>
+
+@code {
+    private const int PageSize = 50;
+    private static readonly Regex GuidPattern = new(
+        @"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private IReadOnlyList<AuditLogResponse> _logs = [];
+    private DateTime? _fromDate = DateTime.Today.AddDays(-6);
+    private DateTime? _toDate = DateTime.Today;
+    private int _page = 1;
+    private bool _isLoading = true;
+    private bool _isRefreshing;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Session.Current is null)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        var user = Session.Current.User;
+        var canRead = user.Permissions.Contains(PermissionCodes.AuditRead, StringComparer.OrdinalIgnoreCase)
+            && user.Roles.Any(role => role.Equals("owner", StringComparison.OrdinalIgnoreCase)
+                || role.Equals("admin", StringComparison.OrdinalIgnoreCase));
+        if (!canRead)
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        if (_fromDate is null || _toDate is null)
+        {
+            _isLoading = false;
+            _isRefreshing = false;
+            _errorMessage = "Informe as datas inicial e final.";
+            return;
+        }
+
+        if (_toDate.Value.Date < _fromDate.Value.Date
+            || (_toDate.Value.Date - _fromDate.Value.Date).TotalDays > 366)
+        {
+            _isLoading = false;
+            _isRefreshing = false;
+            _errorMessage = "O período deve ser válido e não pode ultrapassar 366 dias.";
+            return;
+        }
+
+        _isLoading = true;
+        _isRefreshing = true;
+        _errorMessage = null;
+        try
+        {
+            var (from, to) = GetUtcRange();
+            _logs = await Api.ListAuditLogsAsync(from, to, _page, PageSize);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await Session.ClearAsync();
+            Navigation.NavigateTo("/login");
+        }
+        catch (HttpRequestException exception)
+        {
+            _errorMessage = exception.StatusCode == System.Net.HttpStatusCode.Forbidden
+                ? "Seu perfil não tem permissão para consultar a auditoria."
+                : $"Não foi possível carregar a auditoria: {exception.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+            _isRefreshing = false;
+        }
+    }
+
+    private async Task ApplyFilterAsync()
+    {
+        if (_fromDate is null || _toDate is null)
+        {
+            _errorMessage = "Informe as datas inicial e final.";
+            return;
+        }
+        if (_toDate.Value.Date < _fromDate.Value.Date
+            || (_toDate.Value.Date - _fromDate.Value.Date).TotalDays > 366)
+        {
+            _errorMessage = "O período deve ser válido e não pode ultrapassar 366 dias.";
+            return;
+        }
+
+        _page = 1;
+        await LoadAsync();
+    }
+
+    private async Task ChangePageAsync(int page)
+    {
+        if (page < 1)
+        {
+            return;
+        }
+
+        _page = page;
+        await LoadAsync();
+    }
+
+    private (DateTimeOffset From, DateTimeOffset To) GetUtcRange()
+    {
+        var fromLocal = DateTime.SpecifyKind(_fromDate!.Value.Date, DateTimeKind.Unspecified);
+        var toLocal = DateTime.SpecifyKind(_toDate!.Value.Date.AddDays(1), DateTimeKind.Unspecified);
+        var from = new DateTimeOffset(fromLocal, TimeZoneInfo.Local.GetUtcOffset(fromLocal)).ToUniversalTime();
+        var to = new DateTimeOffset(toLocal, TimeZoneInfo.Local.GetUtcOffset(toLocal)).ToUniversalTime();
+        return (from, to);
+    }
+
+    private static string ActorLabel(AuditLogResponse entry) =>
+        entry.ActorPersonId is not null ? "Pessoa"
+            : entry.ActorUserAccountId is not null ? "Conta interna"
+            : "Sistema";
+
+    private static string ActionLabel(string action) => action.ToUpperInvariant() switch
+    {
+        "POST" => "Criou/registrou",
+        "PUT" or "PATCH" => "Alterou",
+        "DELETE" => "Removeu",
+        _ => action
+    };
+
+    private static string EntityLabel(string entityName) => entityName.ToLowerInvariant() switch
+    {
+        "clients" => "Aluno",
+        "teachers" => "Professor",
+        "modalities" => "Modalidade",
+        "branches" => "Unidade",
+        "lessons" => "Aula",
+        "billing" or "invoices" or "payments" => "Financeiro",
+        "fitness-goals" => "Meta fitness",
+        "ranking-cycles" => "Ciclo de ranking",
+        "notifications" => "Notificação",
+        _ => entityName
+    };
+
+    private static string SanitizeMetadata(string metadata) => GuidPattern.Replace(metadata, "[identificador]");
+}
