@@ -76,6 +76,8 @@
                     <MudChip T="string" Size="Size.Small" Color="@StatusColor(context.Status)">@StatusLabel(context.Status)</MudChip>
                 </MudTd>
                 <MudTd Style="text-align:right">
+                    <MudIconButton Icon="@Icons.Material.Filled.History" Size="Size.Small" Color="Color.Info"
+                                   aria-label="Histórico de progresso" OnClick="() => ViewProgressHistoryAsync(context)" />
                     @if (context.Status == "active")
                     {
                         <MudIconButton Icon="@Icons.Material.Filled.AddChart" Size="Size.Small" Color="Color.Primary"
@@ -205,6 +207,18 @@
             Snackbar.Add("Progresso registrado.", Severity.Success);
             await LoadAsync();
         }
+    }
+
+    private async Task ViewProgressHistoryAsync(FitnessGoalResponse goal)
+    {
+        await DialogService.ShowAsync<FitnessProgressHistoryDialog>(
+            "Histórico de progresso",
+            new DialogParameters<FitnessProgressHistoryDialog>
+            {
+                { component => component.Goal, goal },
+                { component => component.ClientName, ClientName(goal.ClientId) }
+            },
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true });
     }
 
     private async Task CancelGoalAsync(FitnessGoalResponse goal)

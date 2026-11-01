@@ -231,6 +231,7 @@ public sealed class AdminApiClientTests
             JsonResponse(new FitnessOptionsResponse()),
             JsonResponse(Array.Empty<FitnessGoalResponse>()),
             JsonResponse(new FitnessGoalResponse { Id = goalId, ClientId = clientId, Title = "Treino" }),
+            JsonResponse(Array.Empty<FitnessProgressResponse>()),
             JsonResponse(new FitnessProgressResponse { FitnessGoalId = goalId, RecordedValue = 2 }),
             new HttpResponseMessage(HttpStatusCode.NoContent));
         var session = new AdminSession();
@@ -248,6 +249,7 @@ public sealed class AdminApiClientTests
             StartsAt = new DateOnly(2026, 1, 1),
             DueDate = new DateOnly(2026, 2, 1)
         });
+        await api.ListFitnessProgressAsync(goalId, page: 2, pageSize: 10);
         await api.RecordFitnessProgressAsync(goalId, new RecordFitnessProgressRequest { RecordedValue = 2 });
         await api.CancelFitnessGoalAsync(goalId);
 
@@ -257,7 +259,10 @@ public sealed class AdminApiClientTests
         Assert.Contains($"clientId={clientId:D}", handler.Requests[1].RequestUri!.Query);
         Assert.Equal("/api/v1/fitness-goals", handler.Requests[2].RequestUri!.AbsolutePath);
         Assert.Equal($"/api/v1/fitness-goals/{goalId}/progress", handler.Requests[3].RequestUri!.AbsolutePath);
-        Assert.Equal($"/api/v1/fitness-goals/{goalId}/cancel", handler.Requests[4].RequestUri!.AbsolutePath);
+        Assert.Contains("page=2", handler.Requests[3].RequestUri!.Query);
+        Assert.Contains("pageSize=10", handler.Requests[3].RequestUri!.Query);
+        Assert.Equal($"/api/v1/fitness-goals/{goalId}/progress", handler.Requests[4].RequestUri!.AbsolutePath);
+        Assert.Equal($"/api/v1/fitness-goals/{goalId}/cancel", handler.Requests[5].RequestUri!.AbsolutePath);
     }
 
     [Fact]

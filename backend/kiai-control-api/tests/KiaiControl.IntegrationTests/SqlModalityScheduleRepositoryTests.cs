@@ -360,10 +360,44 @@ public sealed class SqlModalityScheduleRepositoryTests(PostgreSqlFixture fixture
         });
         Assert.NotNull(progress);
         Assert.Equal(12m, progress.RecordedValue);
+        var progressHistory = await progressionRepository.ListFitnessProgressRecordsAsync(
+            organizationId, fitnessGoal.Id, page: 1, pageSize: 20);
+        Assert.Equal(progress.Id, Assert.Single(progressHistory).Id);
+        Assert.Empty(await progressionRepository.ListFitnessProgressRecordsAsync(
+            Guid.NewGuid(), fitnessGoal.Id, page: 1, pageSize: 20));
         var achievedGoal = Assert.Single(await progressionRepository.ListFitnessGoalsAsync(
             organizationId, authorizedClientId, 1, 20));
         Assert.Equal("achieved", achievedGoal.Status);
         Assert.False(await progressionRepository.CancelFitnessGoalAsync(organizationId, fitnessGoal.Id));
+
+        var goalWithHistory = await progressionRepository.CreateFitnessGoalAsync(new FitnessGoal
+        {
+            OrganizationId = organizationId,
+            ClientId = authorizedClientId,
+            Title = "Acompanhar evolução",
+            GoalType = "custom",
+            TargetValue = 10,
+            StartsAt = new DateOnly(2026, 1, 1),
+            DueDate = new DateOnly(2026, 2, 1)
+        });
+        Assert.NotNull(goalWithHistory);
+        await progressionRepository.RecordFitnessProgressAsync(organizationId, new FitnessProgressRecord
+        {
+            FitnessGoalId = goalWithHistory.Id,
+            RecordedValue = 2
+        });
+        await progressionRepository.RecordFitnessProgressAsync(organizationId, new FitnessProgressRecord
+        {
+            FitnessGoalId = goalWithHistory.Id,
+            RecordedValue = 4
+        });
+        var firstHistoryPage = await progressionRepository.ListFitnessProgressRecordsAsync(
+            organizationId, goalWithHistory.Id, page: 1, pageSize: 1);
+        var secondHistoryPage = await progressionRepository.ListFitnessProgressRecordsAsync(
+            organizationId, goalWithHistory.Id, page: 2, pageSize: 1);
+        Assert.Single(firstHistoryPage);
+        Assert.Single(secondHistoryPage);
+        Assert.NotEqual(firstHistoryPage[0].Id, secondHistoryPage[0].Id);
 
         var cancellableGoal = await progressionRepository.CreateFitnessGoalAsync(new FitnessGoal
         {

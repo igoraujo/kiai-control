@@ -239,6 +239,18 @@ public static class ProgressionQueries
         select * from inserted;
         ";
 
+    public const string ListFitnessProgressRecords = @"
+        select record.id, record.fitness_goal_id as FitnessGoalId,
+               record.recorded_value as RecordedValue, record.notes,
+               record.recorded_at as RecordedAt,
+               record.created_by_teacher_id as CreatedByTeacherId
+        from fitness_progress_records record
+        join fitness_goals goal on goal.id = record.fitness_goal_id
+        where goal.organization_id = @OrganizationId and goal.id = @GoalId
+        order by record.recorded_at desc, record.id desc
+        offset @Offset rows fetch next @PageSize rows only;
+        ";
+
     public const string CancelFitnessGoal = @"
         update fitness_goals
         set status = 'canceled', updated_at = now()

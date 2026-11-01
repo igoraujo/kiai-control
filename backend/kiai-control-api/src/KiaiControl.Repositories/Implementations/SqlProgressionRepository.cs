@@ -205,6 +205,26 @@ public sealed class SqlProgressionRepository(IDbConnectionFactory dbConnectionFa
         return recorded;
     }
 
+    public async Task<IReadOnlyList<FitnessProgressRecord>> ListFitnessProgressRecordsAsync(
+        Guid organizationId,
+        Guid goalId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        var safePage = page < 1 ? 1 : page;
+        var safePageSize = pageSize is < 1 or > 200 ? 50 : pageSize;
+        using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
+        var records = await connection.QueryAsync<FitnessProgressRecord>(ProgressionQueries.ListFitnessProgressRecords, new
+        {
+            OrganizationId = organizationId,
+            GoalId = goalId,
+            Offset = (safePage - 1) * safePageSize,
+            PageSize = safePageSize
+        });
+        return records.ToList();
+    }
+
     public async Task<bool> CancelFitnessGoalAsync(Guid organizationId, Guid goalId, CancellationToken cancellationToken = default)
     {
         using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);

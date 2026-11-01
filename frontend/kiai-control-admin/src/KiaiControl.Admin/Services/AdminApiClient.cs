@@ -165,6 +165,12 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
         CreateAsync<RecordFitnessProgressRequest, FitnessProgressResponse>(
             $"fitness-goals/{goalId}/progress", request);
 
+    public Task<IReadOnlyList<FitnessProgressResponse>> ListFitnessProgressAsync(
+        Guid goalId,
+        int page = 1,
+        int pageSize = 20) =>
+        ListAsync<FitnessProgressResponse>($"fitness-goals/{goalId}/progress", page, pageSize);
+
     public async Task CancelFitnessGoalAsync(Guid goalId)
     {
         using var response = await SendAuthorizedAsync(HttpMethod.Patch, $"api/v1/fitness-goals/{goalId}/cancel");

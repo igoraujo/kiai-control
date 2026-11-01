@@ -90,6 +90,31 @@ public sealed class FitnessUseCase(IProgressionRepository repository)
         };
     }
 
+    public async Task<IReadOnlyList<FitnessProgressResponse>> ListProgressAsync(
+        Guid organizationId,
+        Guid goalId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken)
+    {
+        if (organizationId == Guid.Empty || goalId == Guid.Empty)
+        {
+            throw new ArgumentException("OrganizationId and GoalId are required.");
+        }
+
+        var records = await repository.ListFitnessProgressRecordsAsync(
+            organizationId, goalId, page, pageSize, cancellationToken);
+        return records.Select(record => new FitnessProgressResponse
+        {
+            Id = record.Id,
+            FitnessGoalId = record.FitnessGoalId,
+            RecordedValue = record.RecordedValue,
+            Notes = record.Notes,
+            RecordedAt = record.RecordedAt,
+            CreatedByTeacherId = record.CreatedByTeacherId
+        }).ToList();
+    }
+
     public Task<bool> CancelAsync(Guid organizationId, Guid goalId, CancellationToken cancellationToken)
     {
         EnsureOrganization(organizationId);

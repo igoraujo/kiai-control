@@ -99,6 +99,29 @@ public sealed class FitnessController(
         }
     }
 
+    [HttpGet("{goalId:guid}/progress")]
+    public async Task<ActionResult<IReadOnlyList<FitnessProgressResponse>>> ListProgressAsync(
+        Guid goalId,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50,
+        CancellationToken cancellationToken = default)
+    {
+        if (organizationContext.OrganizationId is not Guid organizationId)
+        {
+            return BadRequest("Organization context is required.");
+        }
+
+        try
+        {
+            return Ok(await fitnessUseCase.ListProgressAsync(
+                organizationId, goalId, page, pageSize, cancellationToken));
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(exception.Message);
+        }
+    }
+
     [HttpPatch("{goalId:guid}/cancel")]
     public async Task<IActionResult> CancelAsync(Guid goalId, CancellationToken cancellationToken)
     {

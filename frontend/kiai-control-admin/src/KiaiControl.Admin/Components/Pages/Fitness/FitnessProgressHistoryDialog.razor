@@ -1,0 +1,118 @@
+@inject AdminApiClient Api
+@inject AdminSession Session
+@inject NavigationManager Navigation
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="2">
+            <MudText Typo="Typo.body1"><strong>@Goal.Title</strong> · @ClientName</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                Registros de evolução em @Goal.Unit
+            </MudText>
+
+            @if (_errorMessage is not null)
+            {
+                <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">
+                    @_errorMessage
+                    <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="LoadAsync">Tentar novamente</MudButton>
+                </MudAlert>
+            }
+            else if (_isLoading)
+            {
+                <MudSkeleton Height="220px" />
+            }
+            else if (_records.Count == 0)
+            {
+                <MudText>Nenhum progresso registrado para esta meta.</MudText>
+            }
+            else
+            {
+                <MudTable Items="_records" Dense="true" Hover="true">
+                    <HeaderContent>
+                        <MudTh>Data</MudTh>
+                        <MudTh>Progresso registrado</MudTh>
+                        <MudTh>Observações</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.RecordedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
+                        <MudTd>@context.RecordedValue.ToString("N2") @Goal.Unit</MudTd>
+                        <MudTd>@(string.IsNullOrWhiteSpace(context.Notes) ? "—" : context.Notes)</MudTd>
+                    </RowTemplate>
+                </MudTable>
+                <MudStack Row="true" Justify="Justify.FlexEnd" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudText Typo="Typo.caption">Página @_page</MudText>
+                    <MudButton Variant="Variant.Outlined" Disabled="@(_page <= 1 || _isLoading)" OnClick="PreviousPageAsync">
+                        Anterior
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined" Disabled="@(_records.Count < _pageSize || _isLoading)" OnClick="NextPageAsync">
+                        Próxima
+                    </MudButton>
+                </MudStack>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Close">Fechar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private const int _pageSize = 20;
+    private IReadOnlyList<FitnessProgressResponse> _records = [];
+    private int _page = 1;
+    private bool _isLoading = true;
+    private string? _errorMessage;
+
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter, EditorRequired] public FitnessGoalResponse Goal { get; set; } = default!;
+    [Parameter] public string ClientName { get; set; } = string.Empty;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+        try
+        {
+            _records = await Api.ListFitnessProgressAsync(Goal.Id, _page, _pageSize);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await Session.ClearAsync();
+            Navigation.NavigateTo("/login");
+        }
+        catch (HttpRequestException exception)
+        {
+            _errorMessage = $"Não foi possível carregar o histórico: {exception.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task PreviousPageAsync()
+    {
+        if (_page <= 1)
+        {
+            return;
+        }
+
+        _page--;
+        await LoadAsync();
+    }
+
+    private async Task NextPageAsync()
+    {
+        if (_records.Count < _pageSize)
+        {
+            return;
+        }
+
+        _page++;
+        await LoadAsync();
+    }
+
+    private void Close() => MudDialog.Close();
+}
