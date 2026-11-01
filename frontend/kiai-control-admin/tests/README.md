@@ -8,4 +8,14 @@ Execute a suite a partir da raiz do repositorio:
 dotnet test frontend/kiai-control-admin/KiaiControl.Admin.slnx
 ```
 
+O projeto `KiaiControl.Admin.E2ETests` executa no Chromium fluxos de login, cadastro/edicao de aluno, vinculo de modalidade, geracao de aula, check-in e pagamento. Ele inicia API e Admin locais e usa PostgreSQL 17 via Testcontainers; Docker precisa estar em execucao.
+
+Para executar apenas o E2E, restaure/construa o projeto, instale o browser Playwright e rode o teste:
+
+```bash
+dotnet build frontend/kiai-control-admin/tests/KiaiControl.Admin.E2ETests/KiaiControl.Admin.E2ETests.csproj
+pwsh frontend/kiai-control-admin/tests/KiaiControl.Admin.E2ETests/bin/Debug/net10.0/playwright.ps1 install chromium
+dotnet test frontend/kiai-control-admin/tests/KiaiControl.Admin.E2ETests/KiaiControl.Admin.E2ETests.csproj
+```
+
 O plano de evolucao e os criterios de aceite estao em [PROJECT_IMPLEMENTATION_PLAN.md](../../../PROJECT_IMPLEMENTATION_PLAN.md).

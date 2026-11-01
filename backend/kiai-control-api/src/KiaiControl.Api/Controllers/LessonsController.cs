@@ -67,7 +67,7 @@ public sealed class LessonsController(
             var created = await lessonUseCase.GenerateFromModalitySchedulesAsync(organizationId, request, cancellationToken);
             return created is null
                 ? NotFound("The active modality is unavailable in this organization.")
-                : CreatedAtAction(nameof(ListAsync), new { page = 1, pageSize = Math.Max(created.Count, 1) }, created);
+                : CreatedAtRoute("ListLessons", new { page = 1, pageSize = Math.Max(created.Count, 1) }, created);
         }
         catch (ArgumentException exception)
         {
@@ -75,7 +75,7 @@ public sealed class LessonsController(
         }
     }
 
-    [HttpGet]
+    [HttpGet("", Name = "ListLessons")]
     [Authorize(Roles = "owner,admin,teacher,reception")]
     public async Task<ActionResult<IReadOnlyList<LessonResponse>>> ListAsync(
         [FromQuery] int page = 1,

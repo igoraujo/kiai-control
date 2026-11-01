@@ -40,6 +40,9 @@ jobs:
       - name: Build Admin
         run: dotnet build frontend/kiai-control-admin/KiaiControl.Admin.slnx --no-restore
 
+      - name: Install Playwright Chromium
+        run: pwsh frontend/kiai-control-admin/tests/KiaiControl.Admin.E2ETests/bin/Debug/net10.0/playwright.ps1 install --with-deps chromium
+
       - name: Test API unit tests
         run: >-
           dotnet test backend/kiai-control-api/tests/KiaiControl.UnitTests/KiaiControl.UnitTests.csproj
@@ -68,6 +71,13 @@ jobs:
           --logger "trx;LogFileName=admin.trx"
           --results-directory frontend/kiai-control-admin/TestResults/admin
 
+      - name: Test Admin end-to-end flows
+        run: >-
+          dotnet test frontend/kiai-control-admin/tests/KiaiControl.Admin.E2ETests/KiaiControl.Admin.E2ETests.csproj
+          --no-build --no-restore
+          --logger "trx;LogFileName=e2e.trx"
+          --results-directory frontend/kiai-control-admin/TestResults/e2e
+
       - name: Verify test reports are non-empty
         run: |
           python3 - <<'PY'
@@ -80,6 +90,7 @@ jobs:
               Path("backend/kiai-control-api/TestResults/integration/integration.trx"),
               Path("backend/kiai-control-api/TestResults/architecture/architecture.trx"),
               Path("frontend/kiai-control-admin/TestResults/admin/admin.trx"),
+              Path("frontend/kiai-control-admin/TestResults/e2e/e2e.trx"),
           ]
           missing = [str(report) for report in reports if not report.is_file()]
           if missing:

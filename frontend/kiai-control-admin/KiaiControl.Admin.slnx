@@ -3,6 +3,7 @@
     <Project Path="src/KiaiControl.Admin/KiaiControl.Admin.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/KiaiControl.Admin.E2ETests/KiaiControl.Admin.E2ETests.csproj" />
     <Project Path="tests/KiaiControl.Admin.UnitTests/KiaiControl.Admin.UnitTests.csproj" />
   </Folder>
 </Solution>
