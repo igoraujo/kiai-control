@@ -38,6 +38,151 @@ public sealed class GraduationUseCase(IProgressionRepository repository)
         return systems.Select(ToResponse).ToList();
     }
 
+    public async Task<IReadOnlyList<GraduationBeltResponse>> ListBeltsAsync(
+        Guid organizationId,
+        Guid systemId,
+        CancellationToken cancellationToken)
+    {
+        EnsureOrganization(organizationId);
+        if (systemId == Guid.Empty)
+        {
+            throw new ArgumentException("GraduationSystemId is required.");
+        }
+
+        var belts = await repository.ListGraduationBeltsAsync(organizationId, systemId, cancellationToken);
+        return belts.Select(ToResponse).ToList();
+    }
+
+    public async Task<GraduationBeltResponse?> CreateBeltAsync(
+        Guid organizationId,
+        Guid systemId,
+        CreateGraduationBeltRequest request,
+        CancellationToken cancellationToken)
+    {
+        EnsureOrganization(organizationId);
+        if (systemId == Guid.Empty || string.IsNullOrWhiteSpace(request.Name) || request.Name.Trim().Length > 80
+            || request.DegreeCount is < 0 or > 99 || request.MinLessons < 0 || request.MinTrainingDays < 0
+            || request.MinAttendancePercentage is < 0 or > 100)
+        {
+            throw new ArgumentException("Os dados da faixa são inválidos. Informe o nome, até 99 graus e critérios não negativos.");
+        }
+
+        var belt = await repository.CreateGraduationBeltAsync(organizationId, systemId, new GraduationBelt
+        {
+            Name = request.Name.Trim(),
+            DegreeCount = request.DegreeCount,
+            MinLessons = request.MinLessons,
+            MinTrainingDays = request.MinTrainingDays,
+            MinAttendancePercentage = request.MinAttendancePercentage,
+            RequiresManualEvaluation = request.RequiresManualEvaluation
+        }, cancellationToken);
+        return belt is null ? null : ToResponse(belt);
+    }
+
+    public async Task<bool> UpdateBeltAsync(
+        Guid organizationId,
+        Guid systemId,
+        Guid beltId,
+        CreateGraduationBeltRequest request,
+        CancellationToken cancellationToken)
+    {
+        EnsureOrganization(organizationId);
+        ValidateBeltRequest(systemId, request);
+        if (beltId == Guid.Empty)
+        {
+            throw new ArgumentException("Faixa inválida.");
+        }
+
+        return await repository.UpdateGraduationBeltAsync(organizationId, systemId, new GraduationBelt
+        {
+            Id = beltId,
+            Name = request.Name.Trim(),
+            DegreeCount = request.DegreeCount,
+            MinLessons = request.MinLessons,
+            MinTrainingDays = request.MinTrainingDays,
+            MinAttendancePercentage = request.MinAttendancePercentage,
+            RequiresManualEvaluation = request.RequiresManualEvaluation
+        }, cancellationToken);
+    }
+
+    public async Task<bool> DeleteBeltAsync(
+        Guid organizationId,
+        Guid systemId,
+        Guid beltId,
+        CancellationToken cancellationToken)
+    {
+        EnsureOrganization(organizationId);
+        if (systemId == Guid.Empty || beltId == Guid.Empty)
+        {
+            throw new ArgumentException("Sistema e faixa são obrigatórios.");
+        }
+
+        return await repository.DeleteGraduationBeltAsync(organizationId, systemId, beltId, cancellationToken);
+    }
+
+    public async Task<GraduationLevelResponse?> CreateDegreeAsync(
+        Guid organizationId,
+        Guid systemId,
+        Guid beltId,
+        CreateGraduationDegreeRequest request,
+        CancellationToken cancellationToken)
+    {
+        EnsureOrganization(organizationId);
+        ValidateDegreeRequest(systemId, beltId, request);
+
+        var degree = await repository.CreateGraduationDegreeAsync(organizationId, systemId, beltId, new GraduationLevel
+        {
+            MinLessons = request.MinLessons,
+            MinTrainingDays = request.MinTrainingDays,
+            MinAttendancePercentage = request.MinAttendancePercentage,
+            MinAge = request.MinAge,
+            RequiresManualEvaluation = request.RequiresManualEvaluation
+        }, cancellationToken);
+        return degree is null ? null : ToResponse(degree);
+    }
+
+    public async Task<bool> UpdateDegreeAsync(
+        Guid organizationId,
+        Guid systemId,
+        Guid beltId,
+        Guid degreeId,
+        CreateGraduationDegreeRequest request,
+        CancellationToken cancellationToken)
+    {
+        EnsureOrganization(organizationId);
+        ValidateDegreeRequest(systemId, beltId, request);
+        if (degreeId == Guid.Empty)
+        {
+            throw new ArgumentException("Grau inválido.");
+        }
+
+        return await repository.UpdateGraduationDegreeAsync(organizationId, systemId, beltId, new GraduationLevel
+        {
+            Id = degreeId,
+            MinLessons = request.MinLessons,
+            MinTrainingDays = request.MinTrainingDays,
+            MinAttendancePercentage = request.MinAttendancePercentage,
+            MinAge = request.MinAge,
+            RequiresManualEvaluation = request.RequiresManualEvaluation
+        }, cancellationToken);
+    }
+
+    public async Task<bool> DeleteDegreeAsync(
+        Guid organizationId,
+        Guid systemId,
+        Guid beltId,
+        Guid degreeId,
+        CancellationToken cancellationToken)
+    {
+        EnsureOrganization(organizationId);
+        if (systemId == Guid.Empty || beltId == Guid.Empty || degreeId == Guid.Empty)
+        {
+            throw new ArgumentException("Sistema, faixa e grau são obrigatórios.");
+        }
+
+        return await repository.DeleteGraduationDegreeAsync(organizationId, systemId, beltId, degreeId, cancellationToken);
+    }
+
     public async Task<GraduationLevelResponse?> CreateLevelAsync(
         Guid organizationId,
         Guid systemId,
@@ -190,6 +335,25 @@ public sealed class GraduationUseCase(IProgressionRepository repository)
 
     private static string? Normalize(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
+    private static void ValidateBeltRequest(Guid systemId, CreateGraduationBeltRequest request)
+    {
+        if (systemId == Guid.Empty || string.IsNullOrWhiteSpace(request.Name) || request.Name.Trim().Length > 80
+            || request.DegreeCount is < 0 or > 99 || request.MinLessons < 0 || request.MinTrainingDays < 0
+            || request.MinAttendancePercentage is < 0 or > 100)
+        {
+            throw new ArgumentException("Os dados da faixa são inválidos. Informe o nome, até 99 graus e critérios não negativos.");
+        }
+    }
+
+    private static void ValidateDegreeRequest(Guid systemId, Guid beltId, CreateGraduationDegreeRequest request)
+    {
+        if (systemId == Guid.Empty || beltId == Guid.Empty || request.MinLessons < 0
+            || request.MinTrainingDays < 0 || request.MinAge < 0 || request.MinAttendancePercentage is < 0 or > 100)
+        {
+            throw new ArgumentException("Os critérios de promoção do grau são inválidos.");
+        }
+    }
+
     private static GraduationSystemResponse ToResponse(GraduationSystem value) => new()
     {
         Id = value.Id,
@@ -201,10 +365,26 @@ public sealed class GraduationUseCase(IProgressionRepository repository)
         CreatedAt = value.CreatedAt
     };
 
+    private static GraduationBeltResponse ToResponse(GraduationBelt value) => new()
+    {
+        Id = value.Id,
+        GraduationSystemId = value.GraduationSystemId,
+        Name = value.Name,
+        HierarchyOrder = value.HierarchyOrder,
+        DegreeCount = value.DegreeCount,
+        MinLessons = value.MinLessons,
+        MinTrainingDays = value.MinTrainingDays,
+        MinAttendancePercentage = value.MinAttendancePercentage,
+        RequiresManualEvaluation = value.RequiresManualEvaluation
+    };
+
     private static GraduationLevelResponse ToResponse(GraduationLevel value) => new()
     {
         Id = value.Id,
         GraduationSystemId = value.GraduationSystemId,
+        BeltId = value.BeltId,
+        BeltName = value.BeltName,
+        DegreeNumber = value.DegreeNumber,
         Name = value.Name,
         HierarchyOrder = value.HierarchyOrder,
         MinTrainingDays = value.MinTrainingDays,

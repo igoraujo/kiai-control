@@ -6,6 +6,12 @@ public sealed class GraduationLevel
 
     public Guid GraduationSystemId { get; set; }
 
+    public Guid BeltId { get; set; }
+
+    public string BeltName { get; set; } = string.Empty;
+
+    public int DegreeNumber { get; set; }
+
     public string Name { get; set; } = string.Empty;
 
     public int HierarchyOrder { get; set; }

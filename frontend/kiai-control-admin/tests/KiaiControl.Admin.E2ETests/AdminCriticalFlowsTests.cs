@@ -295,10 +295,11 @@ internal sealed class E2EEnvironment : IAsyncDisposable
         await using var command = new NpgsqlCommand(
             """
             select
-                (select count(*) from schema_migrations) = 7
+                (select count(*) from schema_migrations) = 8
                 and (select count(*) from organizations where id = @OrganizationId and email = 'admin@kiai.local') = 1
                 and (select count(*) from user_accounts where email = 'admin@kiai.local' and is_active) = 1
                 and to_regclass('public.modality_schedules') is not null
+                and to_regclass('public.graduation_belts') is not null
                 and to_regclass('public.class_groups') is null
             """,
             connection);

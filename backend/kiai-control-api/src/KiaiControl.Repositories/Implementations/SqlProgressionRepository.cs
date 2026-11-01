@@ -22,25 +22,302 @@ public sealed class SqlProgressionRepository(IDbConnectionFactory dbConnectionFa
         return items.ToList();
     }
 
-    public async Task<GraduationLevel?> CreateGraduationLevelAsync(Guid organizationId, GraduationLevel level, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<GraduationBelt>> ListGraduationBeltsAsync(
+        Guid organizationId,
+        Guid systemId,
+        CancellationToken cancellationToken = default)
     {
-        level.Id = Guid.NewGuid();
-        level.CreatedAt = DateTimeOffset.UtcNow;
         using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
-        return await connection.QuerySingleOrDefaultAsync<GraduationLevel>(ProgressionQueries.CreateGraduationLevel, new
+        var belts = await connection.QueryAsync<GraduationBelt>(ProgressionQueries.ListGraduationBelts, new
         {
             OrganizationId = organizationId,
-            level.Id,
-            level.GraduationSystemId,
-            level.Name,
-            level.HierarchyOrder,
-            level.MinTrainingDays,
-            level.MinAttendancePercentage,
-            level.MinLessons,
-            level.MinAge,
-            level.RequiresManualEvaluation,
-            level.CreatedAt
+            SystemId = systemId
         });
+        return belts.ToList();
+    }
+
+    public async Task<GraduationBelt?> CreateGraduationBeltAsync(
+        Guid organizationId,
+        Guid systemId,
+        GraduationBelt belt,
+        CancellationToken cancellationToken = default)
+    {
+        belt.Id = Guid.NewGuid();
+        using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
+        using var transaction = connection.BeginTransaction();
+        var system = await connection.QuerySingleOrDefaultAsync<GraduationSystemOrder>(
+            ProgressionQueries.LockGraduationSystem,
+            new { OrganizationId = organizationId, SystemId = systemId, belt.Name },
+            transaction);
+        if (system is null || system.NameExists || system.CurrentOrder >= (int.MaxValue - 99) / 100)
+        {
+            return null;
+        }
+
+        belt.GraduationSystemId = systemId;
+        belt.HierarchyOrder = system.CurrentOrder + 1;
+        await connection.ExecuteAsync(ProgressionQueries.InsertGraduationBelt, new
+        {
+            belt.Id,
+            SystemId = systemId,
+            belt.Name,
+            belt.HierarchyOrder,
+            belt.DegreeCount,
+            LevelId = Guid.NewGuid(),
+            LevelOrder = belt.HierarchyOrder * 100,
+            belt.MinLessons,
+            belt.MinTrainingDays,
+            belt.MinAttendancePercentage,
+            belt.RequiresManualEvaluation
+        }, transaction);
+        var created = await connection.QuerySingleAsync<GraduationBelt>(
+            ProgressionQueries.GetGraduationBelt,
+            new { BeltId = belt.Id },
+            transaction);
+        transaction.Commit();
+        return created;
+    }
+
+    public async Task<bool> UpdateGraduationBeltAsync(
+        Guid organizationId,
+        Guid systemId,
+        GraduationBelt belt,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
+        using var transaction = connection.BeginTransaction();
+        var current = await connection.QuerySingleOrDefaultAsync<GraduationBeltState>(
+            ProgressionQueries.LockGraduationBelt,
+            new { OrganizationId = organizationId, SystemId = systemId, BeltId = belt.Id },
+            transaction);
+        if (current is null || belt.DegreeCount < current.CurrentDegree)
+        {
+            return false;
+        }
+
+        var nameExists = await connection.QuerySingleAsync<bool>(
+            ProgressionQueries.GraduationBeltNameExists,
+            new { SystemId = systemId, BeltId = belt.Id, belt.Name },
+            transaction);
+        if (nameExists)
+        {
+            return false;
+        }
+
+        var levelNameExists = await connection.QuerySingleAsync<bool>(
+            ProgressionQueries.GraduationBeltLevelNameExists,
+            new { SystemId = systemId, BeltId = belt.Id, belt.Name },
+            transaction);
+        if (levelNameExists)
+        {
+            return false;
+        }
+
+        await connection.ExecuteAsync(ProgressionQueries.UpdateGraduationBelt, new
+        {
+            SystemId = systemId,
+            BeltId = belt.Id,
+            belt.Name,
+            belt.DegreeCount,
+            belt.MinLessons,
+            belt.MinTrainingDays,
+            belt.MinAttendancePercentage,
+            belt.RequiresManualEvaluation
+        }, transaction);
+        transaction.Commit();
+        return true;
+    }
+
+    public async Task<bool> DeleteGraduationBeltAsync(
+        Guid organizationId,
+        Guid systemId,
+        Guid beltId,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
+        using var transaction = connection.BeginTransaction();
+        var belt = await connection.QuerySingleOrDefaultAsync<GraduationBeltState>(
+            ProgressionQueries.LockGraduationBelt,
+            new { OrganizationId = organizationId, SystemId = systemId, BeltId = beltId },
+            transaction);
+        if (belt is null || await connection.QuerySingleAsync<bool>(
+                ProgressionQueries.GraduationBeltHasHistory, new { BeltId = beltId }, transaction))
+        {
+            return false;
+        }
+
+        await connection.ExecuteAsync(ProgressionQueries.DeleteGraduationBeltLevels, new { BeltId = beltId }, transaction);
+        var deleted = await connection.QuerySingleOrDefaultAsync<Guid?>(
+            ProgressionQueries.DeleteGraduationBelt,
+            new { BeltId = beltId, SystemId = systemId },
+            transaction);
+        if (deleted is null)
+        {
+            return false;
+        }
+
+        transaction.Commit();
+        return true;
+    }
+
+    public async Task<GraduationLevel?> CreateGraduationDegreeAsync(
+        Guid organizationId,
+        Guid systemId,
+        Guid beltId,
+        GraduationLevel degree,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
+        using var transaction = connection.BeginTransaction();
+        var belt = await connection.QuerySingleOrDefaultAsync<GraduationBeltState>(
+            ProgressionQueries.LockGraduationBelt,
+            new { OrganizationId = organizationId, SystemId = systemId, BeltId = beltId },
+            transaction);
+        if (belt is null || belt.CurrentDegree >= belt.DegreeCount || belt.HierarchyOrder > (int.MaxValue - 99) / 100)
+        {
+            return null;
+        }
+
+        degree.Id = Guid.NewGuid();
+        degree.GraduationSystemId = systemId;
+        degree.BeltId = beltId;
+        degree.BeltName = belt.Name;
+        degree.DegreeNumber = belt.CurrentDegree + 1;
+        degree.HierarchyOrder = belt.HierarchyOrder * 100 + degree.DegreeNumber;
+        degree.CreatedAt = DateTimeOffset.UtcNow;
+        var created = await connection.QuerySingleOrDefaultAsync<GraduationLevel>(
+            ProgressionQueries.InsertGraduationDegree,
+            new
+            {
+                OrganizationId = organizationId,
+                SystemId = systemId,
+                BeltId = beltId,
+                degree.Id,
+                degree.DegreeNumber,
+                degree.MinTrainingDays,
+                degree.MinAttendancePercentage,
+                degree.MinLessons,
+                degree.MinAge,
+                degree.RequiresManualEvaluation,
+                degree.CreatedAt
+            },
+            transaction);
+        if (created is null)
+        {
+            return null;
+        }
+
+        transaction.Commit();
+        return created;
+    }
+
+    public async Task<bool> UpdateGraduationDegreeAsync(
+        Guid organizationId,
+        Guid systemId,
+        Guid beltId,
+        GraduationLevel degree,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
+        using var transaction = connection.BeginTransaction();
+        var belt = await connection.QuerySingleOrDefaultAsync<GraduationBeltState>(
+            ProgressionQueries.LockGraduationBelt,
+            new { OrganizationId = organizationId, SystemId = systemId, BeltId = beltId },
+            transaction);
+        if (belt is null)
+        {
+            return false;
+        }
+
+        var current = await connection.QuerySingleOrDefaultAsync<GraduationDegreeState>(
+            ProgressionQueries.LockGraduationDegree,
+            new
+            {
+                OrganizationId = organizationId,
+                SystemId = systemId,
+                BeltId = beltId,
+                DegreeId = degree.Id
+            },
+            transaction);
+        if (current is null)
+        {
+            return false;
+        }
+
+        await connection.ExecuteAsync(ProgressionQueries.UpdateGraduationDegree, new
+        {
+            DegreeId = degree.Id,
+            BeltId = beltId,
+            degree.MinLessons,
+            degree.MinTrainingDays,
+            degree.MinAttendancePercentage,
+            degree.MinAge,
+            degree.RequiresManualEvaluation
+        }, transaction);
+        transaction.Commit();
+        return true;
+    }
+
+    public async Task<bool> DeleteGraduationDegreeAsync(
+        Guid organizationId,
+        Guid systemId,
+        Guid beltId,
+        Guid degreeId,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
+        using var transaction = connection.BeginTransaction();
+        var belt = await connection.QuerySingleOrDefaultAsync<GraduationBeltState>(
+            ProgressionQueries.LockGraduationBelt,
+            new { OrganizationId = organizationId, SystemId = systemId, BeltId = beltId },
+            transaction);
+        if (belt is null)
+        {
+            return false;
+        }
+
+        var current = await connection.QuerySingleOrDefaultAsync<GraduationDegreeState>(
+            ProgressionQueries.LockGraduationDegree,
+            new { OrganizationId = organizationId, SystemId = systemId, BeltId = beltId, DegreeId = degreeId },
+            transaction);
+        if (current is null || current.DegreeNumber != current.HighestDegree
+            || await connection.QuerySingleAsync<bool>(
+                ProgressionQueries.GraduationDegreeHasHistory, new { DegreeId = degreeId }, transaction))
+        {
+            return false;
+        }
+
+        var deleted = await connection.QuerySingleOrDefaultAsync<Guid?>(
+            ProgressionQueries.DeleteGraduationDegree,
+            new { DegreeId = degreeId, BeltId = beltId },
+            transaction);
+        if (deleted is null)
+        {
+            return false;
+        }
+
+        transaction.Commit();
+        return true;
+    }
+
+    public async Task<GraduationLevel?> CreateGraduationLevelAsync(Guid organizationId, GraduationLevel level, CancellationToken cancellationToken = default)
+    {
+        var belt = await CreateGraduationBeltAsync(organizationId, level.GraduationSystemId, new GraduationBelt
+        {
+            Name = level.Name,
+            DegreeCount = 0,
+            MinLessons = level.MinLessons,
+            MinTrainingDays = level.MinTrainingDays,
+            MinAttendancePercentage = level.MinAttendancePercentage,
+            RequiresManualEvaluation = level.RequiresManualEvaluation
+        }, cancellationToken);
+        if (belt is null)
+        {
+            return null;
+        }
+
+        var levels = await ListGraduationLevelsAsync(organizationId, level.GraduationSystemId, cancellationToken);
+        return levels.FirstOrDefault(item => item.BeltId == belt.Id && item.DegreeNumber == 0);
     }
 
     public async Task<IReadOnlyList<GraduationLevel>> ListGraduationLevelsAsync(Guid organizationId, Guid systemId, CancellationToken cancellationToken = default)
@@ -247,5 +524,30 @@ public sealed class SqlProgressionRepository(IDbConnectionFactory dbConnectionFa
         public bool RequiresManualEvaluation { get; init; }
 
         public bool IsEligible { get; init; }
+    }
+
+    private sealed class GraduationSystemOrder
+    {
+        public int CurrentOrder { get; init; }
+
+        public bool NameExists { get; init; }
+    }
+
+    private sealed class GraduationBeltState
+    {
+        public string Name { get; init; } = string.Empty;
+
+        public int HierarchyOrder { get; init; }
+
+        public int DegreeCount { get; init; }
+
+        public int CurrentDegree { get; init; }
+    }
+
+    private sealed class GraduationDegreeState
+    {
+        public int DegreeNumber { get; init; }
+
+        public int HighestDegree { get; init; }
     }
 }

@@ -4,13 +4,14 @@
 @inject AdminApiClient Api
 @inject NavigationManager Navigation
 @inject IDialogService DialogService
+@inject ISnackbar Snackbar
 
 <PageTitle>Graduação | Kiai Control</PageTitle>
 
 <MudStack Spacing="3">
     <div>
         <MudText Typo="Typo.h4">Graduações</MudText>
-        <MudText Typo="Typo.body2" Color="Color.Secondary">Configure níveis e acompanhe a evolução dos alunos</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">Organize faixas, graus e critérios por modalidade de arte marcial</MudText>
     </div>
 
     @if (_errorMessage is not null)
@@ -24,6 +25,21 @@
     }
     else
     {
+        @if (_modalities.Count == 0)
+        {
+            <MudPaper Class="pa-4" Elevation="0">
+                <MudText Typo="Typo.h6">Graduação disponível para artes marciais</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="my-2">
+                    Musculação, CrossFit e atividades funcionais não precisam configurar faixas e graus.
+                    Para usar esta jornada, cadastre uma modalidade do tipo arte marcial.
+                </MudText>
+                <MudButton Href="/modalities" Variant="Variant.Filled" Color="Color.Primary">
+                    Ir para modalidades
+                </MudButton>
+            </MudPaper>
+        }
+        else
+        {
         <MudPaper Class="pa-4" Elevation="0">
             <MudText Typo="Typo.h6" GutterBottom="true">Sistema de graduação</MudText>
             <MudGrid Spacing="2">
@@ -57,57 +73,154 @@
         @if (SelectedSystem is not null)
         {
             <MudPaper Class="pa-4" Elevation="0">
-                <MudText Typo="Typo.h6">Níveis — @SelectedSystem.Name</MudText>
+                <MudText Typo="Typo.h6">Faixas e graus — @SelectedSystem.Name</MudText>
                 @if (string.IsNullOrWhiteSpace(SelectedSystem.Description) is false)
                 {
                     <MudText Typo="Typo.body2" Color="Color.Secondary">@SelectedSystem.Description</MudText>
                 }
 
-                <MudGrid Spacing="2" Class="mt-2">
-                    <MudItem xs="12" md="3">
-                        <MudTextField @bind-Value="_newLevelName" Label="Nome do nível" Variant="Variant.Outlined" />
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-2">
+                    Cadastre as faixas na sequência desejada e configure quantos graus cada uma possui.
+                    Exemplo adulto de Jiu-Jitsu: Branca, Azul, Roxa, Marrom e Preta. Para turmas infantis, use a sequência adequada.
+                    Defina as aulas necessárias para cada avanço; a contagem começa após a última graduação confirmada.
+                </MudText>
+
+                <MudGrid Spacing="2" Class="mt-3">
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.subtitle1">Cadastrar faixa</MudText>
                     </MudItem>
-                    <MudItem xs="6" md="2">
-                        <MudNumericField T="int" @bind-Value="_newLevelOrder" Label="Ordem" Min="1" Variant="Variant.Outlined" />
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudTextField @bind-Value="_newBeltName" Label="Nome da faixa" Placeholder="Ex.: Branca" Variant="Variant.Outlined" />
                     </MudItem>
-                    <MudItem xs="6" md="2">
-                        <MudNumericField T="int" @bind-Value="_newLevelMinTrainingDays" Label="Dias de treino" Min="0" Variant="Variant.Outlined" />
+                    <MudItem xs="6" sm="3" md="2">
+                        <MudNumericField T="int" @bind-Value="_newBeltDegreeCount" Label="Quantidade de graus" Min="0" Max="99" Variant="Variant.Outlined" />
                     </MudItem>
-                    <MudItem xs="6" md="2">
-                        <MudNumericField T="int" @bind-Value="_newLevelMinLessons" Label="Aulas mínimas" Min="0" Variant="Variant.Outlined" />
+                    <MudItem xs="6" sm="3" md="3">
+                        <MudNumericField T="int" @bind-Value="_newBeltMinLessons" Label="Aulas para alcançar a faixa" Min="0" Variant="Variant.Outlined" />
                     </MudItem>
-                    <MudItem xs="6" md="2">
-                        <MudNumericField T="decimal?" @bind-Value="_newLevelAttendance" Label="Frequência mínima (%)" Min="0" Max="100" Variant="Variant.Outlined" />
-                    </MudItem>
-                    <MudItem xs="12" md="1" Class="d-flex align-center">
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateLevelAsync"
-                                   Disabled="_isSaving || string.IsNullOrWhiteSpace(_newLevelName)">
-                            Adicionar
+                    <MudItem xs="12" md="2" Class="d-flex align-center">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateBeltAsync"
+                                   Disabled="_isSaving || string.IsNullOrWhiteSpace(_newBeltName)">
+                            Cadastrar faixa
                         </MudButton>
                     </MudItem>
                     <MudItem xs="12">
-                        <MudCheckBox T="bool" @bind-Value="_newLevelRequiresEvaluation" Label="Exige avaliação manual para promoção" Color="Color.Primary" />
+                        <details>
+                            <summary>Critérios adicionais (opcional)</summary>
+                            <MudGrid Spacing="2" Class="mt-2">
+                                <MudItem xs="12" sm="6">
+                                    <MudNumericField T="int" @bind-Value="_newBeltMinTrainingDays" Label="Dias mínimos de treino" Min="0" Variant="Variant.Outlined" />
+                                </MudItem>
+                                <MudItem xs="12" sm="6">
+                                    <MudNumericField T="decimal?" @bind-Value="_newBeltAttendance" Label="Frequência mínima (%)" Min="0" Max="100" Variant="Variant.Outlined" />
+                                </MudItem>
+                                <MudItem xs="12">
+                                    <MudCheckBox T="bool" @bind-Value="_newBeltRequiresEvaluation" Label="Exigir avaliação manual" Color="Color.Primary" />
+                                </MudItem>
+                            </MudGrid>
+                        </details>
+                    </MudItem>
+                </MudGrid>
+
+                <MudTable Items="_belts" Dense="true" Hover="true" Class="mt-3">
+                    <HeaderContent>
+                        <MudTh>Ordem</MudTh>
+                        <MudTh>Faixa</MudTh>
+                        <MudTh>Graus configurados</MudTh>
+                        <MudTh>Aulas para alcançar faixa</MudTh>
+                        <MudTh Style="text-align:right">Ações</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.HierarchyOrder</MudTd>
+                        <MudTd>@context.Name</MudTd>
+                        <MudTd>@ConfiguredDegrees(context.Id) / @context.DegreeCount</MudTd>
+                        <MudTd>@context.MinLessons</MudTd>
+                        <MudTd Style="text-align:right">
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" aria-label="@($"Editar faixa {context.Name}")"
+                                           OnClick="() => EditBeltAsync(context)" Disabled="_isSaving" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                           aria-label="@($"Excluir faixa {context.Name}")"
+                                           OnClick="() => DeleteBeltAsync(context)" Disabled="_isSaving" />
+                        </MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent><MudText>Nenhuma faixa cadastrada neste sistema.</MudText></NoRecordsContent>
+                </MudTable>
+
+                <MudDivider Class="my-4" />
+                <MudGrid Spacing="2">
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.subtitle1">Cadastrar grau</MudText>
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudSelect T="Guid?" @bind-Value="_selectedBeltId" Label="Faixa" Variant="Variant.Outlined">
+                            @foreach (var belt in _belts)
+                            {
+                                <MudSelectItem T="Guid?" Value="@((Guid?)belt.Id)">
+                                    @belt.Name · @ConfiguredDegrees(belt.Id)/@belt.DegreeCount graus
+                                </MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="6" sm="3" md="2">
+                        <MudNumericField T="int" @bind-Value="_newDegreeMinLessons" Label="Aulas para o próximo grau" Min="0" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="3" Class="d-flex align-center">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateDegreeAsync"
+                                   Disabled="@(_isSaving || SelectedBelt is null || ConfiguredDegrees(SelectedBelt.Id) >= SelectedBelt.DegreeCount)">
+                            Adicionar grau
+                        </MudButton>
+                    </MudItem>
+                    <MudItem xs="12">
+                        <details>
+                            <summary>Critérios adicionais (opcional)</summary>
+                            <MudGrid Spacing="2" Class="mt-2">
+                                <MudItem xs="12" sm="6">
+                                    <MudNumericField T="int" @bind-Value="_newDegreeMinTrainingDays" Label="Dias mínimos de treino" Min="0" Variant="Variant.Outlined" />
+                                </MudItem>
+                                <MudItem xs="12" sm="6">
+                                    <MudNumericField T="decimal?" @bind-Value="_newDegreeAttendance" Label="Frequência mínima (%)" Min="0" Max="100" Variant="Variant.Outlined" />
+                                </MudItem>
+                                <MudItem xs="12" sm="6">
+                                    <MudNumericField T="int?" @bind-Value="_newDegreeMinAge" Label="Idade mínima" Min="0" Variant="Variant.Outlined" />
+                                </MudItem>
+                                <MudItem xs="12">
+                                    <MudCheckBox T="bool" @bind-Value="_newDegreeRequiresEvaluation" Label="Exigir avaliação manual" Color="Color.Primary" />
+                                </MudItem>
+                            </MudGrid>
+                        </details>
                     </MudItem>
                 </MudGrid>
 
                 <MudTable Items="_levels" Dense="true" Hover="true" Class="mt-3">
                     <HeaderContent>
-                        <MudTh>Ordem</MudTh>
-                        <MudTh>Nível</MudTh>
+                        <MudTh>Faixa</MudTh>
+                        <MudTh>Grau</MudTh>
+                        <MudTh>Aulas para avançar</MudTh>
                         <MudTh>Dias de treino</MudTh>
-                        <MudTh>Aulas</MudTh>
                         <MudTh>Frequência</MudTh>
                         <MudTh>Avaliação manual</MudTh>
+                        <MudTh Style="text-align:right">Ações</MudTh>
                     </HeaderContent>
                     <RowTemplate>
-                        <MudTd>@context.HierarchyOrder</MudTd>
-                        <MudTd>@context.Name</MudTd>
-                        <MudTd>@context.MinTrainingDays</MudTd>
+                        <MudTd>@context.BeltName</MudTd>
+                        <MudTd>@(context.DegreeNumber == 0 ? "Faixa" : $"{context.DegreeNumber}º grau")</MudTd>
                         <MudTd>@context.MinLessons</MudTd>
+                        <MudTd>@context.MinTrainingDays</MudTd>
                         <MudTd>@(context.MinAttendancePercentage is null ? "—" : $"{context.MinAttendancePercentage:N1}%")</MudTd>
                         <MudTd>@(context.RequiresManualEvaluation ? "Sim" : "Não")</MudTd>
+                        <MudTd Style="text-align:right">
+                            @if (context.DegreeNumber > 0)
+                            {
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                               aria-label="@($"Editar {context.Name}")"
+                                               OnClick="() => EditDegreeAsync(context)" Disabled="_isSaving" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                               aria-label="@($"Excluir {context.Name}")"
+                                               OnClick="() => DeleteDegreeAsync(context)" Disabled="_isSaving" />
+                            }
+                        </MudTd>
                     </RowTemplate>
-                    <NoRecordsContent><MudText>Nenhum nível cadastrado. Adicione os níveis em ordem crescente.</MudText></NoRecordsContent>
+                    <NoRecordsContent><MudText>Cadastre faixas e graus para configurar a sequência.</MudText></NoRecordsContent>
                 </MudTable>
             </MudPaper>
 
@@ -184,6 +297,7 @@
                 Selecione um sistema ou crie um sistema para começar a configurar níveis e acompanhar promoções.
             </MudAlert>
         }
+        }
     }
 </MudStack>
 
@@ -191,19 +305,26 @@
     private IReadOnlyList<GraduationSystemResponse> _systems = [];
     private IReadOnlyList<ModalityResponse> _modalities = [];
     private IReadOnlyList<ClientResponse> _clients = [];
+    private IReadOnlyList<GraduationBeltResponse> _belts = [];
     private IReadOnlyList<GraduationLevelResponse> _levels = [];
     private IReadOnlyList<EligibleClientResponse> _eligibleClients = [];
     private Guid? _selectedSystemId;
+    private Guid? _selectedBeltId;
     private Guid? _newSystemModalityId;
     private Guid? _initialClientId;
     private Guid? _initialLevelId;
     private string _newSystemName = string.Empty;
-    private string _newLevelName = string.Empty;
-    private int _newLevelOrder = 1;
-    private int _newLevelMinTrainingDays;
-    private int _newLevelMinLessons;
-    private decimal? _newLevelAttendance;
-    private bool _newLevelRequiresEvaluation;
+    private string _newBeltName = string.Empty;
+    private int _newBeltDegreeCount = 4;
+    private int _newBeltMinLessons;
+    private int _newBeltMinTrainingDays;
+    private decimal? _newBeltAttendance;
+    private bool _newBeltRequiresEvaluation;
+    private int _newDegreeMinLessons;
+    private int _newDegreeMinTrainingDays;
+    private int? _newDegreeMinAge;
+    private decimal? _newDegreeAttendance;
+    private bool _newDegreeRequiresEvaluation;
     private DateTime? _initialGrantedAt = DateTime.Today;
     private bool _isLoading = true;
     private bool _isRefreshing;
@@ -212,6 +333,9 @@
 
     private GraduationSystemResponse? SelectedSystem =>
         _systems.FirstOrDefault(system => system.Id == _selectedSystemId);
+
+    private GraduationBeltResponse? SelectedBelt =>
+        _belts.FirstOrDefault(belt => belt.Id == _selectedBeltId);
 
     protected override async Task OnInitializedAsync()
     {
@@ -236,6 +360,11 @@
             var options = await optionsTask;
             _modalities = options.Modalities;
             _clients = options.Clients;
+            if (_modalities.Count == 1)
+            {
+                _newSystemModalityId = _modalities[0].Id;
+            }
+
             if (_systems.Count > 0)
             {
                 await SelectSystemAsync(_systems[0].Id);
@@ -259,6 +388,8 @@
     private async Task SelectSystemAsync(Guid? systemId)
     {
         _selectedSystemId = systemId;
+        _selectedBeltId = null;
+        _belts = [];
         _levels = [];
         _eligibleClients = [];
         _initialLevelId = null;
@@ -271,11 +402,14 @@
         _errorMessage = null;
         try
         {
+            var beltsTask = Api.ListGraduationBeltsAsync(systemId.Value);
             var levelsTask = Api.ListGraduationLevelsAsync(systemId.Value);
             var eligibleTask = Api.ListEligibleGraduationClientsAsync(systemId.Value);
-            await Task.WhenAll(levelsTask, eligibleTask);
+            await Task.WhenAll(beltsTask, levelsTask, eligibleTask);
+            _belts = await beltsTask;
             _levels = await levelsTask;
             _eligibleClients = await eligibleTask;
+            _selectedBeltId = _belts.FirstOrDefault()?.Id;
             _initialLevelId = _levels.OrderBy(level => level.HierarchyOrder).FirstOrDefault()?.Id;
         }
         catch (UnauthorizedAccessException)
@@ -328,9 +462,9 @@
         }
     }
 
-    private async Task CreateLevelAsync()
+    private async Task CreateBeltAsync()
     {
-        if (_selectedSystemId is null || string.IsNullOrWhiteSpace(_newLevelName))
+        if (_selectedSystemId is null || string.IsNullOrWhiteSpace(_newBeltName))
         {
             return;
         }
@@ -339,21 +473,64 @@
         _errorMessage = null;
         try
         {
-            await Api.CreateGraduationLevelAsync(_selectedSystemId.Value, new CreateGraduationLevelRequest
+            var created = await Api.CreateGraduationBeltAsync(_selectedSystemId.Value, new CreateGraduationBeltRequest
             {
-                Name = _newLevelName.Trim(),
-                HierarchyOrder = _newLevelOrder,
-                MinTrainingDays = _newLevelMinTrainingDays,
-                MinLessons = _newLevelMinLessons,
-                MinAttendancePercentage = _newLevelAttendance,
-                RequiresManualEvaluation = _newLevelRequiresEvaluation
+                Name = _newBeltName.Trim(),
+                DegreeCount = _newBeltDegreeCount,
+                MinLessons = _newBeltMinLessons,
+                MinTrainingDays = _newBeltMinTrainingDays,
+                MinAttendancePercentage = _newBeltAttendance,
+                RequiresManualEvaluation = _newBeltRequiresEvaluation
             });
-            _newLevelName = string.Empty;
-            _newLevelOrder = _levels.Count + 1;
-            _newLevelMinTrainingDays = 0;
-            _newLevelMinLessons = 0;
-            _newLevelAttendance = null;
-            _newLevelRequiresEvaluation = false;
+            _newBeltName = string.Empty;
+            _newBeltDegreeCount = 4;
+            _newBeltMinLessons = 0;
+            _newBeltMinTrainingDays = 0;
+            _newBeltAttendance = null;
+            _newBeltRequiresEvaluation = false;
+            await SelectSystemAsync(_selectedSystemId);
+            _selectedBeltId = created.Id;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await Session.ClearAsync();
+            Navigation.NavigateTo("/login");
+        }
+        catch (HttpRequestException exception)
+        {
+            _errorMessage = $"Não foi possível cadastrar a faixa: {exception.Message}";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task CreateDegreeAsync()
+    {
+        if (_selectedSystemId is null || _selectedBeltId is null || SelectedBelt is null
+            || ConfiguredDegrees(_selectedBeltId.Value) >= SelectedBelt.DegreeCount)
+        {
+            return;
+        }
+
+        _isSaving = true;
+        _errorMessage = null;
+        try
+        {
+            await Api.CreateGraduationDegreeAsync(_selectedSystemId.Value, _selectedBeltId.Value, new CreateGraduationDegreeRequest
+            {
+                MinLessons = _newDegreeMinLessons,
+                MinTrainingDays = _newDegreeMinTrainingDays,
+                MinAttendancePercentage = _newDegreeAttendance,
+                MinAge = _newDegreeMinAge,
+                RequiresManualEvaluation = _newDegreeRequiresEvaluation
+            });
+            _newDegreeMinLessons = 0;
+            _newDegreeMinTrainingDays = 0;
+            _newDegreeMinAge = null;
+            _newDegreeAttendance = null;
+            _newDegreeRequiresEvaluation = false;
             await SelectSystemAsync(_selectedSystemId);
         }
         catch (UnauthorizedAccessException)
@@ -363,7 +540,106 @@
         }
         catch (HttpRequestException exception)
         {
-            _errorMessage = $"Não foi possível adicionar o nível: {exception.Message}";
+            _errorMessage = $"Não foi possível adicionar o grau: {exception.Message}";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task EditBeltAsync(GraduationBeltResponse belt)
+    {
+        var dialog = await DialogService.ShowAsync<EditGraduationBeltDialog>(
+            $"Editar faixa {belt.Name}",
+            new DialogParameters<EditGraduationBeltDialog>
+            {
+                { component => component.Item, belt },
+                { component => component.SystemId, belt.GraduationSystemId }
+            },
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            await SelectSystemAsync(_selectedSystemId);
+            Snackbar.Add("Faixa atualizada.", Severity.Success);
+        }
+    }
+
+    private async Task DeleteBeltAsync(GraduationBeltResponse belt)
+    {
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Excluir faixa",
+            $"Excluir a faixa {belt.Name} e seus graus? Faixas com graduações registradas não podem ser excluídas.",
+            yesText: "Excluir",
+            cancelText: "Cancelar");
+        if (confirmed != true || _selectedSystemId is null)
+        {
+            return;
+        }
+
+        await RunGraduationOperationAsync(async () =>
+        {
+            await Api.DeleteGraduationBeltAsync(_selectedSystemId.Value, belt.Id);
+            await SelectSystemAsync(_selectedSystemId);
+            Snackbar.Add("Faixa excluída.", Severity.Success);
+        });
+    }
+
+    private async Task EditDegreeAsync(GraduationLevelResponse degree)
+    {
+        var dialog = await DialogService.ShowAsync<EditGraduationDegreeDialog>(
+            $"Editar {degree.Name}",
+            new DialogParameters<EditGraduationDegreeDialog>
+            {
+                { component => component.Item, degree },
+                { component => component.SystemId, degree.GraduationSystemId }
+            },
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            await SelectSystemAsync(_selectedSystemId);
+            Snackbar.Add("Critérios do grau atualizados.", Severity.Success);
+        }
+    }
+
+    private async Task DeleteDegreeAsync(GraduationLevelResponse degree)
+    {
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Excluir grau",
+            $"Excluir {degree.Name}? Só é possível excluir o último grau da sequência e ele não pode ter sido usado em graduações.",
+            yesText: "Excluir",
+            cancelText: "Cancelar");
+        if (confirmed != true || _selectedSystemId is null)
+        {
+            return;
+        }
+
+        await RunGraduationOperationAsync(async () =>
+        {
+            await Api.DeleteGraduationDegreeAsync(_selectedSystemId.Value, degree.BeltId, degree.Id);
+            await SelectSystemAsync(_selectedSystemId);
+            Snackbar.Add("Grau excluído.", Severity.Success);
+        });
+    }
+
+    private async Task RunGraduationOperationAsync(Func<Task> operation)
+    {
+        _isSaving = true;
+        _errorMessage = null;
+        try
+        {
+            await operation();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await Session.ClearAsync();
+            Navigation.NavigateTo("/login");
+        }
+        catch (HttpRequestException exception)
+        {
+            _errorMessage = exception.Message;
         }
         finally
         {
@@ -440,6 +716,9 @@
 
     private string LevelName(Guid levelId) =>
         _levels.FirstOrDefault(level => level.Id == levelId)?.Name ?? "Nível não encontrado";
+
+    private int ConfiguredDegrees(Guid beltId) =>
+        _levels.Count(level => level.BeltId == beltId && level.DegreeNumber > 0);
 
     private string SystemLabel(GraduationSystemResponse system)
     {

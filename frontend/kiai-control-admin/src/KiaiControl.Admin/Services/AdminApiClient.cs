@@ -127,6 +127,41 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
         CreateAsync<CreateGraduationLevelRequest, GraduationLevelResponse>(
             $"graduation-systems/{systemId}/levels", request);
 
+    public Task<IReadOnlyList<GraduationBeltResponse>> ListGraduationBeltsAsync(Guid systemId) =>
+        GetListAsync<GraduationBeltResponse>($"api/v1/graduation-systems/{systemId:D}/belts");
+
+    public Task<GraduationBeltResponse> CreateGraduationBeltAsync(
+        Guid systemId,
+        CreateGraduationBeltRequest request) =>
+        CreateAsync<CreateGraduationBeltRequest, GraduationBeltResponse>(
+            $"graduation-systems/{systemId}/belts", request);
+
+    public Task UpdateGraduationBeltAsync(
+        Guid systemId,
+        Guid beltId,
+        CreateGraduationBeltRequest request) =>
+        PutAsync($"graduation-systems/{systemId}/belts/{beltId}", request);
+
+    public Task DeleteGraduationBeltAsync(Guid systemId, Guid beltId) =>
+        DeleteAsync($"graduation-systems/{systemId}/belts", beltId);
+
+    public Task<GraduationLevelResponse> CreateGraduationDegreeAsync(
+        Guid systemId,
+        Guid beltId,
+        CreateGraduationDegreeRequest request) =>
+        CreateAsync<CreateGraduationDegreeRequest, GraduationLevelResponse>(
+            $"graduation-systems/{systemId}/belts/{beltId}/degrees", request);
+
+    public Task UpdateGraduationDegreeAsync(
+        Guid systemId,
+        Guid beltId,
+        Guid degreeId,
+        CreateGraduationDegreeRequest request) =>
+        PutAsync($"graduation-systems/{systemId}/belts/{beltId}/degrees/{degreeId}", request);
+
+    public Task DeleteGraduationDegreeAsync(Guid systemId, Guid beltId, Guid degreeId) =>
+        DeleteAsync($"graduation-systems/{systemId}/belts/{beltId}/degrees", degreeId);
+
     public Task<IReadOnlyList<EligibleClientResponse>> ListEligibleGraduationClientsAsync(Guid systemId) =>
         GetListAsync<EligibleClientResponse>(
             $"api/v1/graduation/eligible-clients?systemId={systemId:D}");

@@ -34,6 +34,63 @@ public sealed class SqlModalityScheduleRepositoryTests(PostgreSqlFixture fixture
 
         Assert.True((bool)(await command.ExecuteScalarAsync())!);
 
+        await using var graduationMigrationCommand = new NpgsqlCommand(
+            """
+            select
+                (select belt.name = 'Legacy white' and belt.degree_count = 0
+                 from graduation_belts belt
+                 where belt.id = (
+                     select belt_id from graduation_levels
+                     where id = '00000000-0000-0000-0000-000000000711'
+                 ))
+                and (select degree_number = 0 and hierarchy_order = 200
+                     from graduation_levels where id = '00000000-0000-0000-0000-000000000712')
+                and (select min_lessons = 20 from graduation_levels
+                     where id = '00000000-0000-0000-0000-000000000712');
+            """,
+            connection);
+        Assert.True((bool)(await graduationMigrationCommand.ExecuteScalarAsync())!);
+
+        await using var invalidGraduationCleanupCommand = new NpgsqlCommand(
+            """
+            select not exists (
+                       select 1 from graduation_systems
+                       where id = '00000000-0000-0000-0000-000000000714'
+                   )
+                and not exists (
+                       select 1 from graduation_belts
+                       where graduation_system_id = '00000000-0000-0000-0000-000000000714'
+                   )
+                and not exists (
+                       select 1 from graduation_levels
+                       where id = '00000000-0000-0000-0000-000000000715'
+                   )
+                and not exists (
+                       select 1 from client_graduations
+                       where id in (
+                           '00000000-0000-0000-0000-000000000716',
+                           '00000000-0000-0000-0000-000000000718'
+                       )
+                   )
+                and not exists (
+                       select 1 from graduation_events
+                       where id in (
+                           '00000000-0000-0000-0000-000000000717',
+                           '00000000-0000-0000-0000-000000000719'
+                       )
+                   )
+                and exists (
+                       select 1 from graduation_systems
+                       where id = '00000000-0000-0000-0000-000000000710'
+                   )
+                and exists (
+                       select 1 from graduation_levels
+                       where id = '00000000-0000-0000-0000-000000000712'
+                   );
+            """,
+            connection);
+        Assert.True((bool)(await invalidGraduationCleanupCommand.ExecuteScalarAsync())!);
+
         await using var conversionCommand = new NpgsqlCommand(
             """
             select
@@ -265,40 +322,163 @@ public sealed class SqlModalityScheduleRepositoryTests(PostgreSqlFixture fixture
         Assert.Equal(medal.Id, Assert.Single(await rankingRepository.ListClientMedalsAsync(
             organizationId, authorizedClientId)).MedalId);
 
-        var systemId = Guid.NewGuid();
-        var currentLevelId = Guid.NewGuid();
-        var nextLevelId = Guid.NewGuid();
+        var graduationSystem = await progressionRepository.CreateGraduationSystemAsync(new GraduationSystem
+        {
+            OrganizationId = organizationId,
+            ModalityId = modalityId,
+            Name = "Test graduation"
+        });
+        Assert.NotNull(graduationSystem);
+        var whiteBelt = await progressionRepository.CreateGraduationBeltAsync(organizationId, graduationSystem.Id, new GraduationBelt
+        {
+            Name = "Branca",
+            DegreeCount = 4
+        });
+        Assert.NotNull(whiteBelt);
+        var firstDegree = await progressionRepository.CreateGraduationDegreeAsync(
+            organizationId, graduationSystem.Id, whiteBelt.Id, new GraduationLevel
+            {
+                MinLessons = 1,
+                MinTrainingDays = 1,
+                RequiresManualEvaluation = true
+            });
+        Assert.NotNull(firstDegree);
+        Assert.Equal("Branca - 1º grau", firstDegree.Name);
+        for (var degreeNumber = 2; degreeNumber <= 4; degreeNumber++)
+        {
+            var degree = await progressionRepository.CreateGraduationDegreeAsync(
+                organizationId, graduationSystem.Id, whiteBelt.Id, new GraduationLevel
+                {
+                    MinLessons = degreeNumber * 10
+                });
+            Assert.NotNull(degree);
+            Assert.Equal(degreeNumber, degree.DegreeNumber);
+        }
+
+        Assert.Null(await progressionRepository.CreateGraduationDegreeAsync(
+            organizationId, graduationSystem.Id, whiteBelt.Id, new GraduationLevel { MinLessons = 100 }));
+        var blueBelt = await progressionRepository.CreateGraduationBeltAsync(organizationId, graduationSystem.Id, new GraduationBelt
+        {
+            Name = "Azul",
+            DegreeCount = 4,
+            MinLessons = 10
+        });
+        Assert.NotNull(blueBelt);
+        var configuredBelts = await progressionRepository.ListGraduationBeltsAsync(organizationId, graduationSystem.Id);
+        Assert.Equal(["Branca", "Azul"], configuredBelts.Select(belt => belt.Name));
+        Assert.Equal(4, configuredBelts[0].DegreeCount);
+        Assert.Empty(await progressionRepository.ListGraduationBeltsAsync(Guid.NewGuid(), graduationSystem.Id));
+        Assert.Null(await progressionRepository.CreateGraduationBeltAsync(
+            organizationId, graduationSystem.Id, new GraduationBelt
+            {
+                Name = "branca",
+                DegreeCount = 4
+            }));
+        Assert.Null(await progressionRepository.CreateGraduationDegreeAsync(
+            Guid.NewGuid(), graduationSystem.Id, whiteBelt.Id, new GraduationLevel { MinLessons = 1 }));
+        Assert.True(await progressionRepository.UpdateGraduationBeltAsync(
+            organizationId, graduationSystem.Id, new GraduationBelt
+            {
+                Id = whiteBelt.Id,
+                Name = "Branca corrigida",
+                DegreeCount = 4,
+                MinLessons = 2,
+                MinTrainingDays = 1,
+                MinAttendancePercentage = 80,
+                RequiresManualEvaluation = true
+            }));
+        Assert.False(await progressionRepository.UpdateGraduationBeltAsync(
+            organizationId, graduationSystem.Id, new GraduationBelt
+            {
+                Id = whiteBelt.Id,
+                Name = "Azul",
+                DegreeCount = 4
+            }));
+        Assert.False(await progressionRepository.UpdateGraduationBeltAsync(
+            organizationId, graduationSystem.Id, new GraduationBelt
+            {
+                Id = whiteBelt.Id,
+                Name = "Branca corrigida",
+                DegreeCount = 3
+            }));
+        Assert.True(await progressionRepository.UpdateGraduationDegreeAsync(
+            organizationId, graduationSystem.Id, whiteBelt.Id, new GraduationLevel
+            {
+                Id = firstDegree.Id,
+                MinLessons = 1,
+                MinTrainingDays = 1,
+                MinAttendancePercentage = 75,
+                RequiresManualEvaluation = true
+            }));
+        var beltLevels = await progressionRepository.ListGraduationLevelsAsync(organizationId, graduationSystem.Id);
+        Assert.Contains(beltLevels, level => level.Id == firstDegree.Id
+            && level.Name == "Branca corrigida - 1º grau"
+            && level.MinAttendancePercentage == 75);
+        var whiteBeltLevel = Assert.Single(beltLevels, level => level.BeltId == whiteBelt.Id && level.DegreeNumber == 0);
+        Assert.Equal("Branca corrigida", whiteBeltLevel.Name);
+
+        var temporaryBelt = await progressionRepository.CreateGraduationBeltAsync(
+            organizationId, graduationSystem.Id, new GraduationBelt { Name = "Amarela temporária", DegreeCount = 2 });
+        Assert.NotNull(temporaryBelt);
+        var temporaryFirstDegree = await progressionRepository.CreateGraduationDegreeAsync(
+            organizationId, graduationSystem.Id, temporaryBelt.Id, new GraduationLevel());
+        var temporaryLastDegree = await progressionRepository.CreateGraduationDegreeAsync(
+            organizationId, graduationSystem.Id, temporaryBelt.Id, new GraduationLevel());
+        Assert.NotNull(temporaryFirstDegree);
+        Assert.NotNull(temporaryLastDegree);
+        Assert.False(await progressionRepository.DeleteGraduationDegreeAsync(
+            organizationId, graduationSystem.Id, temporaryBelt.Id, temporaryFirstDegree.Id));
+        Assert.True(await progressionRepository.DeleteGraduationDegreeAsync(
+            organizationId, graduationSystem.Id, temporaryBelt.Id, temporaryLastDegree.Id));
+        Assert.True(await progressionRepository.DeleteGraduationDegreeAsync(
+            organizationId, graduationSystem.Id, temporaryBelt.Id, temporaryFirstDegree.Id));
+        Assert.True(await progressionRepository.DeleteGraduationBeltAsync(
+            organizationId, graduationSystem.Id, temporaryBelt.Id));
+
+        var initialGraduation = await progressionRepository.SetClientGraduationAsync(new ClientGraduation
+        {
+            OrganizationId = organizationId,
+            ClientId = authorizedClientId,
+            ModalityId = modalityId,
+            CurrentLevelId = whiteBeltLevel.Id,
+            GrantedAt = new DateOnly(2026, 1, 4)
+        });
+        Assert.NotNull(initialGraduation);
+        Assert.Null(await progressionRepository.SetClientGraduationAsync(new ClientGraduation
+        {
+            OrganizationId = organizationId,
+            ClientId = unauthorizedClientId,
+            ModalityId = modalityId,
+            CurrentLevelId = whiteBeltLevel.Id,
+            GrantedAt = new DateOnly(2026, 1, 4)
+        }));
+        var graduationSystemId = graduationSystem.Id;
+        var currentLevelId = whiteBeltLevel.Id;
+        var nextLevelId = firstDegree.Id;
+
+        var fitnessModalityId = Guid.NewGuid();
         await using (var connection = new NpgsqlConnection(fixture.ConnectionString))
         {
             await connection.OpenAsync();
             await using var command = new NpgsqlCommand(
                 """
-                insert into graduation_systems (id, organization_id, modality_id, name)
-                values (@systemId, @organizationId, @modalityId, 'Test graduation');
-                insert into graduation_levels (id, graduation_system_id, name, hierarchy_order)
-                values (@currentLevelId, @systemId, 'White', 1);
-                insert into graduation_levels (
-                    id, graduation_system_id, name, hierarchy_order, min_training_days, min_lessons,
-                    requires_manual_evaluation
-                )
-                values (@nextLevelId, @systemId, 'Yellow', 2, 1, 1, true);
-                insert into client_graduations (
-                    id, organization_id, client_id, modality_id, current_level_id, granted_at
-                )
-                values (@graduationId, @organizationId, @clientId, @modalityId, @currentLevelId, current_date);
+                insert into modalities (id, organization_id, name, type, is_active)
+                values (@Id, @OrganizationId, 'Condicionamento', 'fitness', true);
                 """,
                 connection);
-            command.Parameters.AddWithValue("systemId", systemId);
-            command.Parameters.AddWithValue("organizationId", organizationId);
-            command.Parameters.AddWithValue("modalityId", modalityId);
-            command.Parameters.AddWithValue("currentLevelId", currentLevelId);
-            command.Parameters.AddWithValue("nextLevelId", nextLevelId);
-            command.Parameters.AddWithValue("graduationId", Guid.NewGuid());
-            command.Parameters.AddWithValue("clientId", authorizedClientId);
+            command.Parameters.AddWithValue("Id", fitnessModalityId);
+            command.Parameters.AddWithValue("OrganizationId", organizationId);
             await command.ExecuteNonQueryAsync();
         }
 
-        var eligibleForGraduation = await progressionRepository.ListEligibleClientsAsync(organizationId, systemId);
+        Assert.Null(await progressionRepository.CreateGraduationSystemAsync(new GraduationSystem
+        {
+            OrganizationId = organizationId,
+            ModalityId = fitnessModalityId,
+            Name = "Invalid fitness graduation"
+        }));
+
+        var eligibleForGraduation = await progressionRepository.ListEligibleClientsAsync(organizationId, graduationSystemId);
         var eligibleClient = Assert.Single(eligibleForGraduation);
         Assert.Equal(authorizedClientId, eligibleClient.ClientId);
         Assert.Equal(nextLevelId, eligibleClient.NextLevelId);
@@ -317,9 +497,22 @@ public sealed class SqlModalityScheduleRepositoryTests(PostgreSqlFixture fixture
         Assert.NotNull(promotion);
         Assert.Equal(currentLevelId, promotion.FromLevelId);
         Assert.Equal(nextLevelId, promotion.ToLevelId);
+        Assert.Empty(await progressionRepository.ListEligibleClientsAsync(organizationId, graduationSystemId));
+        Assert.Null(await progressionRepository.PromoteClientAsync(new GraduationEvent
+        {
+            OrganizationId = organizationId,
+            ClientId = authorizedClientId,
+            ModalityId = modalityId,
+            ToLevelId = blueBelt.Id,
+            EventDate = new DateOnly(2026, 1, 6)
+        }, manualEvaluationPassed: true));
         var graduationEvents = await progressionRepository.ListClientGraduationEventsAsync(
             organizationId, authorizedClientId, modalityId);
         Assert.Equal(promotion.Id, Assert.Single(graduationEvents).Id);
+        Assert.False(await progressionRepository.DeleteGraduationDegreeAsync(
+            organizationId, graduationSystem.Id, whiteBelt.Id, firstDegree.Id));
+        Assert.False(await progressionRepository.DeleteGraduationBeltAsync(
+            organizationId, graduationSystem.Id, whiteBelt.Id));
 
         await using (var connection = new NpgsqlConnection(fixture.ConnectionString))
         {

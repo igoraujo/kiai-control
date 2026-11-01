@@ -32,7 +32,9 @@ public sealed class GraduationController(
         await Task.WhenAll(modalitiesTask, clientsTask);
         return Ok(new GraduationOptionsResponse
         {
-            Modalities = (await modalitiesTask).Where(modality => modality.IsActive).ToList(),
+            Modalities = (await modalitiesTask)
+                .Where(modality => modality.IsActive && modality.Type == "martial_art")
+                .ToList(),
             Clients = (await clientsTask).Where(client => client.Status == "active").ToList()
         });
     }
@@ -50,7 +52,7 @@ public sealed class GraduationController(
         try
         {
             var system = await graduationUseCase.CreateSystemAsync(organizationId, request, cancellationToken);
-            return system is null ? NotFound("The active modality was not found in this organization.")
+            return system is null ? NotFound("A modalidade não foi encontrada, está inativa ou não é uma arte marcial nesta organização.")
                 : StatusCode(StatusCodes.Status201Created, system);
         }
         catch (ArgumentException exception)
@@ -104,6 +106,171 @@ public sealed class GraduationController(
         return Ok(await graduationUseCase.ListLevelsAsync(organizationId, systemId, cancellationToken));
     }
 
+    [HttpGet("graduation-systems/{systemId:guid}/belts")]
+    public async Task<ActionResult<IReadOnlyList<GraduationBeltResponse>>> ListBeltsAsync(
+        Guid systemId,
+        CancellationToken cancellationToken)
+    {
+        if (organizationContext.OrganizationId is not Guid organizationId)
+        {
+            return BadRequest("Organization context is required.");
+        }
+
+        try
+        {
+            return Ok(await graduationUseCase.ListBeltsAsync(organizationId, systemId, cancellationToken));
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(exception.Message);
+        }
+    }
+
+    [HttpPost("graduation-systems/{systemId:guid}/belts")]
+    public async Task<ActionResult<GraduationBeltResponse>> CreateBeltAsync(
+        Guid systemId,
+        [FromBody] CreateGraduationBeltRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (organizationContext.OrganizationId is not Guid organizationId)
+        {
+            return BadRequest("Organization context is required.");
+        }
+
+        try
+        {
+            var belt = await graduationUseCase.CreateBeltAsync(organizationId, systemId, request, cancellationToken);
+            return belt is null
+                ? Conflict("A faixa já existe ou o sistema de graduação não está disponível nesta organização.")
+                : StatusCode(StatusCodes.Status201Created, belt);
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(exception.Message);
+        }
+    }
+
+    [HttpPut("graduation-systems/{systemId:guid}/belts/{beltId:guid}")]
+    public async Task<IActionResult> UpdateBeltAsync(
+        Guid systemId,
+        Guid beltId,
+        [FromBody] CreateGraduationBeltRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (organizationContext.OrganizationId is not Guid organizationId)
+        {
+            return BadRequest("Organization context is required.");
+        }
+
+        try
+        {
+            var updated = await graduationUseCase.UpdateBeltAsync(
+                organizationId, systemId, beltId, request, cancellationToken);
+            return updated ? NoContent() : Conflict("A faixa não existe, tem nome duplicado ou a quantidade de graus é menor que os graus já cadastrados.");
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(exception.Message);
+        }
+    }
+
+    [HttpDelete("graduation-systems/{systemId:guid}/belts/{beltId:guid}")]
+    public async Task<IActionResult> DeleteBeltAsync(
+        Guid systemId,
+        Guid beltId,
+        CancellationToken cancellationToken)
+    {
+        if (organizationContext.OrganizationId is not Guid organizationId)
+        {
+            return BadRequest("Organization context is required.");
+        }
+
+        try
+        {
+            var deleted = await graduationUseCase.DeleteBeltAsync(organizationId, systemId, beltId, cancellationToken);
+            return deleted ? NoContent() : Conflict("A faixa não existe ou já possui graduações registradas. Corrija ou remova primeiro os graus não utilizados.");
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(exception.Message);
+        }
+    }
+
+    [HttpPost("graduation-systems/{systemId:guid}/belts/{beltId:guid}/degrees")]
+    public async Task<ActionResult<GraduationLevelResponse>> CreateDegreeAsync(
+        Guid systemId,
+        Guid beltId,
+        [FromBody] CreateGraduationDegreeRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (organizationContext.OrganizationId is not Guid organizationId)
+        {
+            return BadRequest("Organization context is required.");
+        }
+
+        try
+        {
+            var degree = await graduationUseCase.CreateDegreeAsync(
+                organizationId, systemId, beltId, request, cancellationToken);
+            return degree is null
+                ? Conflict("A faixa não foi encontrada ou todos os graus configurados já foram cadastrados.")
+                : StatusCode(StatusCodes.Status201Created, degree);
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(exception.Message);
+        }
+    }
+
+    [HttpPut("graduation-systems/{systemId:guid}/belts/{beltId:guid}/degrees/{degreeId:guid}")]
+    public async Task<IActionResult> UpdateDegreeAsync(
+        Guid systemId,
+        Guid beltId,
+        Guid degreeId,
+        [FromBody] CreateGraduationDegreeRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (organizationContext.OrganizationId is not Guid organizationId)
+        {
+            return BadRequest("Organization context is required.");
+        }
+
+        try
+        {
+            var updated = await graduationUseCase.UpdateDegreeAsync(
+                organizationId, systemId, beltId, degreeId, request, cancellationToken);
+            return updated ? NoContent() : NotFound("O grau não foi encontrado nesta faixa e organização.");
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(exception.Message);
+        }
+    }
+
+    [HttpDelete("graduation-systems/{systemId:guid}/belts/{beltId:guid}/degrees/{degreeId:guid}")]
+    public async Task<IActionResult> DeleteDegreeAsync(
+        Guid systemId,
+        Guid beltId,
+        Guid degreeId,
+        CancellationToken cancellationToken)
+    {
+        if (organizationContext.OrganizationId is not Guid organizationId)
+        {
+            return BadRequest("Organization context is required.");
+        }
+
+        try
+        {
+            var deleted = await graduationUseCase.DeleteDegreeAsync(
+                organizationId, systemId, beltId, degreeId, cancellationToken);
+            return deleted ? NoContent() : Conflict("Só é possível excluir o último grau da sequência, e ele não pode ter sido usado em graduações.");
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(exception.Message);
+        }
+    }
+
     [HttpPost("clients/{clientId:guid}/graduations")]
     public async Task<ActionResult<ClientGraduationResponse>> SetInitialAsync(
         Guid clientId,
@@ -118,7 +285,7 @@ public sealed class GraduationController(
         try
         {
             var graduation = await graduationUseCase.SetInitialAsync(organizationId, clientId, request, cancellationToken);
-            return graduation is null ? Conflict("Client, modality or level is unavailable, or a graduation already exists.")
+            return graduation is null ? Conflict("O aluno não está vinculado à modalidade, o nível não está disponível ou já existe uma graduação.")
                 : StatusCode(StatusCodes.Status201Created, graduation);
         }
         catch (ArgumentException exception)

@@ -8,6 +8,50 @@ public interface IProgressionRepository
 
     Task<IReadOnlyList<GraduationSystem>> ListGraduationSystemsAsync(Guid organizationId, CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<GraduationBelt>> ListGraduationBeltsAsync(
+        Guid organizationId,
+        Guid systemId,
+        CancellationToken cancellationToken = default);
+
+    Task<GraduationBelt?> CreateGraduationBeltAsync(
+        Guid organizationId,
+        Guid systemId,
+        GraduationBelt belt,
+        CancellationToken cancellationToken = default);
+
+    Task<bool> UpdateGraduationBeltAsync(
+        Guid organizationId,
+        Guid systemId,
+        GraduationBelt belt,
+        CancellationToken cancellationToken = default);
+
+    Task<bool> DeleteGraduationBeltAsync(
+        Guid organizationId,
+        Guid systemId,
+        Guid beltId,
+        CancellationToken cancellationToken = default);
+
+    Task<GraduationLevel?> CreateGraduationDegreeAsync(
+        Guid organizationId,
+        Guid systemId,
+        Guid beltId,
+        GraduationLevel degree,
+        CancellationToken cancellationToken = default);
+
+    Task<bool> UpdateGraduationDegreeAsync(
+        Guid organizationId,
+        Guid systemId,
+        Guid beltId,
+        GraduationLevel degree,
+        CancellationToken cancellationToken = default);
+
+    Task<bool> DeleteGraduationDegreeAsync(
+        Guid organizationId,
+        Guid systemId,
+        Guid beltId,
+        Guid degreeId,
+        CancellationToken cancellationToken = default);
+
     Task<GraduationLevel?> CreateGraduationLevelAsync(Guid organizationId, GraduationLevel level, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<GraduationLevel>> ListGraduationLevelsAsync(Guid organizationId, Guid systemId, CancellationToken cancellationToken = default);

@@ -6,7 +6,8 @@ public static class ProgressionQueries
         insert into graduation_systems (id, organization_id, modality_id, name, description, is_active, created_at)
         select @Id, m.organization_id, m.id, @Name, @Description, true, @CreatedAt
         from modalities m
-        where m.id = @ModalityId and m.organization_id = @OrganizationId and m.is_active = true
+        where m.id = @ModalityId and m.organization_id = @OrganizationId
+          and m.is_active = true and m.type = 'martial_art'
         returning id, organization_id as OrganizationId, modality_id as ModalityId, name, description, is_active as IsActive, created_at as CreatedAt, updated_at as UpdatedAt;
         ";
 
@@ -14,31 +15,233 @@ public static class ProgressionQueries
         select id, organization_id as OrganizationId, modality_id as ModalityId, name, description, is_active as IsActive, created_at as CreatedAt, updated_at as UpdatedAt
         from graduation_systems
         where organization_id = @OrganizationId
+          and exists (
+              select 1 from modalities m
+              where m.id = graduation_systems.modality_id and m.type = 'martial_art' and m.is_active = true
+          )
         order by name;
         ";
 
-    public const string CreateGraduationLevel = @"
+    public const string ListGraduationBelts = @"
+        select belt.id, belt.graduation_system_id as GraduationSystemId, belt.name,
+               belt.hierarchy_order as HierarchyOrder, belt.degree_count as DegreeCount,
+               level.min_lessons as MinLessons, level.min_training_days as MinTrainingDays,
+               level.min_attendance_percentage as MinAttendancePercentage,
+               level.requires_manual_evaluation as RequiresManualEvaluation
+        from graduation_belts belt
+        join graduation_systems system on system.id = belt.graduation_system_id
+        join modalities modality on modality.id = system.modality_id
+            and modality.type = 'martial_art' and modality.is_active = true
+        join graduation_levels level on level.belt_id = belt.id and level.degree_number = 0
+        where system.organization_id = @OrganizationId and system.id = @SystemId
+        order by belt.hierarchy_order;
+        ";
+
+    public const string LockGraduationSystem = @"
+        select system.id,
+               (select coalesce(max(belt.hierarchy_order), 0)
+                from graduation_belts belt where belt.graduation_system_id = system.id) as CurrentOrder,
+               exists (
+                   select 1 from graduation_belts belt
+                   where belt.graduation_system_id = system.id and lower(belt.name) = lower(@Name)
+               ) as NameExists
+        from graduation_systems system
+        join modalities modality on modality.id = system.modality_id
+            and modality.type = 'martial_art' and modality.is_active = true
+        where system.organization_id = @OrganizationId and system.id = @SystemId and system.is_active = true
+        for update of system;
+        ";
+
+    public const string InsertGraduationBelt = @"
+        insert into graduation_belts (id, graduation_system_id, name, hierarchy_order, degree_count)
+        values (@Id, @SystemId, @Name, @HierarchyOrder, @DegreeCount);
         insert into graduation_levels (
-            id, graduation_system_id, name, hierarchy_order, min_training_days,
-            min_attendance_percentage, min_lessons, min_age, requires_manual_evaluation, created_at
+            id, graduation_system_id, belt_id, degree_number, name, hierarchy_order,
+            min_training_days, min_attendance_percentage, min_lessons, requires_manual_evaluation
         )
-        select @Id, gs.id, @Name, @HierarchyOrder, @MinTrainingDays,
-               @MinAttendancePercentage, @MinLessons, @MinAge, @RequiresManualEvaluation, @CreatedAt
-        from graduation_systems gs
-        where gs.id = @GraduationSystemId and gs.organization_id = @OrganizationId and gs.is_active = true
-        returning id, graduation_system_id as GraduationSystemId, name, hierarchy_order as HierarchyOrder,
-                  min_training_days as MinTrainingDays, min_attendance_percentage as MinAttendancePercentage,
-                  min_lessons as MinLessons, min_age as MinAge, requires_manual_evaluation as RequiresManualEvaluation,
-                  created_at as CreatedAt;
+        values (
+            @LevelId, @SystemId, @Id, 0, @Name, @LevelOrder,
+            @MinTrainingDays, @MinAttendancePercentage, @MinLessons, @RequiresManualEvaluation
+        );
+        ";
+
+    public const string GetGraduationBelt = @"
+        select belt.id, belt.graduation_system_id as GraduationSystemId, belt.name,
+               belt.hierarchy_order as HierarchyOrder, belt.degree_count as DegreeCount,
+               level.min_lessons as MinLessons, level.min_training_days as MinTrainingDays,
+               level.min_attendance_percentage as MinAttendancePercentage,
+               level.requires_manual_evaluation as RequiresManualEvaluation
+        from graduation_belts belt
+        join graduation_levels level on level.belt_id = belt.id and level.degree_number = 0
+        where belt.id = @BeltId;
+        ";
+
+    public const string GraduationBeltNameExists = @"
+        select exists (
+            select 1 from graduation_belts
+            where graduation_system_id = @SystemId
+              and id <> @BeltId
+              and lower(name) = lower(@Name)
+        );
+        ";
+
+    public const string GraduationBeltLevelNameExists = @"
+        select exists (
+            select 1
+            from graduation_levels existing
+            where existing.graduation_system_id = @SystemId
+              and existing.belt_id <> @BeltId
+              and (
+                  lower(existing.name) = lower(@Name)
+                  or exists (
+                      select 1
+                      from graduation_levels degree
+                      where degree.belt_id = @BeltId
+                        and degree.degree_number > 0
+                        and lower(existing.name) = lower(@Name || ' - ' || degree.degree_number::text || 'º grau')
+                  )
+              )
+        );
+        ";
+
+    public const string UpdateGraduationBelt = @"
+        update graduation_belts
+        set name = @Name, degree_count = @DegreeCount
+        where id = @BeltId and graduation_system_id = @SystemId;
+
+        update graduation_levels
+        set name = case
+                       when degree_number = 0 then @Name
+                       else @Name || ' - ' || degree_number::text || 'º grau'
+                   end,
+            min_lessons = case when degree_number = 0 then @MinLessons else min_lessons end,
+            min_training_days = case when degree_number = 0 then @MinTrainingDays else min_training_days end,
+            min_attendance_percentage = case
+                when degree_number = 0 then @MinAttendancePercentage
+                else min_attendance_percentage
+            end,
+            requires_manual_evaluation = case
+                when degree_number = 0 then @RequiresManualEvaluation
+                else requires_manual_evaluation
+            end
+        where belt_id = @BeltId;
+        ";
+
+    public const string GraduationBeltHasHistory = @"
+        select exists (
+            select 1
+            from graduation_levels level
+            where level.belt_id = @BeltId
+              and (
+                  exists (select 1 from client_graduations graduation where graduation.current_level_id = level.id)
+                  or exists (
+                      select 1 from graduation_events event
+                      where event.from_level_id = level.id or event.to_level_id = level.id
+                  )
+              )
+        );
+        ";
+
+    public const string DeleteGraduationBeltLevels = @"
+        delete from graduation_levels
+        where belt_id = @BeltId;
+        ";
+
+    public const string DeleteGraduationBelt = @"
+        delete from graduation_belts
+        where id = @BeltId and graduation_system_id = @SystemId
+        returning id;
+        ";
+
+    public const string LockGraduationBelt = @"
+        select belt.id, belt.name, belt.hierarchy_order as HierarchyOrder,
+               belt.degree_count as DegreeCount,
+               (select coalesce(max(level.degree_number), 0)
+                from graduation_levels level where level.belt_id = belt.id) as CurrentDegree
+        from graduation_belts belt
+        join graduation_systems system on system.id = belt.graduation_system_id
+        join modalities modality on modality.id = system.modality_id
+            and modality.type = 'martial_art' and modality.is_active = true
+        join graduation_levels base_level on base_level.belt_id = belt.id and base_level.degree_number = 0
+        where system.organization_id = @OrganizationId and system.id = @SystemId and belt.id = @BeltId
+        for update of belt;
+        ";
+
+    public const string LockGraduationDegree = @"
+        select level.degree_number as DegreeNumber,
+               (select coalesce(max(other.degree_number), 0)
+                from graduation_levels other where other.belt_id = level.belt_id) as HighestDegree
+        from graduation_levels level
+        join graduation_systems system on system.id = level.graduation_system_id
+        join modalities modality on modality.id = system.modality_id
+            and modality.type = 'martial_art' and modality.is_active = true
+        where system.organization_id = @OrganizationId and system.id = @SystemId
+          and level.belt_id = @BeltId and level.id = @DegreeId and level.degree_number > 0
+        for update of level;
+        ";
+
+    public const string GraduationDegreeHasHistory = @"
+        select exists (
+            select 1 from client_graduations where current_level_id = @DegreeId
+        ) or exists (
+            select 1 from graduation_events
+            where from_level_id = @DegreeId or to_level_id = @DegreeId
+        );
+        ";
+
+    public const string UpdateGraduationDegree = @"
+        update graduation_levels
+        set min_lessons = @MinLessons,
+            min_training_days = @MinTrainingDays,
+            min_attendance_percentage = @MinAttendancePercentage,
+            min_age = @MinAge,
+            requires_manual_evaluation = @RequiresManualEvaluation
+        where id = @DegreeId and belt_id = @BeltId and degree_number > 0;
+        ";
+
+    public const string DeleteGraduationDegree = @"
+        delete from graduation_levels
+        where id = @DegreeId and belt_id = @BeltId and degree_number > 0
+        returning id;
+        ";
+
+    public const string InsertGraduationDegree = @"
+        insert into graduation_levels (
+            id, graduation_system_id, belt_id, degree_number, name, hierarchy_order,
+            min_training_days, min_attendance_percentage, min_lessons, min_age,
+            requires_manual_evaluation, created_at
+        )
+        select @Id, @SystemId, belt.id, @DegreeNumber,
+               belt.name || ' - ' || @DegreeNumber::text || 'º grau',
+               belt.hierarchy_order * 100 + @DegreeNumber,
+               @MinTrainingDays, @MinAttendancePercentage, @MinLessons, @MinAge,
+               @RequiresManualEvaluation, @CreatedAt
+        from graduation_belts belt
+        join graduation_systems system on system.id = belt.graduation_system_id
+        join modalities modality on modality.id = system.modality_id
+            and modality.type = 'martial_art' and modality.is_active = true
+        where system.organization_id = @OrganizationId and system.id = @SystemId and belt.id = @BeltId
+        returning id, graduation_system_id as GraduationSystemId, belt_id as BeltId,
+                  (select name from graduation_belts where id = belt_id) as BeltName,
+                  degree_number as DegreeNumber, name, hierarchy_order as HierarchyOrder,
+                  min_training_days as MinTrainingDays,
+                  min_attendance_percentage as MinAttendancePercentage,
+                  min_lessons as MinLessons, min_age as MinAge,
+                  requires_manual_evaluation as RequiresManualEvaluation, created_at as CreatedAt;
         ";
 
     public const string ListGraduationLevels = @"
-        select l.id, l.graduation_system_id as GraduationSystemId, l.name, l.hierarchy_order as HierarchyOrder,
+        select l.id, l.graduation_system_id as GraduationSystemId, l.belt_id as BeltId,
+               belt.name as BeltName, l.degree_number as DegreeNumber,
+               l.name, l.hierarchy_order as HierarchyOrder,
                l.min_training_days as MinTrainingDays, l.min_attendance_percentage as MinAttendancePercentage,
                l.min_lessons as MinLessons, l.min_age as MinAge, l.requires_manual_evaluation as RequiresManualEvaluation,
                l.created_at as CreatedAt
         from graduation_levels l
         join graduation_systems gs on gs.id = l.graduation_system_id
+        join modalities modality on modality.id = gs.modality_id
+            and modality.type = 'martial_art' and modality.is_active = true
+        join graduation_belts belt on belt.id = l.belt_id
         where gs.organization_id = @OrganizationId and gs.id = @SystemId
         order by l.hierarchy_order;
         ";
@@ -52,8 +255,16 @@ public static class ProgressionQueries
                @GrantedByTeacherId, @Notes, @CreatedAt
         from clients c
         join graduation_systems gs on gs.organization_id = c.organization_id and gs.modality_id = @ModalityId and gs.is_active = true
+        join modalities modality on modality.id = gs.modality_id
+            and modality.type = 'martial_art' and modality.is_active = true
         join graduation_levels level on level.graduation_system_id = gs.id and level.id = @CurrentLevelId
         where c.id = @ClientId and c.organization_id = @OrganizationId and c.current_status = 'active'
+          and exists (
+              select 1
+              from person_modalities assignment
+              where assignment.person_id = c.person_id
+                and assignment.modality_id = gs.modality_id
+          )
         on conflict (organization_id, client_id, modality_id) do nothing
         returning id, organization_id as OrganizationId, client_id as ClientId, modality_id as ModalityId,
                   current_level_id as CurrentLevelId, granted_at as GrantedAt,
@@ -86,6 +297,9 @@ public static class ProgressionQueries
         join graduation_levels current_level on current_level.id = cg.current_level_id
         join graduation_levels next_level on next_level.id = @ToLevelId
                                               and next_level.graduation_system_id = current_level.graduation_system_id
+        join graduation_systems system on system.id = current_level.graduation_system_id
+        join modalities modality on modality.id = system.modality_id
+            and modality.type = 'martial_art' and modality.is_active = true
         left join lateral (
             select count(a.id)::integer as attendance_count,
                    count(a.id) filter (where a.status in ('present', 'late'))::integer as attended_count,
@@ -97,6 +311,7 @@ public static class ProgressionQueries
             where lesson.organization_id = cg.organization_id
               and lesson.modality_id = cg.modality_id
               and lesson.status = 'completed'
+              and lesson.starts_at::date > cg.granted_at
         ) stats on true
         where cg.organization_id = @OrganizationId and cg.client_id = @ClientId and cg.modality_id = @ModalityId
         for update of cg;
@@ -129,18 +344,27 @@ public static class ProgressionQueries
                event_date as EventDate, teacher_id as TeacherId, justification as Justification, created_at as CreatedAt
         from graduation_events
         where organization_id = @OrganizationId and client_id = @ClientId and modality_id = @ModalityId
+          and exists (
+              select 1 from modalities modality
+              where modality.id = @ModalityId and modality.organization_id = @OrganizationId
+                and modality.type = 'martial_art'
+          )
         order by event_date desc, created_at desc;
         ";
 
     public const string ListEligibleClients = @"
         with target_system as (
-            select id, organization_id, modality_id
-            from graduation_systems
-            where id = @SystemId and organization_id = @OrganizationId and is_active = true
+            select system.id, system.organization_id, system.modality_id
+            from graduation_systems system
+            join modalities modality on modality.id = system.modality_id
+                and modality.type = 'martial_art' and modality.is_active = true
+            where system.id = @SystemId and system.organization_id = @OrganizationId and system.is_active = true
         ), eligible_lessons as (
             select distinct c.id as client_id, lesson.id as lesson_id, lesson.starts_at
             from clients c
             join target_system target on target.organization_id = c.organization_id
+            join client_graduations graduation on graduation.organization_id = c.organization_id
+                and graduation.client_id = c.id and graduation.modality_id = target.modality_id
             join person_modalities assignment on assignment.person_id = c.person_id
                 and assignment.modality_id = target.modality_id
             join modalities modality on modality.id = assignment.modality_id
@@ -149,6 +373,7 @@ public static class ProgressionQueries
             join lessons lesson on lesson.organization_id = c.organization_id
                 and lesson.modality_id = target.modality_id
                 and lesson.status = 'completed'
+                and lesson.starts_at::date > graduation.granted_at
             where c.organization_id = @OrganizationId
               and c.current_status = 'active'
         ), attendance_stats as (

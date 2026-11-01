@@ -1,0 +1,71 @@
+@inherits FormDialogBase
+@using KiaiControl.Contracts.Graduation
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="Form">
+            <MudStack Spacing="2">
+                @if (ErrorMessage is not null)
+                {
+                    <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">@ErrorMessage</MudAlert>
+                }
+                <MudTextField @bind-Value="_name" Label="Nome da faixa" Required="true"
+                              RequiredError="Informe o nome da faixa" Variant="Variant.Outlined" />
+                <MudNumericField T="int" @bind-Value="_degreeCount" Label="Quantidade de graus" Min="0" Max="99"
+                                 Required="true" Variant="Variant.Outlined" />
+                <MudNumericField T="int" @bind-Value="_minLessons" Label="Aulas para alcançar a faixa" Min="0"
+                                 Variant="Variant.Outlined" />
+                <details>
+                    <summary>Critérios adicionais</summary>
+                    <MudStack Spacing="2" Class="mt-2">
+                        <MudNumericField T="int" @bind-Value="_minTrainingDays" Label="Dias mínimos de treino" Min="0"
+                                         Variant="Variant.Outlined" />
+                        <MudNumericField T="decimal?" @bind-Value="_attendance" Label="Frequência mínima (%)" Min="0" Max="100"
+                                         Variant="Variant.Outlined" />
+                        <MudCheckBox T="bool" @bind-Value="_requiresEvaluation" Label="Exigir avaliação manual"
+                                     Color="Color.Primary" />
+                    </MudStack>
+                </details>
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Disabled="IsSaving">Cancelar</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SubmitAsync" Disabled="IsSaving">
+            Salvar alterações
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter, EditorRequired] public GraduationBeltResponse Item { get; set; } = default!;
+    [Parameter] public Guid SystemId { get; set; }
+
+    private string _name = string.Empty;
+    private int _degreeCount;
+    private int _minLessons;
+    private int _minTrainingDays;
+    private decimal? _attendance;
+    private bool _requiresEvaluation;
+
+    protected override void OnInitialized()
+    {
+        _name = Item.Name;
+        _degreeCount = Item.DegreeCount;
+        _minLessons = Item.MinLessons;
+        _minTrainingDays = Item.MinTrainingDays;
+        _attendance = Item.MinAttendancePercentage;
+        _requiresEvaluation = Item.RequiresManualEvaluation;
+    }
+
+    protected override Task SaveCoreAsync() =>
+        Api.UpdateGraduationBeltAsync(SystemId, Item.Id, new CreateGraduationBeltRequest
+        {
+            Name = _name.Trim(),
+            DegreeCount = _degreeCount,
+            MinLessons = _minLessons,
+            MinTrainingDays = _minTrainingDays,
+            MinAttendancePercentage = _attendance,
+            RequiresManualEvaluation = _requiresEvaluation
+        });
+}

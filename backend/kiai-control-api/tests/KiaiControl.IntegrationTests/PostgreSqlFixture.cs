@@ -27,6 +27,10 @@ public sealed class PostgreSqlFixture : IAsyncLifetime
             {
                 await SeedClassGroupRecordsAsync(connection);
             }
+            else if (Path.GetFileName(migrationPath) == "008_graduation_belts_and_degrees.sql")
+            {
+                await SeedLegacyGraduationRecordsAsync(connection);
+            }
 
             var migration = await File.ReadAllTextAsync(migrationPath);
             await using var command = new NpgsqlCommand(migration, connection);
@@ -58,6 +62,69 @@ public sealed class PostgreSqlFixture : IAsyncLifetime
             values ('00000000-0000-0000-0000-000000000707', '00000000-0000-0000-0000-000000000701', '00000000-0000-0000-0000-000000000706', '00000000-0000-0000-0000-000000000704', 'present');
             insert into ranking_cycles (id, organization_id, class_group_id, name, starts_at, ends_at, status)
             values ('00000000-0000-0000-0000-000000000708', '00000000-0000-0000-0000-000000000701', '00000000-0000-0000-0000-000000000705', 'Migration cycle', '2026-01-01', '2026-01-31', 'open');
+            """,
+            connection);
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task SeedLegacyGraduationRecordsAsync(NpgsqlConnection connection)
+    {
+        await using var command = new NpgsqlCommand(
+            """
+            insert into graduation_systems (id, organization_id, modality_id, name)
+            values ('00000000-0000-0000-0000-000000000710',
+                    '00000000-0000-0000-0000-000000000701',
+                    '00000000-0000-0000-0000-000000000702',
+                    'Legacy graduation test');
+            insert into modalities (id, organization_id, name, type, is_active)
+            values ('00000000-0000-0000-0000-000000000713',
+                    '00000000-0000-0000-0000-000000000701',
+                    'Legacy fitness modality', 'fitness', true);
+            insert into graduation_systems (id, organization_id, modality_id, name)
+            values ('00000000-0000-0000-0000-000000000714',
+                    '00000000-0000-0000-0000-000000000701',
+                    '00000000-0000-0000-0000-000000000713',
+                    'Invalid fitness graduation test');
+            insert into graduation_levels (id, graduation_system_id, name, hierarchy_order, min_lessons)
+            values
+                ('00000000-0000-0000-0000-000000000711',
+                 '00000000-0000-0000-0000-000000000710', 'Legacy white', 1, 0),
+                ('00000000-0000-0000-0000-000000000712',
+                 '00000000-0000-0000-0000-000000000710', 'Legacy blue', 2, 20),
+                ('00000000-0000-0000-0000-000000000715',
+                 '00000000-0000-0000-0000-000000000714', 'Invalid fitness level', 1, 0);
+            insert into client_graduations (
+                id, organization_id, client_id, modality_id, current_level_id, granted_at
+            )
+            values
+                ('00000000-0000-0000-0000-000000000716',
+                 '00000000-0000-0000-0000-000000000701',
+                 '00000000-0000-0000-0000-000000000704',
+                 '00000000-0000-0000-0000-000000000713',
+                 '00000000-0000-0000-0000-000000000715',
+                 '2025-01-01'),
+                ('00000000-0000-0000-0000-000000000718',
+                 '00000000-0000-0000-0000-000000000701',
+                 '00000000-0000-0000-0000-000000000704',
+                 '00000000-0000-0000-0000-000000000702',
+                 '00000000-0000-0000-0000-000000000715',
+                 '2025-01-01');
+            insert into graduation_events (
+                id, organization_id, client_id, modality_id, to_level_id, event_date
+            )
+            values
+                ('00000000-0000-0000-0000-000000000717',
+                 '00000000-0000-0000-0000-000000000701',
+                 '00000000-0000-0000-0000-000000000704',
+                 '00000000-0000-0000-0000-000000000713',
+                 '00000000-0000-0000-0000-000000000715',
+                 '2025-01-01'),
+                ('00000000-0000-0000-0000-000000000719',
+                 '00000000-0000-0000-0000-000000000701',
+                 '00000000-0000-0000-0000-000000000704',
+                 '00000000-0000-0000-0000-000000000702',
+                 '00000000-0000-0000-0000-000000000715',
+                 '2025-01-01');
             """,
             connection);
         await command.ExecuteNonQueryAsync();

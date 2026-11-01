@@ -56,6 +56,12 @@ public sealed class GraduationLevelResponse
 
     public Guid GraduationSystemId { get; init; }
 
+    public Guid BeltId { get; init; }
+
+    public string BeltName { get; init; } = string.Empty;
+
+    public int DegreeNumber { get; init; }
+
     public string Name { get; init; } = string.Empty;
 
     public int HierarchyOrder { get; init; }
@@ -69,6 +75,55 @@ public sealed class GraduationLevelResponse
     public int? MinAge { get; init; }
 
     public bool RequiresManualEvaluation { get; init; }
+}
+
+public sealed class CreateGraduationBeltRequest
+{
+    public string Name { get; set; } = string.Empty;
+
+    public int DegreeCount { get; set; }
+
+    public int MinLessons { get; set; }
+
+    public int MinTrainingDays { get; set; }
+
+    public decimal? MinAttendancePercentage { get; set; }
+
+    public bool RequiresManualEvaluation { get; set; }
+}
+
+public sealed class GraduationBeltResponse
+{
+    public Guid Id { get; init; }
+
+    public Guid GraduationSystemId { get; init; }
+
+    public string Name { get; init; } = string.Empty;
+
+    public int HierarchyOrder { get; init; }
+
+    public int DegreeCount { get; init; }
+
+    public int MinLessons { get; init; }
+
+    public int MinTrainingDays { get; init; }
+
+    public decimal? MinAttendancePercentage { get; init; }
+
+    public bool RequiresManualEvaluation { get; init; }
+}
+
+public sealed class CreateGraduationDegreeRequest
+{
+    public int MinLessons { get; set; }
+
+    public int MinTrainingDays { get; set; }
+
+    public decimal? MinAttendancePercentage { get; set; }
+
+    public int? MinAge { get; set; }
+
+    public bool RequiresManualEvaluation { get; set; }
 }
 
 public sealed class SetClientGraduationRequest

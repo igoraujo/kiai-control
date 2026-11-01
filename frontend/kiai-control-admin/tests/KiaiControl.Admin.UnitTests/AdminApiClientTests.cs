@@ -197,9 +197,16 @@ public sealed class AdminApiClientTests
             JsonResponse(new GraduationSystemResponse { Id = systemId, ModalityId = modalityId, Name = "Faixa" }),
             JsonResponse(Array.Empty<GraduationLevelResponse>()),
             JsonResponse(new GraduationLevelResponse { Id = levelId, GraduationSystemId = systemId, Name = "Branca" }),
+            JsonResponse(Array.Empty<GraduationBeltResponse>()),
+            JsonResponse(new GraduationBeltResponse { Id = Guid.NewGuid(), GraduationSystemId = systemId, Name = "Branca", DegreeCount = 4 }),
+            JsonResponse(new GraduationLevelResponse { Id = Guid.NewGuid(), GraduationSystemId = systemId, BeltId = Guid.NewGuid(), BeltName = "Branca", DegreeNumber = 1 }),
             JsonResponse(Array.Empty<EligibleClientResponse>()),
             JsonResponse(new ClientGraduationResponse { ClientId = clientId, ModalityId = modalityId, CurrentLevelId = levelId }),
-            JsonResponse(new GraduationEventResponse { ClientId = clientId, ModalityId = modalityId, ToLevelId = levelId }));
+            JsonResponse(new GraduationEventResponse { ClientId = clientId, ModalityId = modalityId, ToLevelId = levelId }),
+            new HttpResponseMessage(HttpStatusCode.NoContent),
+            new HttpResponseMessage(HttpStatusCode.NoContent),
+            new HttpResponseMessage(HttpStatusCode.NoContent),
+            new HttpResponseMessage(HttpStatusCode.NoContent));
         var session = new AdminSession();
         await session.SetAsync(CreateSession("access-token", "refresh-token", Guid.NewGuid()));
         var api = CreateClient(handler, session);
@@ -208,17 +215,37 @@ public sealed class AdminApiClientTests
         await api.CreateGraduationSystemAsync(new CreateGraduationSystemRequest { ModalityId = modalityId, Name = "Faixa" });
         await api.ListGraduationLevelsAsync(systemId);
         await api.CreateGraduationLevelAsync(systemId, new CreateGraduationLevelRequest { Name = "Branca", HierarchyOrder = 1 });
+        await api.ListGraduationBeltsAsync(systemId);
+        await api.CreateGraduationBeltAsync(systemId, new CreateGraduationBeltRequest { Name = "Branca", DegreeCount = 4 });
+        await api.CreateGraduationDegreeAsync(systemId, Guid.NewGuid(), new CreateGraduationDegreeRequest { MinLessons = 100 });
         await api.ListEligibleGraduationClientsAsync(systemId);
         await api.SetInitialGraduationAsync(clientId, new SetClientGraduationRequest { ModalityId = modalityId, LevelId = levelId, GrantedAt = new DateOnly(2026, 1, 1) });
         await api.PromoteClientAsync(clientId, new PromoteClientRequest { ModalityId = modalityId, ToLevelId = levelId, EventDate = new DateOnly(2026, 2, 1) });
+        var beltId = Guid.NewGuid();
+        var degreeId = Guid.NewGuid();
+        await api.UpdateGraduationBeltAsync(systemId, beltId, new CreateGraduationBeltRequest { Name = "Branca", DegreeCount = 4 });
+        await api.DeleteGraduationBeltAsync(systemId, beltId);
+        await api.UpdateGraduationDegreeAsync(systemId, beltId, degreeId, new CreateGraduationDegreeRequest { MinLessons = 100 });
+        await api.DeleteGraduationDegreeAsync(systemId, beltId, degreeId);
 
         Assert.Equal("/api/v1/graduation-systems", handler.Requests[0].RequestUri!.AbsolutePath);
         Assert.Equal("/api/v1/graduation-systems", handler.Requests[1].RequestUri!.AbsolutePath);
         Assert.Equal($"/api/v1/graduation-systems/{systemId}/levels", handler.Requests[2].RequestUri!.AbsolutePath);
         Assert.Equal($"/api/v1/graduation-systems/{systemId}/levels", handler.Requests[3].RequestUri!.AbsolutePath);
-        Assert.Equal($"/api/v1/graduation/eligible-clients?systemId={systemId:D}", handler.Requests[4].RequestUri!.PathAndQuery);
-        Assert.Equal($"/api/v1/clients/{clientId}/graduations", handler.Requests[5].RequestUri!.AbsolutePath);
-        Assert.Equal($"/api/v1/clients/{clientId}/graduation-events", handler.Requests[6].RequestUri!.AbsolutePath);
+        Assert.Equal($"/api/v1/graduation-systems/{systemId}/belts", handler.Requests[4].RequestUri!.AbsolutePath);
+        Assert.Equal($"/api/v1/graduation-systems/{systemId}/belts", handler.Requests[5].RequestUri!.AbsolutePath);
+        Assert.EndsWith("/degrees", handler.Requests[6].RequestUri!.AbsolutePath);
+        Assert.Equal($"/api/v1/graduation/eligible-clients?systemId={systemId:D}", handler.Requests[7].RequestUri!.PathAndQuery);
+        Assert.Equal($"/api/v1/clients/{clientId}/graduations", handler.Requests[8].RequestUri!.AbsolutePath);
+        Assert.Equal($"/api/v1/clients/{clientId}/graduation-events", handler.Requests[9].RequestUri!.AbsolutePath);
+        Assert.Equal($"/api/v1/graduation-systems/{systemId}/belts/{beltId}", handler.Requests[10].RequestUri!.AbsolutePath);
+        Assert.Equal($"/api/v1/graduation-systems/{systemId}/belts/{beltId}", handler.Requests[11].RequestUri!.AbsolutePath);
+        Assert.Equal($"/api/v1/graduation-systems/{systemId}/belts/{beltId}/degrees/{degreeId}", handler.Requests[12].RequestUri!.AbsolutePath);
+        Assert.Equal($"/api/v1/graduation-systems/{systemId}/belts/{beltId}/degrees/{degreeId}", handler.Requests[13].RequestUri!.AbsolutePath);
+        Assert.Equal(HttpMethod.Put, handler.Requests[10].Method);
+        Assert.Equal(HttpMethod.Delete, handler.Requests[11].Method);
+        Assert.Equal(HttpMethod.Put, handler.Requests[12].Method);
+        Assert.Equal(HttpMethod.Delete, handler.Requests[13].Method);
         Assert.All(handler.Requests, request => Assert.NotNull(request.OrganizationId));
     }
 
@@ -415,6 +442,7 @@ public sealed class AdminApiClientTests
 
             Requests.Add(new RecordedRequest(
                 request.RequestUri,
+                request.Method,
                 request.Headers.Authorization?.Scheme == "Bearer" ? request.Headers.Authorization.Parameter : null,
                 organizationId,
                 body));
@@ -423,5 +451,5 @@ public sealed class AdminApiClientTests
         }
     }
 
-    private sealed record RecordedRequest(Uri? RequestUri, string? AccessToken, string? OrganizationId, string? Body);
+    private sealed record RecordedRequest(Uri? RequestUri, HttpMethod Method, string? AccessToken, string? OrganizationId, string? Body);
 }

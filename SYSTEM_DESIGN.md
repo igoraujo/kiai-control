@@ -1135,7 +1135,8 @@ persons 1---N student_plan_subscriptions
 student_plan_subscriptions 1---N invoices
 invoices 1---N payments
 modalities 1---N graduation_systems
-graduation_systems 1---N graduation_levels
+graduation_systems 1---N graduation_belts
+graduation_belts 1---N graduation_levels
 persons 1---N student_graduations
 persons 1---N graduation_events
 persons 1---N fitness_goals
@@ -1550,21 +1551,37 @@ Table graduation_systems {
   }
 }
 
-Table graduation_levels {
+Table graduation_belts {
   id uuid [pk]
   graduation_system_id uuid [not null, ref: > graduation_systems.id]
   name varchar(80) [not null]
-  color varchar(40)
-  degree int [not null, default: 0]
-  sort_order int [not null]
-  min_training_days int
-  min_attendance_count int
+  hierarchy_order int [not null]
+  degree_count int [not null, default: 0]
+
+  Indexes {
+    (graduation_system_id, hierarchy_order) [unique]
+    (graduation_system_id, name) [unique]
+  }
+}
+
+Table graduation_levels {
+  id uuid [pk]
+  graduation_system_id uuid [not null, ref: > graduation_systems.id]
+  belt_id uuid [not null, ref: > graduation_belts.id]
+  degree_number int [not null, default: 0]
+  name varchar(80) [not null]
+  hierarchy_order int [not null]
+  min_training_days int [not null, default: 0]
+  min_attendance_percentage numeric(5,2)
+  min_lessons int [not null, default: 0]
   min_age int
+  requires_manual_evaluation boolean [not null, default: false]
   created_at timestamptz [not null]
 
   Indexes {
     graduation_system_id
-    (graduation_system_id, sort_order) [unique]
+    (graduation_system_id, hierarchy_order) [unique]
+    (belt_id, degree_number) [unique]
   }
 }
 
@@ -1882,12 +1899,13 @@ Table audit_logs {
 | invoices | Mensalidades geradas. |
 | payments | Pagamentos registrados. |
 
-### graduation_systems, graduation_levels, student_graduations e graduation_events
+### graduation_systems, graduation_belts, graduation_levels, student_graduations e graduation_events
 
 | Tabela | Descrição |
 |---|---|
 | graduation_systems | Sistema de graduação de uma modalidade. |
-| graduation_levels | Faixas/graus ordenados com critérios mínimos. |
+| graduation_belts | Faixas ordenadas por sistema, cada uma configurada com a quantidade de graus. |
+| graduation_levels | Etapas de faixa (grau zero) e graus; cada etapa define aulas e demais critérios para avançar. As aulas contam desde a graduação atual. |
 | student_graduations | Graduação atual do aluno por modalidade. |
 | graduation_events | Histórico de promoções. |
 
@@ -2020,8 +2038,10 @@ Padrões gerais:
 |---|---|---|---|---|
 | POST | `/graduation-systems` | sistema | sistema criado | 201, 400 |
 | GET | `/graduation-systems` | filtros | lista | 200 |
-| POST | `/graduation-systems/{id}/levels` | faixa/grau | nível criado | 201, 400 |
-| PUT | `/graduation-levels/{id}` | dados | nível | 200, 400, 404 |
+| GET | `/graduation-systems/{id}/belts` | - | faixas e configurações | 200 |
+| POST | `/graduation-systems/{id}/belts` | faixa, quantidade de graus e critérios | faixa criada | 201, 400 |
+| POST | `/graduation-systems/{id}/belts/{beltId}/degrees` | critérios do próximo grau | grau criado em sequência | 201, 400, 409 |
+| GET | `/graduation-systems/{id}/levels` | - | etapas ordenadas | 200 |
 | GET | `/students/{personId}/graduations` | - | graduações | 200 |
 | POST | `/students/{personId}/graduations` | modalityId, levelId | graduação inicial | 201, 400 |
 | POST | `/students/{personId}/graduation-events` | nova graduação | evento | 201, 400 |
