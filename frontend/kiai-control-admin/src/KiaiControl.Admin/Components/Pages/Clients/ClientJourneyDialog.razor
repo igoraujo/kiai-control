@@ -1,0 +1,342 @@
+@using KiaiControl.Contracts.Auth
+@using KiaiControl.Contracts.Billing
+@using KiaiControl.Contracts.Clients
+@using KiaiControl.Contracts.Modalities
+@using KiaiControl.Admin.Components.Pages.Billing
+@inject AdminSession Session
+@inject AdminApiClient Api
+@inject NavigationManager Navigation
+@inject IDialogService DialogService
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3">
+            @if (_errorMessage is not null)
+            {
+                <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">@_errorMessage</MudAlert>
+            }
+
+            <MudPaper Outlined="true" Class="pa-4">
+                <MudGrid Spacing="2">
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.overline">Aluno</MudText>
+                        <MudText Typo="Typo.h6">@Client.FullName</MudText>
+                        <MudText Typo="Typo.body2">@Client.Email</MudText>
+                        <MudText Typo="Typo.body2">@Client.Phone</MudText>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.overline">Cadastro</MudText>
+                        <MudText Typo="Typo.body2">Situação: @PersonStatus.Label(Client.Status)</MudText>
+                        <MudText Typo="Typo.body2">Ingresso: @(Client.JoinedAt?.ToString("dd/MM/yyyy") ?? "-")</MudText>
+                        <MudText Typo="Typo.body2">Matrícula: @(Client.RegistrationCode ?? "-")</MudText>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+
+            <MudTabs Elevation="0">
+                <MudTabPanel Text="Modalidades">
+                    <MudStack Spacing="2" Class="pt-3">
+                        @if (Modalities.Count == 0)
+                        {
+                            <MudText>Nenhuma modalidade vinculada ao aluno.</MudText>
+                        }
+                        else
+                        {
+                            <MudChipSet T="string">
+                                @foreach (var modality in Modalities)
+                                {
+                                    <MudChip T="string" Color="Color.Primary" Variant="Variant.Outlined">@modality.Name</MudChip>
+                                }
+                            </MudChipSet>
+                        }
+                    </MudStack>
+                </MudTabPanel>
+
+                @if (HasBillingPermission)
+                {
+                    <MudTabPanel Text="Financeiro">
+                        @if (_isLoading)
+                        {
+                            <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mt-4" />
+                        }
+                        else
+                        {
+                            <MudStack Spacing="3" Class="pt-3">
+                                <MudStack Row="true" Justify="Justify.FlexEnd">
+                                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                               StartIcon="@Icons.Material.Filled.Add" OnClick="CreateSubscriptionAsync"
+                                               Disabled="_isSaving || !_plans.Any(plan => plan.IsActive) || _subscriptions.Any(subscription => subscription.IsActive)">
+                                        Nova assinatura
+                                    </MudButton>
+                                </MudStack>
+                                @if (_subscriptions.Any(subscription => subscription.IsActive))
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                        Este aluno já possui uma assinatura ativa.
+                                    </MudText>
+                                }
+                                else if (!_plans.Any(plan => plan.IsActive))
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                        Cadastre um plano ativo para criar uma assinatura.
+                                    </MudText>
+                                }
+
+                                <MudText Typo="Typo.subtitle1">Assinaturas</MudText>
+                                <MudTable Items="_subscriptions" Dense="true" Hover="true">
+                                    <HeaderContent>
+                                        <MudTh>Plano</MudTh>
+                                        <MudTh>Início</MudTh>
+                                        <MudTh>Fim</MudTh>
+                                        <MudTh>Situação</MudTh>
+                                        <MudTh Style="text-align:right">Ações</MudTh>
+                                    </HeaderContent>
+                                    <RowTemplate Context="subscription">
+                                        <MudTd>@PlanName(subscription.PlanId)</MudTd>
+                                        <MudTd>@subscription.StartsAt.ToString("dd/MM/yyyy")</MudTd>
+                                        <MudTd>@(subscription.EndsAt?.ToString("dd/MM/yyyy") ?? "-")</MudTd>
+                                        <MudTd>
+                                            <MudChip T="string" Size="Size.Small"
+                                                     Color="@(subscription.IsActive ? Color.Success : Color.Default)">
+                                                @(subscription.IsActive ? "Ativa" : "Encerrada")
+                                            </MudChip>
+                                        </MudTd>
+                                        <MudTd Style="text-align:right">
+                                            @if (subscription.IsActive)
+                                            {
+                                                <MudIconButton Icon="@Icons.Material.Filled.Cancel" Size="Size.Small"
+                                                               Color="Color.Error" aria-label="Encerrar assinatura"
+                                                               OnClick="() => CancelSubscriptionAsync(subscription)"
+                                                               Disabled="_isSaving" />
+                                            }
+                                        </MudTd>
+                                    </RowTemplate>
+                                    <NoRecordsContent><MudText>Nenhuma assinatura cadastrada.</MudText></NoRecordsContent>
+                                </MudTable>
+
+                                <MudText Typo="Typo.subtitle1">Faturas</MudText>
+                                <MudTable Items="_invoices" Dense="true" Hover="true">
+                                    <HeaderContent>
+                                        <MudTh>Vencimento</MudTh>
+                                        <MudTh>Valor</MudTh>
+                                        <MudTh>Pago</MudTh>
+                                        <MudTh>Situação</MudTh>
+                                        <MudTh Style="text-align:right">Ações</MudTh>
+                                    </HeaderContent>
+                                    <RowTemplate Context="invoice">
+                                        <MudTd>@invoice.DueDate.ToString("dd/MM/yyyy")</MudTd>
+                                        <MudTd>@invoice.Amount.ToString("C")</MudTd>
+                                        <MudTd>@invoice.PaidAmount.ToString("C")</MudTd>
+                                        <MudTd>
+                                            <MudChip T="string" Size="Size.Small" Color="InvoiceStatusColor(invoice.Status)">
+                                                @InvoiceStatusLabel(invoice.Status)
+                                            </MudChip>
+                                        </MudTd>
+                                        <MudTd Style="text-align:right">
+                                            @if (invoice.Status is "pending" or "overdue" or "partially_paid")
+                                            {
+                                                <MudIconButton Icon="@Icons.Material.Filled.Payments" Size="Size.Small"
+                                                               aria-label="Registrar pagamento"
+                                                               OnClick="() => RegisterPaymentAsync(invoice)"
+                                                               Disabled="_isSaving" />
+                                            }
+                                        </MudTd>
+                                    </RowTemplate>
+                                    <NoRecordsContent><MudText>Nenhuma fatura cadastrada.</MudText></NoRecordsContent>
+                                </MudTable>
+
+                                <MudText Typo="Typo.subtitle1">Pagamentos</MudText>
+                                <MudTable Items="_payments" Dense="true" Hover="true">
+                                    <HeaderContent>
+                                        <MudTh>Data</MudTh>
+                                        <MudTh>Forma</MudTh>
+                                        <MudTh>Valor</MudTh>
+                                        <MudTh>Referência</MudTh>
+                                    </HeaderContent>
+                                    <RowTemplate Context="payment">
+                                        <MudTd>@payment.PaidAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
+                                        <MudTd>@PaymentMethodLabel(payment.Method)</MudTd>
+                                        <MudTd>@payment.Amount.ToString("C")</MudTd>
+                                        <MudTd>@(payment.ExternalReference ?? "-")</MudTd>
+                                    </RowTemplate>
+                                    <NoRecordsContent><MudText>Nenhum pagamento registrado.</MudText></NoRecordsContent>
+                                </MudTable>
+                            </MudStack>
+                        }
+                    </MudTabPanel>
+                }
+            </MudTabs>
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="EditClient" Disabled="_isSaving">Editar cadastro</MudButton>
+        <MudButton OnClick="Close" Disabled="_isSaving">Fechar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter, EditorRequired] public ClientResponse Client { get; set; } = new();
+    [Parameter] public IReadOnlyList<ModalityResponse> Modalities { get; set; } = [];
+    [Parameter] public bool HasBillingPermission { get; set; }
+
+    private IReadOnlyList<BillingPlanResponse> _plans = [];
+    private IReadOnlyList<ClientPlanSubscriptionResponse> _subscriptions = [];
+    private IReadOnlyList<BillingResponse> _invoices = [];
+    private IReadOnlyList<PaymentResponse> _payments = [];
+    private string? _errorMessage;
+    private bool _isLoading;
+    private bool _isSaving;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (HasBillingPermission)
+        {
+            await LoadFinancialHistoryAsync();
+        }
+    }
+
+    private async Task LoadFinancialHistoryAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+        try
+        {
+            var plansTask = Api.ListBillingPlansAsync(pageSize: 200);
+            var subscriptionsTask = Api.ListClientSubscriptionsAsync(Client.Id);
+            var invoicesTask = Api.ListClientInvoicesAsync(Client.Id);
+            var paymentsTask = Api.ListClientPaymentsAsync(Client.Id);
+            await Task.WhenAll(plansTask, subscriptionsTask, invoicesTask, paymentsTask);
+            _plans = await plansTask;
+            _subscriptions = await subscriptionsTask;
+            _invoices = await invoicesTask;
+            _payments = await paymentsTask;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await Session.ClearAsync();
+            Navigation.NavigateTo("/login");
+        }
+        catch (HttpRequestException exception)
+        {
+            _errorMessage = $"Não foi possível carregar o histórico financeiro. {exception.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task CreateSubscriptionAsync()
+    {
+        var dialog = await DialogService.ShowAsync<ClientSubscriptionDialog>(
+            "Nova assinatura",
+            new DialogParameters<ClientSubscriptionDialog>
+            {
+                { component => component.Clients, new[] { Client } },
+                { component => component.Plans, _plans },
+                { component => component.SelectedClientId, Client.Id }
+            },
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
+        if (await dialog.Result is { Canceled: false })
+        {
+            await LoadFinancialHistoryAsync();
+        }
+    }
+
+    private async Task CancelSubscriptionAsync(ClientPlanSubscriptionResponse subscription)
+    {
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Encerrar assinatura",
+            $"Deseja encerrar o plano {PlanName(subscription.PlanId)} deste aluno?",
+            yesText: "Encerrar",
+            cancelText: "Manter");
+        if (confirmed != true)
+        {
+            return;
+        }
+
+        await RunOperationAsync(async () =>
+        {
+            await Api.CancelClientSubscriptionAsync(subscription.Id, new CancelClientSubscriptionRequest
+            {
+                EndsAt = DateOnly.FromDateTime(DateTime.Today)
+            });
+            await LoadFinancialHistoryAsync();
+        });
+    }
+
+    private async Task RegisterPaymentAsync(BillingResponse invoice)
+    {
+        var dialog = await DialogService.ShowAsync<InvoicePaymentDialog>(
+            "Registrar pagamento",
+            new DialogParameters<InvoicePaymentDialog> { { component => component.Invoice, invoice } },
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
+        if (await dialog.Result is { Canceled: false })
+        {
+            await LoadFinancialHistoryAsync();
+        }
+    }
+
+    private async Task RunOperationAsync(Func<Task> operation)
+    {
+        _isSaving = true;
+        _errorMessage = null;
+        try
+        {
+            await operation();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await Session.ClearAsync();
+            Navigation.NavigateTo("/login");
+        }
+        catch (HttpRequestException exception)
+        {
+            _errorMessage = exception.Message;
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private void EditClient() => MudDialog.Close(DialogResult.Ok("edit"));
+
+    private void Close() => MudDialog.Close();
+
+    private string PlanName(Guid planId) =>
+        _plans.FirstOrDefault(plan => plan.Id == planId)?.Name ?? "Plano indisponível";
+
+    private static string InvoiceStatusLabel(string status) => status switch
+    {
+        "pending" => "Pendente",
+        "paid" => "Paga",
+        "overdue" => "Vencida",
+        "canceled" => "Cancelada",
+        "exempt" => "Isenta",
+        "partially_paid" => "Parcial",
+        _ => status
+    };
+
+    private static Color InvoiceStatusColor(string status) => status switch
+    {
+        "paid" => Color.Success,
+        "overdue" => Color.Error,
+        "partially_paid" => Color.Warning,
+        "pending" => Color.Info,
+        _ => Color.Default
+    };
+
+    private static string PaymentMethodLabel(string method) => method switch
+    {
+        "cash" => "Dinheiro",
+        "pix" => "Pix",
+        "bank_transfer" => "Transferência bancária",
+        "credit_card" => "Cartão de crédito",
+        "debit_card" => "Cartão de débito",
+        "boleto" => "Boleto",
+        "manual_adjustment" => "Ajuste manual",
+        _ => method
+    };
+}

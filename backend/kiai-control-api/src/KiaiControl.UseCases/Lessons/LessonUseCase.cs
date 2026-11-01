@@ -35,9 +35,18 @@ public sealed class LessonUseCase(ILessonRepository lessonRepository)
         Guid organizationId,
         int page,
         int pageSize,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Guid? teacherId = null,
+        DateTimeOffset? from = null,
+        DateTimeOffset? to = null)
     {
-        var lessons = await lessonRepository.ListByOrganizationAsync(organizationId, page, pageSize, cancellationToken);
+        if (from is not null && to is not null && from >= to)
+        {
+            throw new ArgumentException("The end of the lesson range must be later than its start.");
+        }
+
+        var lessons = await lessonRepository.ListByOrganizationAsync(
+            organizationId, page, pageSize, cancellationToken, teacherId, from, to);
         return lessons.Select(ToResponse).ToList();
     }
 

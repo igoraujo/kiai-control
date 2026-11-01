@@ -40,9 +40,14 @@ public sealed class BillingUseCase(IBillingRepository billingRepository)
         };
     }
 
-    public async Task<IReadOnlyList<BillingResponse>> ListAsync(Guid organizationId, int page, int pageSize, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<BillingResponse>> ListAsync(
+        Guid organizationId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken,
+        Guid? clientId = null)
     {
-        var billingItems = await billingRepository.ListByOrganizationAsync(organizationId, page, pageSize, cancellationToken);
+        var billingItems = await billingRepository.ListByOrganizationAsync(organizationId, page, pageSize, cancellationToken, clientId);
 
         return billingItems.Select(item => new BillingResponse
         {
@@ -167,9 +172,10 @@ public sealed class BillingUseCase(IBillingRepository billingRepository)
         Guid organizationId,
         int page,
         int pageSize,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Guid? clientId = null)
     {
-        var payments = await billingRepository.ListPaymentsByOrganizationAsync(organizationId, page, pageSize, cancellationToken);
+        var payments = await billingRepository.ListPaymentsByOrganizationAsync(organizationId, page, pageSize, cancellationToken, clientId);
         return payments.Select(ToResponse).ToList();
     }
 

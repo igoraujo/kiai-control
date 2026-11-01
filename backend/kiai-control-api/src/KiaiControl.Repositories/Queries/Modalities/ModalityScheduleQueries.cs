@@ -27,13 +27,15 @@ public static class ModalityScheduleQueries
                 day_of_week, starts_at, ends_at, is_active, created_at, updated_at
         )
         select inserted.id, inserted.organization_id as OrganizationId,
-            inserted.modality_id as ModalityId, inserted.branch_id as BranchId,
+            inserted.modality_id as ModalityId, modality.name as ModalityName, inserted.branch_id as BranchId,
             inserted.teacher_id as TeacherId, branch.name as BranchName,
             coalesce(teacher_person.full_name, teacher_person.preferred_name) as TeacherName,
             inserted.day_of_week as DayOfWeek, inserted.starts_at as StartsAt,
             inserted.ends_at as EndsAt, inserted.is_active as IsActive,
             inserted.created_at as CreatedAt, inserted.updated_at as UpdatedAt
         from inserted
+        join modalities modality on modality.id = inserted.modality_id
+            and modality.organization_id = inserted.organization_id
         left join branches branch on branch.id = inserted.branch_id
             and branch.organization_id = inserted.organization_id
         left join teachers teacher on teacher.id = inserted.teacher_id
@@ -43,13 +45,15 @@ public static class ModalityScheduleQueries
 
     public const string List = @"
         select schedule.id, schedule.organization_id as OrganizationId,
-            schedule.modality_id as ModalityId, schedule.branch_id as BranchId,
+            schedule.modality_id as ModalityId, modality.name as ModalityName, schedule.branch_id as BranchId,
             schedule.teacher_id as TeacherId, branch.name as BranchName,
             coalesce(teacher_person.full_name, teacher_person.preferred_name) as TeacherName,
             schedule.day_of_week as DayOfWeek, schedule.starts_at as StartsAt,
             schedule.ends_at as EndsAt, schedule.is_active as IsActive,
             schedule.created_at as CreatedAt, schedule.updated_at as UpdatedAt
         from modality_schedules schedule
+        join modalities modality on modality.id = schedule.modality_id
+            and modality.organization_id = schedule.organization_id
         left join branches branch on branch.id = schedule.branch_id
             and branch.organization_id = schedule.organization_id
         left join teachers teacher on teacher.id = schedule.teacher_id
@@ -58,6 +62,29 @@ public static class ModalityScheduleQueries
             and teacher_person.deleted_at is null
         where schedule.organization_id = @OrganizationId
           and schedule.modality_id = @ModalityId
+          and schedule.is_active = true
+        order by schedule.day_of_week, schedule.starts_at;";
+
+    public const string ListByTeacher = @"
+        select schedule.id, schedule.organization_id as OrganizationId,
+            schedule.modality_id as ModalityId, modality.name as ModalityName,
+            schedule.branch_id as BranchId, branch.name as BranchName,
+            schedule.teacher_id as TeacherId,
+            coalesce(teacher_person.full_name, teacher_person.preferred_name) as TeacherName,
+            schedule.day_of_week as DayOfWeek, schedule.starts_at as StartsAt,
+            schedule.ends_at as EndsAt, schedule.is_active as IsActive,
+            schedule.created_at as CreatedAt, schedule.updated_at as UpdatedAt
+        from modality_schedules schedule
+        join modalities modality on modality.id = schedule.modality_id
+            and modality.organization_id = schedule.organization_id
+        join teachers teacher on teacher.id = schedule.teacher_id
+            and teacher.organization_id = schedule.organization_id
+        left join branches branch on branch.id = schedule.branch_id
+            and branch.organization_id = schedule.organization_id
+        left join persons teacher_person on teacher_person.id = teacher.person_id
+            and teacher_person.deleted_at is null
+        where schedule.organization_id = @OrganizationId
+          and schedule.teacher_id = @TeacherId
           and schedule.is_active = true
         order by schedule.day_of_week, schedule.starts_at;";
 

@@ -30,6 +30,18 @@ public sealed class SqlModalityScheduleRepository(IDbConnectionFactory dbConnect
         return schedules.ToList();
     }
 
+    public async Task<IReadOnlyList<ModalitySchedule>> ListByTeacherAsync(
+        Guid organizationId,
+        Guid teacherId,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
+        var schedules = await connection.QueryAsync<ModalitySchedule>(
+            ModalityScheduleQueries.ListByTeacher,
+            new { OrganizationId = organizationId, TeacherId = teacherId });
+        return schedules.ToList();
+    }
+
     public async Task<bool> ModalityExistsAsync(
         Guid organizationId,
         Guid modalityId,

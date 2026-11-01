@@ -82,7 +82,8 @@ public sealed class SqlBillingCatalogRepository(IDbConnectionFactory dbConnectio
         Guid organizationId,
         int page,
         int pageSize,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        Guid? clientId = null)
     {
         var safePage = page < 1 ? 1 : page;
         var safePageSize = pageSize is < 1 or > 200 ? 50 : pageSize;
@@ -90,6 +91,7 @@ public sealed class SqlBillingCatalogRepository(IDbConnectionFactory dbConnectio
         var subscriptions = await connection.QueryAsync<ClientPlanSubscription>(BillingCatalogQueries.ListSubscriptions, new
         {
             OrganizationId = organizationId,
+            ClientId = clientId,
             Offset = (safePage - 1) * safePageSize,
             PageSize = safePageSize
         });

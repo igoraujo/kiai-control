@@ -10,7 +10,10 @@ public interface ILessonRepository
         Guid organizationId,
         int page,
         int pageSize,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        Guid? teacherId = null,
+        DateTimeOffset? from = null,
+        DateTimeOffset? to = null);
 
     Task<Lesson?> GetByIdAsync(Guid organizationId, Guid id, CancellationToken cancellationToken = default);
 

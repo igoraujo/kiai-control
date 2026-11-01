@@ -7,6 +7,7 @@ using KiaiControl.Contracts.Billing;
 using KiaiControl.Contracts.Lessons;
 using KiaiControl.Contracts.Modalities;
 using KiaiControl.Contracts.Reports;
+using KiaiControl.Contracts.Teachers;
 
 namespace KiaiControl.Admin.Services;
 
@@ -93,6 +94,12 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
     public Task<IReadOnlyList<ClientPlanSubscriptionResponse>> ListClientSubscriptionsAsync(int page = 1, int pageSize = 100) =>
         ListAsync<ClientPlanSubscriptionResponse>("billing/subscriptions", page, pageSize);
 
+    public Task<IReadOnlyList<ClientPlanSubscriptionResponse>> ListClientSubscriptionsAsync(
+        Guid clientId,
+        int page = 1,
+        int pageSize = 200) =>
+        ListAsync<ClientPlanSubscriptionResponse>("billing/subscriptions", page, pageSize, clientId);
+
     public Task<ClientPlanSubscriptionResponse> CreateClientSubscriptionAsync(Guid clientId, CreateClientSubscriptionRequest request) =>
         CreateAsync<CreateClientSubscriptionRequest, ClientPlanSubscriptionResponse>($"billing/clients/{clientId}/subscriptions", request);
 
@@ -107,6 +114,9 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
 
     public Task<IReadOnlyList<BillingResponse>> ListInvoicesAsync(int page = 1, int pageSize = 100) =>
         ListAsync<BillingResponse>("billing", page, pageSize);
+
+    public Task<IReadOnlyList<BillingResponse>> ListClientInvoicesAsync(Guid clientId, int page = 1, int pageSize = 200) =>
+        ListAsync<BillingResponse>("billing", page, pageSize, clientId);
 
     public async Task<IReadOnlyList<BillingResponse>> GenerateInvoicesAsync(GenerateInvoicesRequest request)
     {
@@ -123,6 +133,9 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
 
     public Task<IReadOnlyList<PaymentResponse>> ListPaymentsAsync(int page = 1, int pageSize = 100) =>
         ListAsync<PaymentResponse>("billing/payments", page, pageSize);
+
+    public Task<IReadOnlyList<PaymentResponse>> ListClientPaymentsAsync(Guid clientId, int page = 1, int pageSize = 200) =>
+        ListAsync<PaymentResponse>("billing/payments", page, pageSize, clientId);
 
     public async Task<IReadOnlyList<RoleResponse>> ListAccessRolesAsync()
     {
@@ -161,6 +174,33 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
 
     public Task<IReadOnlyList<LessonResponse>> ListLessonsAsync(int page = 1, int pageSize = 200) =>
         ListAsync<LessonResponse>("lessons", page, pageSize);
+
+    public async Task<IReadOnlyList<ModalityScheduleResponse>> ListTeacherSchedulesAsync(Guid teacherId) =>
+        await GetAsync<List<ModalityScheduleResponse>>($"teachers/{teacherId}/schedules");
+
+    public Task<ModalityScheduleResponse> CreateTeacherScheduleAsync(
+        Guid teacherId,
+        CreateTeacherScheduleRequest request) =>
+        CreateAsync<CreateTeacherScheduleRequest, ModalityScheduleResponse>(
+            $"teachers/{teacherId}/schedules", request);
+
+    public Task DeleteTeacherScheduleAsync(Guid teacherId, Guid scheduleId) =>
+        DeleteAsync($"teachers/{teacherId}/schedules", scheduleId);
+
+    public async Task<IReadOnlyList<LessonResponse>> ListTeacherLessonsAsync(
+        Guid teacherId,
+        DateTimeOffset from,
+        DateTimeOffset to,
+        int page = 1,
+        int pageSize = 200)
+    {
+        var fromQuery = Uri.EscapeDataString(from.ToString("O"));
+        var toQuery = Uri.EscapeDataString(to.ToString("O"));
+        using var response = await SendAuthorizedAsync(
+            HttpMethod.Get,
+            $"api/v1/teachers/{teacherId}/lessons?page={page}&pageSize={pageSize}&from={fromQuery}&to={toQuery}");
+        return await response.Content.ReadFromJsonAsync<List<LessonResponse>>() ?? [];
+    }
 
     public async Task<IReadOnlyList<LessonResponse>> GenerateModalityLessonsAsync(GenerateModalityLessonsRequest request)
     {
@@ -222,9 +262,15 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
             ?? throw new HttpRequestException("A API retornou uma resposta vazia.");
     }
 
-    public async Task<IReadOnlyList<T>> ListAsync<T>(string resource, int page = 1, int pageSize = 100)
+    public async Task<IReadOnlyList<T>> ListAsync<T>(
+        string resource,
+        int page = 1,
+        int pageSize = 100,
+        Guid? clientId = null)
     {
-        using var response = await SendAuthorizedAsync(HttpMethod.Get, $"api/v1/{resource}?page={page}&pageSize={pageSize}");
+        var clientFilter = clientId is null ? string.Empty : $"&clientId={clientId.Value:D}";
+        using var response = await SendAuthorizedAsync(
+            HttpMethod.Get, $"api/v1/{resource}?page={page}&pageSize={pageSize}{clientFilter}");
         return await response.Content.ReadFromJsonAsync<List<T>>() ?? [];
     }
 

@@ -37,10 +37,13 @@
 @code {
     [Parameter] public IReadOnlyList<ClientResponse> Clients { get; set; } = [];
     [Parameter] public IReadOnlyList<BillingPlanResponse> Plans { get; set; } = [];
+    [Parameter] public Guid? SelectedClientId { get; set; }
 
     private Guid? _clientId;
     private Guid? _planId;
     private DateTime? _startsAt = DateTime.Today;
+
+    protected override void OnInitialized() => _clientId = SelectedClientId;
 
     protected override async Task SaveCoreAsync()
     {

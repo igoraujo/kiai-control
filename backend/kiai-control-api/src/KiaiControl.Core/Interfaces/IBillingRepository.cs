@@ -10,7 +10,8 @@ public interface IBillingRepository
         Guid organizationId,
         int page,
         int pageSize,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        Guid? clientId = null);
 
     Task<Billing?> GetByIdAsync(Guid organizationId, Guid id, CancellationToken cancellationToken = default);
 
@@ -28,7 +29,8 @@ public interface IBillingRepository
         Guid organizationId,
         int page,
         int pageSize,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        Guid? clientId = null);
 
     Task<IReadOnlyList<Payment>> ListPaymentsByInvoiceAsync(
         Guid organizationId,

@@ -11,6 +11,11 @@ public interface IModalityScheduleRepository
         Guid modalityId,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<ModalitySchedule>> ListByTeacherAsync(
+        Guid organizationId,
+        Guid teacherId,
+        CancellationToken cancellationToken = default);
+
     Task<bool> ModalityExistsAsync(
         Guid organizationId,
         Guid modalityId,

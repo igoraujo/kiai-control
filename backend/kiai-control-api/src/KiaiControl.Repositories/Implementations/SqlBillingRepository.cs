@@ -17,13 +17,19 @@ public sealed class SqlBillingRepository(IDbConnectionFactory dbConnectionFactor
         return created;
     }
 
-    public async Task<IReadOnlyList<Billing>> ListByOrganizationAsync(Guid organizationId, int page, int pageSize, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<Billing>> ListByOrganizationAsync(
+        Guid organizationId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default,
+        Guid? clientId = null)
     {
         var safePage = page < 1 ? 1 : page;
         var safePageSize = pageSize is < 1 or > 200 ? 50 : pageSize;
         var parameters = new
         {
             OrganizationId = organizationId,
+            ClientId = clientId,
             Offset = (safePage - 1) * safePageSize,
             PageSize = safePageSize
         };
@@ -102,7 +108,8 @@ public sealed class SqlBillingRepository(IDbConnectionFactory dbConnectionFactor
         Guid organizationId,
         int page,
         int pageSize,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        Guid? clientId = null)
     {
         var safePage = page < 1 ? 1 : page;
         var safePageSize = pageSize is < 1 or > 200 ? 50 : pageSize;
@@ -110,6 +117,7 @@ public sealed class SqlBillingRepository(IDbConnectionFactory dbConnectionFactor
         var payments = await connection.QueryAsync<Payment>(BillingQueries.ListPaymentsByOrganization, new
         {
             OrganizationId = organizationId,
+            ClientId = clientId,
             Offset = (safePage - 1) * safePageSize,
             PageSize = safePageSize
         });

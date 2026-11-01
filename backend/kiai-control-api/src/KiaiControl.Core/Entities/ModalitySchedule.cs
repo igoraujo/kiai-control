@@ -8,6 +8,8 @@ public sealed class ModalitySchedule
 
     public Guid ModalityId { get; set; }
 
+    public string? ModalityName { get; set; }
+
     public Guid? BranchId { get; set; }
 
     public Guid? TeacherId { get; set; }

@@ -300,12 +300,18 @@ public sealed class InMemoryLessonRepository : ILessonRepository
         Guid organizationId,
         int page,
         int pageSize,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        Guid? teacherId = null,
+        DateTimeOffset? from = null,
+        DateTimeOffset? to = null)
     {
         var safePage = page < 1 ? 1 : page;
         var safePageSize = pageSize is < 1 or > 200 ? 50 : pageSize;
         var lessons = _lessons
-            .Where(item => item.OrganizationId == organizationId)
+            .Where(item => item.OrganizationId == organizationId
+                && (teacherId is null || item.ModalityScheduleId is not null)
+                && (from is null || item.StartsAt >= from)
+                && (to is null || item.StartsAt < to))
             .OrderByDescending(item => item.StartsAt)
             .Skip((safePage - 1) * safePageSize)
             .Take(safePageSize)
@@ -576,12 +582,17 @@ public sealed class InMemoryBillingRepository : IBillingRepository
         return Task.FromResult(billing);
     }
 
-    public Task<IReadOnlyList<Billing>> ListByOrganizationAsync(Guid organizationId, int page, int pageSize, CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<Billing>> ListByOrganizationAsync(
+        Guid organizationId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default,
+        Guid? clientId = null)
     {
         var safePage = page < 1 ? 1 : page;
         var safePageSize = pageSize is < 1 or > 200 ? 50 : pageSize;
         var items = _billing
-            .Where(record => record.OrganizationId == organizationId)
+            .Where(record => record.OrganizationId == organizationId && (clientId is null || record.ClientId == clientId))
             .OrderByDescending(record => record.CreatedAt)
             .Skip((safePage - 1) * safePageSize)
             .Take(safePageSize)
@@ -646,12 +657,15 @@ public sealed class InMemoryBillingRepository : IBillingRepository
         Guid organizationId,
         int page,
         int pageSize,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        Guid? clientId = null)
     {
         var safePage = page < 1 ? 1 : page;
         var safePageSize = pageSize is < 1 or > 200 ? 50 : pageSize;
         IReadOnlyList<Payment> items = _payments
-            .Where(item => item.OrganizationId == organizationId)
+            .Where(item => item.OrganizationId == organizationId
+                && (clientId is null || _billing.Any(invoice => invoice.OrganizationId == organizationId
+                    && invoice.Id == item.InvoiceId && invoice.ClientId == clientId)))
             .OrderByDescending(item => item.PaidAt)
             .Skip((safePage - 1) * safePageSize)
             .Take(safePageSize)
@@ -747,12 +761,13 @@ public sealed class InMemoryBillingCatalogRepository : IBillingCatalogRepository
         Guid organizationId,
         int page,
         int pageSize,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        Guid? clientId = null)
     {
         var safePage = page < 1 ? 1 : page;
         var safePageSize = pageSize is < 1 or > 200 ? 50 : pageSize;
         IReadOnlyList<ClientPlanSubscription> subscriptions = _subscriptions
-            .Where(item => item.OrganizationId == organizationId)
+            .Where(item => item.OrganizationId == organizationId && (clientId is null || item.ClientId == clientId))
             .OrderByDescending(item => item.IsActive)
             .ThenByDescending(item => item.StartsAt)
             .Skip((safePage - 1) * safePageSize)

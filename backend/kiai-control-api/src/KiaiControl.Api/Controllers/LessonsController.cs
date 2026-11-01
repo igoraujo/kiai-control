@@ -80,6 +80,9 @@ public sealed class LessonsController(
     public async Task<ActionResult<IReadOnlyList<LessonResponse>>> ListAsync(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 50,
+        [FromQuery] Guid? teacherId = null,
+        [FromQuery] DateTimeOffset? from = null,
+        [FromQuery] DateTimeOffset? to = null,
         CancellationToken cancellationToken = default)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
@@ -87,8 +90,15 @@ public sealed class LessonsController(
             return BadRequest("Organization context is required.");
         }
 
-        var lessons = await lessonUseCase.ListAsync(organizationId, page, pageSize, cancellationToken);
-        return Ok(lessons);
+        try
+        {
+            var lessons = await lessonUseCase.ListAsync(organizationId, page, pageSize, cancellationToken, teacherId, from, to);
+            return Ok(lessons);
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(exception.Message);
+        }
     }
 
     [HttpGet("{id:guid}")]

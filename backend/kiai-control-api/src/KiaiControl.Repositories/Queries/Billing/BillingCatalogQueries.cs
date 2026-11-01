@@ -128,6 +128,7 @@ public static class BillingCatalogQueries
             updated_at as UpdatedAt
         from client_plan_subscriptions
         where organization_id = @OrganizationId
+          and (@ClientId is null or client_id = @ClientId)
         order by is_active desc, starts_at desc, created_at desc
         offset @Offset rows fetch next @PageSize rows only;
         ";

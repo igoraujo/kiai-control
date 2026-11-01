@@ -15,6 +15,28 @@ namespace KiaiControl.Admin.E2ETests;
 public sealed class AdminCriticalFlowsTests
 {
     [Fact]
+    public async Task AdminBootstrapCreatesAnEmptyDatabaseAndAllowsBrowserLogin()
+    {
+        await using var environment = new E2EEnvironment();
+        await environment.StartAsync(seedAdmin: true);
+        await environment.VerifyFreshDatabaseBootstrapAsync();
+
+        using var playwright = await Playwright.CreateAsync();
+        await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
+        {
+            Headless = true
+        });
+        var page = await browser.NewPageAsync();
+
+        await page.GotoAsync($"{environment.AdminUrl}/login");
+        await page.GetByLabel("E-mail").FillAsync(environment.OwnerEmail);
+        await page.GetByLabel("Senha").FillAsync(environment.OwnerPassword);
+        await page.GetByRole(AriaRole.Button, new() { Name = "Entrar" }).ClickAsync();
+        await page.GetByText(environment.OwnerEmail, new() { Exact = true }).WaitForAsync();
+        Assert.Contains("Dashboard", await page.Locator("body").InnerTextAsync());
+    }
+
+    [Fact]
     public async Task AdminCanManageClientAttendanceAndPaymentInBrowser()
     {
         await using var environment = new E2EEnvironment();
@@ -54,6 +76,24 @@ public sealed class AdminCriticalFlowsTests
         await page.GetByRole(AriaRole.Button, new() { Name = "Salvar" }).ClickAsync();
         await page.GetByText(modalityName, new() { Exact = true }).WaitForAsync();
 
+        const string teacherName = "Professor Jornada E2E";
+        await page.GotoAsync($"{environment.AdminUrl}/teachers");
+        await page.GetByRole(AriaRole.Button, new() { Name = "Novo professor" }).ClickAsync();
+        await page.GetByLabel("Nome completo").FillAsync(teacherName);
+        await page.GetByLabel("Email", new() { Exact = true }).FillAsync(environment.TeacherEmail);
+        await page.GetByRole(AriaRole.Button, new() { Name = "Salvar" }).ClickAsync();
+        await page.GetByText(teacherName, new() { Exact = true }).WaitForAsync();
+        var teacherRow = page.GetByRole(AriaRole.Row).Filter(new() { HasText = teacherName });
+        await teacherRow.GetByRole(AriaRole.Button, new() { Name = "Agenda e horários do professor" }).ClickAsync();
+        var teacherJourney = page.GetByRole(AriaRole.Dialog);
+        await teacherJourney.GetByLabel("Modalidade").ClickAsync();
+        await page.GetByText(modalityName, new() { Exact = true }).Last.ClickAsync();
+        await teacherJourney.GetByLabel("Início").FillAsync("23:00");
+        await teacherJourney.GetByLabel("Término").FillAsync("23:59");
+        await teacherJourney.GetByRole(AriaRole.Button, new() { Name = "Associar horário" }).ClickAsync();
+        await teacherJourney.GetByText(modalityName, new() { Exact = true }).WaitForAsync();
+        await teacherJourney.GetByRole(AriaRole.Button, new() { Name = "Fechar" }).ClickAsync();
+
         await page.GotoAsync($"{environment.AdminUrl}/clients");
         await page.GetByRole(AriaRole.Button, new() { Name = "Novo aluno" }).ClickAsync();
         await page.GetByLabel("Nome completo").FillAsync(clientName);
@@ -73,6 +113,14 @@ public sealed class AdminCriticalFlowsTests
 
         var client = await environment.GetClientAsync(updatedEmail);
         var lessonId = await CreateLessonAsync(page, environment, modalityName);
+        await page.GotoAsync($"{environment.AdminUrl}/teachers");
+        teacherRow = page.GetByRole(AriaRole.Row).Filter(new() { HasText = teacherName });
+        await teacherRow.GetByRole(AriaRole.Button, new() { Name = "Agenda e horários do professor" }).ClickAsync();
+        teacherJourney = page.GetByRole(AriaRole.Dialog);
+        await teacherJourney.GetByRole(AriaRole.Tab, new() { Name = "Agenda de aulas" }).ClickAsync();
+        await teacherJourney.GetByText(modalityName, new() { Exact = true }).WaitForAsync();
+        await teacherJourney.GetByRole(AriaRole.Button, new() { Name = "Fechar" }).ClickAsync();
+
         await environment.CreateClientLoginAsync(client.PersonId, updatedEmail);
         await environment.EnableClientCheckInAsync();
 
@@ -115,6 +163,19 @@ public sealed class AdminCriticalFlowsTests
         await page.GetByRole(AriaRole.Tab, new() { Name = "Pagamentos" }).ClickAsync();
         await page.GetByText(clientName, new() { Exact = true }).WaitForAsync();
         Assert.Equal(1, await environment.CountPaymentsAsync(client.ClientId));
+
+        await page.GotoAsync($"{environment.AdminUrl}/clients");
+        clientRow = page.GetByRole(AriaRole.Row).Filter(new() { HasText = clientName });
+        await clientRow.GetByRole(AriaRole.Button, new() { Name = "Jornada do aluno" }).ClickAsync();
+        var journeyDialog = page.GetByRole(AriaRole.Dialog);
+        await journeyDialog.GetByRole(AriaRole.Tab, new() { Name = "Financeiro" }).ClickAsync();
+        await journeyDialog.GetByText("Plano E2E", new() { Exact = true }).WaitForAsync();
+        await journeyDialog.GetByText("Paga", new() { Exact = true }).WaitForAsync();
+        await journeyDialog.GetByText("Pix", new() { Exact = true }).WaitForAsync();
+        await journeyDialog.GetByRole(AriaRole.Button, new() { Name = "Editar cadastro" }).ClickAsync();
+        var editDialog = page.GetByRole(AriaRole.Dialog);
+        await editDialog.GetByLabel("Email", new() { Exact = true }).WaitForAsync();
+        await editDialog.GetByRole(AriaRole.Button, new() { Name = "Cancelar" }).ClickAsync();
     }
 
     private static async Task<Guid> CreateLessonAsync(IPage page, E2EEnvironment environment, string modalityName)
@@ -131,6 +192,7 @@ public sealed class AdminCriticalFlowsTests
 
         var lessons = await environment.WaitForGeneratedLessonsAsync(page);
         Assert.NotEmpty(lessons);
+
         return lessons[0];
     }
 }
@@ -152,19 +214,31 @@ internal sealed class E2EEnvironment : IAsyncDisposable
     private int _adminPort;
     private Guid _organizationId;
 
-    public string OwnerEmail { get; } = $"owner-{Guid.NewGuid():N}@example.test";
-    public string OwnerPassword => OwnerPasswordValue;
+    public string OwnerEmail { get; private set; } = $"owner-{Guid.NewGuid():N}@example.test";
+    public string OwnerPassword { get; private set; } = OwnerPasswordValue;
     public string ClientEmail { get; } = $"client-{Guid.NewGuid():N}@example.test";
     public string UpdatedClientEmail { get; } = $"updated-client-{Guid.NewGuid():N}@example.test";
+    public string TeacherEmail { get; } = $"teacher-{Guid.NewGuid():N}@example.test";
     public string ApiUrl => $"http://127.0.0.1:{_apiPort}";
     public string AdminUrl => $"http://127.0.0.1:{_adminPort}";
     public string ProcessOutput => $"API:{Environment.NewLine}{FormatOutput(_apiOutput)}{Environment.NewLine}Admin:{Environment.NewLine}{FormatOutput(_adminOutput)}";
     private string ConnectionString => _database.GetConnectionString();
 
-    public async Task StartAsync()
+    public async Task StartAsync(bool seedAdmin = false)
     {
         await _database.StartAsync();
-        await ApplyMigrationsAsync();
+        if (seedAdmin)
+        {
+            await RunDatabaseBootstrapScriptAsync();
+            await RunDatabaseBootstrapScriptAsync();
+            OwnerEmail = "admin@kiai.local";
+            OwnerPassword = "Admin@123456";
+            await SetSeedOrganizationIdAsync();
+        }
+        else
+        {
+            await ApplyMigrationsAsync();
+        }
 
         var root = FindRepositoryRoot();
         var configuration = new DirectoryInfo(AppContext.BaseDirectory).Parent?.Name ?? "Debug";
@@ -184,17 +258,18 @@ internal sealed class E2EEnvironment : IAsyncDisposable
             });
         await WaitForHttpAsync($"{ApiUrl}/health/live", _apiProcess, _apiOutput);
 
-        using var httpClient = new HttpClient();
-        var registrationResponse = await httpClient.PostAsJsonAsync($"{ApiUrl}/api/v1/organizations", new
+        if (!seedAdmin)
         {
-            name = $"E2E Academy {Guid.NewGuid():N}",
-            ownerFullName = "E2E Owner",
-            ownerEmail = OwnerEmail,
-            ownerPassword = OwnerPassword
-        });
-        registrationResponse.EnsureSuccessStatusCode();
-        using (var registration = JsonDocument.Parse(await registrationResponse.Content.ReadAsStringAsync()))
-        {
+            using var httpClient = new HttpClient();
+            var registrationResponse = await httpClient.PostAsJsonAsync($"{ApiUrl}/api/v1/organizations", new
+            {
+                name = $"E2E Academy {Guid.NewGuid():N}",
+                ownerFullName = "E2E Owner",
+                ownerEmail = OwnerEmail,
+                ownerPassword = OwnerPassword
+            });
+            registrationResponse.EnsureSuccessStatusCode();
+            using var registration = JsonDocument.Parse(await registrationResponse.Content.ReadAsStringAsync());
             _organizationId = registration.RootElement.GetProperty("organization").GetProperty("id").GetGuid();
         }
 
@@ -211,6 +286,24 @@ internal sealed class E2EEnvironment : IAsyncDisposable
                 ["Api__BaseUrl"] = ApiUrl
             });
         await WaitForHttpAsync(AdminUrl, _adminProcess, _adminOutput);
+    }
+
+    public async Task VerifyFreshDatabaseBootstrapAsync()
+    {
+        await using var connection = new NpgsqlConnection(ConnectionString);
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand(
+            """
+            select
+                (select count(*) from schema_migrations) = 7
+                and (select count(*) from organizations where id = @OrganizationId and email = 'admin@kiai.local') = 1
+                and (select count(*) from user_accounts where email = 'admin@kiai.local' and is_active) = 1
+                and to_regclass('public.modality_schedules') is not null
+                and to_regclass('public.class_groups') is null
+            """,
+            connection);
+        command.Parameters.AddWithValue("OrganizationId", _organizationId);
+        Assert.True((bool)(await command.ExecuteScalarAsync())!);
     }
 
     public async Task<(Guid ClientId, Guid PersonId)> GetClientAsync(string email)
@@ -389,12 +482,80 @@ internal sealed class E2EEnvironment : IAsyncDisposable
     {
         await using var connection = new NpgsqlConnection(ConnectionString);
         await connection.OpenAsync();
+        await using (var ledger = new NpgsqlCommand(
+            """
+            create table schema_migrations (
+                migration_name varchar(255) primary key,
+                applied_at timestamptz not null default now()
+            )
+            """,
+            connection))
+        {
+            await ledger.ExecuteNonQueryAsync();
+        }
+
         var migrationDirectory = Path.Combine(FindRepositoryRoot(), "database", "kiai-control-database", "migrations");
         foreach (var migrationPath in Directory.GetFiles(migrationDirectory, "*.sql").Order(StringComparer.Ordinal))
         {
             await using var command = new NpgsqlCommand(await File.ReadAllTextAsync(migrationPath), connection);
             await command.ExecuteNonQueryAsync();
+            await using var record = new NpgsqlCommand(
+                "insert into schema_migrations (migration_name) values (@MigrationName)",
+                connection);
+            record.Parameters.AddWithValue("MigrationName", Path.GetFileName(migrationPath));
+            await record.ExecuteNonQueryAsync();
         }
+    }
+
+    private async Task RunDatabaseBootstrapScriptAsync()
+    {
+        var root = FindRepositoryRoot();
+        var connection = new NpgsqlConnectionStringBuilder(ConnectionString);
+        var process = new Process
+        {
+            StartInfo = new ProcessStartInfo("bash")
+            {
+                WorkingDirectory = root,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false
+            }
+        };
+        process.StartInfo.ArgumentList.Add(
+            Path.Combine(root, "database", "kiai-control-database", "scripts", "create_database.sh"));
+        process.StartInfo.Environment["PGHOST"] = connection.Host;
+        process.StartInfo.Environment["PGPORT"] = connection.Port.ToString();
+        process.StartInfo.Environment["PGUSER"] = connection.Username;
+        process.StartInfo.Environment["PGPASSWORD"] = connection.Password;
+        process.StartInfo.Environment["DB_NAME"] = connection.Database;
+        process.StartInfo.Environment["PG_CONTAINER_NAME"] = _database.Id;
+
+        if (!process.Start())
+        {
+            throw new InvalidOperationException("Could not start the database bootstrap script.");
+        }
+
+        var standardOutput = process.StandardOutput.ReadToEndAsync();
+        var standardError = process.StandardError.ReadToEndAsync();
+        await process.WaitForExitAsync();
+        var output = await standardOutput;
+        var error = await standardError;
+        if (process.ExitCode != 0)
+        {
+            throw new InvalidOperationException(
+                $"The database bootstrap script failed with exit code {process.ExitCode}.{Environment.NewLine}{output}{Environment.NewLine}{error}");
+        }
+    }
+
+    private async Task SetSeedOrganizationIdAsync()
+    {
+        await using var connection = new NpgsqlConnection(ConnectionString);
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand(
+            "select id from organizations where email = 'admin@kiai.local'",
+            connection);
+        _organizationId = (Guid)(await command.ExecuteScalarAsync()
+            ?? throw new InvalidOperationException("The admin seed did not create its organization."));
     }
 
     private async Task SetOrganizationTimezoneAsync()

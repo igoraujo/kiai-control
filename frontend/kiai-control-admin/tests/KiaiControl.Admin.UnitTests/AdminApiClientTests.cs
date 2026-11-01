@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using KiaiControl.Admin.Services;
 using KiaiControl.Contracts.Auth;
+using KiaiControl.Contracts.Billing;
 
 namespace KiaiControl.Admin.UnitTests;
 
@@ -120,6 +121,29 @@ public sealed class AdminApiClientTests
 
         Assert.Equal(HttpStatusCode.Forbidden, exception.StatusCode);
         Assert.Equal("Access denied", exception.Message);
+    }
+
+    [Fact]
+    public async Task ClientFinancialHistoryMethods_ShouldRequestRecordsFilteredByClient()
+    {
+        var clientId = Guid.NewGuid();
+        var handler = new QueueHttpMessageHandler(
+            JsonResponse(Array.Empty<ClientPlanSubscriptionResponse>()),
+            JsonResponse(Array.Empty<BillingResponse>()),
+            JsonResponse(Array.Empty<PaymentResponse>()));
+        var session = new AdminSession();
+        await session.SetAsync(CreateSession("access-token", "refresh-token", Guid.NewGuid()));
+        var api = CreateClient(handler, session);
+
+        await api.ListClientSubscriptionsAsync(clientId);
+        await api.ListClientInvoicesAsync(clientId);
+        await api.ListClientPaymentsAsync(clientId);
+
+        Assert.All(handler.Requests, request =>
+            Assert.Contains($"clientId={clientId:D}", request.RequestUri!.Query));
+        Assert.Contains("/billing/subscriptions?", handler.Requests[0].RequestUri!.PathAndQuery);
+        Assert.Contains("/billing?", handler.Requests[1].RequestUri!.PathAndQuery);
+        Assert.Contains("/billing/payments?", handler.Requests[2].RequestUri!.PathAndQuery);
     }
 
     private static AdminApiClient CreateClient(QueueHttpMessageHandler handler, AdminSession session) =>

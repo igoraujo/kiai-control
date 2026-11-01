@@ -98,6 +98,16 @@ public sealed class ModalityScheduleUseCaseTests
                     && schedule.IsActive)
                 .ToList());
 
+        public Task<IReadOnlyList<ModalitySchedule>> ListByTeacherAsync(
+            Guid organizationId,
+            Guid teacherId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<ModalitySchedule>>(_schedules
+                .Where(schedule => schedule.OrganizationId == organizationId
+                    && schedule.TeacherId == teacherId
+                    && schedule.IsActive)
+                .ToList());
+
         public Task<bool> ModalityExistsAsync(
             Guid organizationId,
             Guid modalityId,

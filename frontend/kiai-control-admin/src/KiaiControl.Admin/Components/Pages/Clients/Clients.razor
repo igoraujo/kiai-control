@@ -1,5 +1,6 @@
 @page "/clients"
 @inherits CrudPageBase<ClientResponse>
+@using KiaiControl.Contracts.Auth
 
 <PageTitle>Alunos | Kiai Control</PageTitle>
 
@@ -47,6 +48,8 @@
             <MudTd><MudChip T="string" Size="Size.Small" Color="PersonStatus.Color(context.Status)">@PersonStatus.Label(context.Status)</MudChip></MudTd>
             <MudTd>@(context.JoinedAt?.ToString("dd/MM/yyyy") ?? "-")</MudTd>
             <MudTd Style="text-align:right">
+                <MudIconButton Icon="@Icons.Material.Filled.FolderShared" Size="Size.Small" aria-label="Jornada do aluno"
+                               OnClick="() => OpenJourneyAsync(context)" />
                 <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" aria-label="Editar" OnClick="() => EditAsync(context)" />
                 <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" aria-label="Excluir" OnClick="() => DeleteAsync(context.Id, context.FullName)" />
             </MudTd>
@@ -127,5 +130,37 @@
                 { x => x.Modalities, _modalities },
                 { x => x.SelectedModalityIds, selectedModalityIds }
             }, MaxWidth.Medium);
+    }
+
+    private async Task OpenJourneyAsync(ClientResponse client)
+    {
+        try
+        {
+            var modalities = await Api.ListClientModalitiesAsync(client.Id);
+            var hasBillingPermission = Session.Current?.User.Permissions.Contains(
+                PermissionCodes.BillingManage, StringComparer.OrdinalIgnoreCase) == true;
+            var dialog = await DialogService.ShowAsync<ClientJourneyDialog>(
+                $"Jornada de {client.FullName}",
+                new DialogParameters<ClientJourneyDialog>
+                {
+                    { component => component.Client, client },
+                    { component => component.Modalities, modalities },
+                    { component => component.HasBillingPermission, hasBillingPermission }
+                },
+                new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true, CloseOnEscapeKey = true });
+            if (await dialog.Result is { Canceled: false, Data: "edit" })
+            {
+                await EditAsync(client);
+            }
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await Session.ClearAsync();
+            Navigation.NavigateTo("/login");
+        }
+        catch (HttpRequestException exception)
+        {
+            Snackbar.Add($"Não foi possível carregar a jornada do aluno: {exception.Message}", Severity.Error);
+        }
     }
 }

@@ -66,4 +66,15 @@ public sealed class LessonUseCaseTests
         Assert.Equal(TimeSpan.Zero, created.EndsAt.Offset);
     }
 
+    [Fact]
+    public async Task ListAsync_ShouldRejectInvalidAgendaRange()
+    {
+        var useCase = new LessonUseCase(new InMemoryLessonRepository());
+        var from = DateTimeOffset.Parse("2026-10-10T00:00:00Z");
+        var to = from.AddDays(-1);
+
+        await Assert.ThrowsAsync<ArgumentException>(() => useCase.ListAsync(
+            Guid.NewGuid(), 1, 50, CancellationToken.None, Guid.NewGuid(), from, to));
+    }
+
 }

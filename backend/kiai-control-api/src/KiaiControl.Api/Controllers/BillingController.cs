@@ -59,6 +59,7 @@ public sealed class BillingController(
     public async Task<ActionResult<IReadOnlyList<BillingResponse>>> ListAsync(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 50,
+        [FromQuery] Guid? clientId = null,
         CancellationToken cancellationToken = default)
     {
         if (organizationContext.OrganizationId is null)
@@ -66,7 +67,13 @@ public sealed class BillingController(
             return BadRequest("Organization context is required.");
         }
 
-        var billingItems = await billingUseCase.ListAsync(organizationContext.OrganizationId.Value, page, pageSize, cancellationToken);
+        if (clientId == Guid.Empty)
+        {
+            return BadRequest("ClientId must be a valid identifier.");
+        }
+
+        var billingItems = await billingUseCase.ListAsync(
+            organizationContext.OrganizationId.Value, page, pageSize, cancellationToken, clientId);
         return Ok(billingItems);
     }
 
@@ -141,6 +148,7 @@ public sealed class BillingController(
     public async Task<ActionResult<IReadOnlyList<PaymentResponse>>> ListPaymentsAsync(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 50,
+        [FromQuery] Guid? clientId = null,
         CancellationToken cancellationToken = default)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
@@ -148,7 +156,12 @@ public sealed class BillingController(
             return BadRequest("Organization context is required.");
         }
 
-        var payments = await billingUseCase.ListPaymentsAsync(organizationId, page, pageSize, cancellationToken);
+        if (clientId == Guid.Empty)
+        {
+            return BadRequest("ClientId must be a valid identifier.");
+        }
+
+        var payments = await billingUseCase.ListPaymentsAsync(organizationId, page, pageSize, cancellationToken, clientId);
         return Ok(payments);
     }
 
@@ -277,6 +290,7 @@ public sealed class BillingController(
     public async Task<ActionResult<IReadOnlyList<ClientPlanSubscriptionResponse>>> ListSubscriptionsAsync(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 50,
+        [FromQuery] Guid? clientId = null,
         CancellationToken cancellationToken = default)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
@@ -284,7 +298,13 @@ public sealed class BillingController(
             return BadRequest("Organization context is required.");
         }
 
-        return Ok(await billingCatalogUseCase.ListSubscriptionsAsync(organizationId, page, pageSize, cancellationToken));
+        if (clientId == Guid.Empty)
+        {
+            return BadRequest("ClientId must be a valid identifier.");
+        }
+
+        return Ok(await billingCatalogUseCase.ListSubscriptionsAsync(
+            organizationId, page, pageSize, cancellationToken, clientId));
     }
 
     [HttpPatch("subscriptions/{subscriptionId:guid}/cancel")]

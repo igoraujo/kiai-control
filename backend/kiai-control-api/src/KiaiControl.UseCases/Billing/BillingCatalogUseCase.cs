@@ -96,14 +96,15 @@ public sealed class BillingCatalogUseCase(IBillingCatalogRepository repository)
         Guid organizationId,
         int page,
         int pageSize,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Guid? clientId = null)
     {
         if (organizationId == Guid.Empty)
         {
             throw new ArgumentException("OrganizationId is required.");
         }
 
-        var subscriptions = await repository.ListSubscriptionsAsync(organizationId, page, pageSize, cancellationToken);
+        var subscriptions = await repository.ListSubscriptionsAsync(organizationId, page, pageSize, cancellationToken, clientId);
         return subscriptions.Select(ToResponse).ToList();
     }
 

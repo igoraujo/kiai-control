@@ -21,13 +21,19 @@ public sealed class SqlLessonRepository(IDbConnectionFactory dbConnectionFactory
         Guid organizationId,
         int page,
         int pageSize,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        Guid? teacherId = null,
+        DateTimeOffset? from = null,
+        DateTimeOffset? to = null)
     {
         var safePage = page < 1 ? 1 : page;
         var safePageSize = pageSize is < 1 or > 200 ? 50 : pageSize;
         var parameters = new
         {
             OrganizationId = organizationId,
+            TeacherId = teacherId,
+            From = from?.ToUniversalTime(),
+            To = to?.ToUniversalTime(),
             Offset = (safePage - 1) * safePageSize,
             PageSize = safePageSize
         };

@@ -47,6 +47,8 @@
             <MudTd><MudChip T="string" Size="Size.Small" Color="PersonStatus.Color(context.Status)">@PersonStatus.Label(context.Status)</MudChip></MudTd>
             <MudTd>@(context.ActiveFrom?.ToString("dd/MM/yyyy") ?? "-")</MudTd>
             <MudTd Style="text-align:right">
+                <MudIconButton Icon="@Icons.Material.Filled.CalendarMonth" Size="Size.Small"
+                               aria-label="Agenda e horários do professor" OnClick="() => OpenJourneyAsync(context)" />
                 <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" aria-label="Editar" OnClick="() => EditAsync(context)" />
                 <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" aria-label="Excluir" OnClick="() => DeleteAsync(context.Id, context.FullName)" />
             </MudTd>
@@ -97,4 +99,30 @@
                 { x => x.Item, item },
                 { x => x.Branches, _branches }
             }, MaxWidth.Medium);
+
+    private async Task OpenJourneyAsync(TeacherResponse teacher)
+    {
+        try
+        {
+            var modalities = await Api.ListAsync<ModalityResponse>("modalities", pageSize: 200);
+            await DialogService.ShowAsync<TeacherJourneyDialog>(
+                $"Jornada de {teacher.FullName}",
+                new DialogParameters<TeacherJourneyDialog>
+                {
+                    { component => component.Teacher, teacher },
+                    { component => component.Branches, _branches },
+                    { component => component.Modalities, modalities.Where(modality => modality.IsActive).ToList() }
+                },
+                new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true, CloseOnEscapeKey = true });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await Session.ClearAsync();
+            Navigation.NavigateTo("/login");
+        }
+        catch (HttpRequestException exception)
+        {
+            Snackbar.Add($"Não foi possível carregar a jornada do professor: {exception.Message}", Severity.Error);
+        }
+    }
 }

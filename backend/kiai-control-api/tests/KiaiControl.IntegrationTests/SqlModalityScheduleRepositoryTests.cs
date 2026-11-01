@@ -132,6 +132,9 @@ public sealed class SqlModalityScheduleRepositoryTests(PostgreSqlFixture fixture
         Assert.NotNull(schedule);
         var listedSchedules = await scheduleRepository.ListAsync(organizationId, modalityId);
         Assert.Equal("Professor Teste", Assert.Single(listedSchedules).TeacherName);
+        var teacherSchedules = await scheduleRepository.ListByTeacherAsync(organizationId, teacherId);
+        Assert.Equal(modalityId, Assert.Single(teacherSchedules).ModalityId);
+        Assert.Equal($"Karate {modalityId:N}", teacherSchedules[0].ModalityName);
 
         var firstGeneration = await lessonRepository.GenerateFromModalitySchedulesAsync(
             organizationId, modalityId, new DateOnly(2026, 1, 5), new DateOnly(2026, 1, 11));
@@ -143,6 +146,14 @@ public sealed class SqlModalityScheduleRepositoryTests(PostgreSqlFixture fixture
         Assert.Empty(repeatedGeneration!);
         Assert.Equal(modalityId, firstGeneration[0].ModalityId);
         Assert.Equal("Karate " + modalityId.ToString("N"), firstGeneration[0].ModalityName);
+        var teacherAgenda = await lessonRepository.ListByOrganizationAsync(
+            organizationId,
+            1,
+            50,
+            teacherId: teacherId,
+            from: new DateTimeOffset(2026, 1, 4, 0, 0, 0, TimeSpan.Zero),
+            to: new DateTimeOffset(2026, 1, 12, 0, 0, 0, TimeSpan.Zero));
+        Assert.Equal(firstGeneration[0].Id, Assert.Single(teacherAgenda).Id);
 
         await using (var connection = new NpgsqlConnection(fixture.ConnectionString))
         {

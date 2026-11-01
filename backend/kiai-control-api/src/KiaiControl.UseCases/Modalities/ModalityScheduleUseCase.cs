@@ -58,6 +58,20 @@ public sealed class ModalityScheduleUseCase(IModalityScheduleRepository schedule
                 : schedules.Select(ToResponse).ToList();
     }
 
+    public async Task<IReadOnlyList<ModalityScheduleResponse>> ListByTeacherAsync(
+        Guid organizationId,
+        Guid teacherId,
+        CancellationToken cancellationToken)
+    {
+        if (organizationId == Guid.Empty || teacherId == Guid.Empty)
+        {
+            throw new ArgumentException("A organização e o professor são obrigatórios.");
+        }
+
+        var schedules = await scheduleRepository.ListByTeacherAsync(organizationId, teacherId, cancellationToken);
+        return schedules.Select(ToResponse).ToList();
+    }
+
     public Task<bool> DeactivateAsync(
         Guid organizationId,
         Guid modalityId,
@@ -77,6 +91,7 @@ public sealed class ModalityScheduleUseCase(IModalityScheduleRepository schedule
         Id = schedule.Id,
         OrganizationId = schedule.OrganizationId,
         ModalityId = schedule.ModalityId,
+        ModalityName = schedule.ModalityName,
         BranchId = schedule.BranchId,
         TeacherId = schedule.TeacherId,
         BranchName = schedule.BranchName,

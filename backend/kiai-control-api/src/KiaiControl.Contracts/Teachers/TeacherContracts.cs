@@ -1,5 +1,18 @@
 namespace KiaiControl.Contracts.Teachers;
 
+public sealed class CreateTeacherScheduleRequest
+{
+    public Guid ModalityId { get; set; }
+
+    public Guid? BranchId { get; set; }
+
+    public int DayOfWeek { get; set; }
+
+    public TimeOnly StartsAt { get; set; }
+
+    public TimeOnly EndsAt { get; set; }
+}
+
 public sealed class CreateTeacherRequest
 {
     public Guid OrganizationId { get; set; }

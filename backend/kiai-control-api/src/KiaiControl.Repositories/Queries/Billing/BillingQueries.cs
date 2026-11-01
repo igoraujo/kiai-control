@@ -22,6 +22,7 @@ public static class BillingQueries
             updated_at as UpdatedAt
         from invoices
         where organization_id = @OrganizationId
+          and (@ClientId is null or client_id = @ClientId)
         order by due_date desc, created_at desc
         offset @Offset rows fetch next @PageSize rows only;
         ";
@@ -112,18 +113,20 @@ public static class BillingQueries
 
     public const string ListPaymentsByOrganization = @"
         select
-            id,
-            organization_id as OrganizationId,
-            invoice_id as InvoiceId,
-            amount,
-            method::text as Method,
-            paid_at as PaidAt,
-            external_reference as ExternalReference,
-            notes,
-            created_at as CreatedAt
-        from payments
-        where organization_id = @OrganizationId
-        order by paid_at desc, created_at desc
+            p.id,
+            p.organization_id as OrganizationId,
+            p.invoice_id as InvoiceId,
+            p.amount,
+            p.method::text as Method,
+            p.paid_at as PaidAt,
+            p.external_reference as ExternalReference,
+            p.notes,
+            p.created_at as CreatedAt
+        from payments p
+        join invoices i on i.id = p.invoice_id and i.organization_id = p.organization_id
+        where p.organization_id = @OrganizationId
+          and (@ClientId is null or i.client_id = @ClientId)
+        order by p.paid_at desc, p.created_at desc
         offset @Offset rows fetch next @PageSize rows only;
         ";
 

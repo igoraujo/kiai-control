@@ -41,6 +41,9 @@ public static class LessonQueries
             and modality_schedule.organization_id = lessons.organization_id
         left join branches branch on branch.id = modality_schedule.branch_id and branch.organization_id = lessons.organization_id
         where lessons.organization_id = @OrganizationId
+          and (@TeacherId is null or modality_schedule.teacher_id = @TeacherId)
+          and (@From is null or lessons.starts_at >= @From)
+          and (@To is null or lessons.starts_at < @To)
         order by lessons.starts_at desc
         offset @Offset rows fetch next @PageSize rows only;
         ";

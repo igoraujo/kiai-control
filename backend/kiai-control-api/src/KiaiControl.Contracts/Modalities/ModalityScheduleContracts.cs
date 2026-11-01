@@ -21,6 +21,8 @@ public sealed class ModalityScheduleResponse
 
     public Guid ModalityId { get; init; }
 
+    public string? ModalityName { get; init; }
+
     public Guid? BranchId { get; init; }
 
     public Guid? TeacherId { get; init; }
