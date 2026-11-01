@@ -1,6 +1,8 @@
 using KiaiControl.Contracts.Auth;
+using KiaiControl.Contracts.Modalities;
 using KiaiControl.Contracts.Reports;
 using KiaiControl.Core.Common;
+using KiaiControl.UseCases.Modalities;
 using KiaiControl.UseCases.Reports;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -11,8 +13,24 @@ namespace KiaiControl.Api.Controllers;
 [Authorize(Roles = "owner,admin,financial")]
 [Authorize(Policy = PermissionCodes.ReportsRead)]
 [Route("api/v1/reports")]
-public sealed class ReportsController(OrganizationContext organizationContext, ReportUseCase reportUseCase) : ControllerBase
+public sealed class ReportsController(
+    OrganizationContext organizationContext,
+    ReportUseCase reportUseCase,
+    ModalityUseCase modalityUseCase) : ControllerBase
 {
+    [HttpGet("modalities")]
+    public async Task<ActionResult<IReadOnlyList<ModalityResponse>>> ModalitiesAsync(
+        CancellationToken cancellationToken)
+    {
+        if (organizationContext.OrganizationId is not Guid organizationId)
+        {
+            return BadRequest("Organization context is required.");
+        }
+
+        var modalities = await modalityUseCase.ListAsync(organizationId, 1, 200, cancellationToken);
+        return Ok(modalities);
+    }
+
     [HttpGet("dashboard")]
     public async Task<ActionResult<DashboardReportResponse>> DashboardAsync(
         [FromQuery] DateOnly from,

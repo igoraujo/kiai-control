@@ -216,6 +216,22 @@ public sealed class SqlModalityScheduleRepositoryTests(PostgreSqlFixture fixture
         Assert.Equal(1, performance.AttendanceCount);
         Assert.Equal(1, performance.LessonsAvailable);
 
+        var dashboard = await reportRepository.GetDashboardAsync(
+            organizationId, new DateOnly(2026, 1, 5), new DateOnly(2026, 1, 5));
+        Assert.Equal(1, dashboard.CompletedLessons);
+        Assert.Equal(100m, dashboard.AttendanceRate);
+
+        var financialReport = await reportRepository.GetFinancialAsync(
+            organizationId, new DateOnly(2026, 1, 5), new DateOnly(2026, 1, 5));
+        Assert.Equal(0m, financialReport.AmountIssued);
+        Assert.Equal(0, financialReport.InvoicesIssued);
+
+        var graduationReport = await reportRepository.GetGraduationAsync(
+            organizationId, new DateOnly(2026, 1, 5), new DateOnly(2026, 1, 5), modalityId);
+        var modalityGraduation = Assert.Single(graduationReport);
+        Assert.Equal(modalityId, modalityGraduation.ModalityId);
+        Assert.Equal(0, modalityGraduation.PromotionCount);
+
         var cycle = await rankingRepository.CreateCycleAsync(new RankingCycle
         {
             OrganizationId = organizationId,

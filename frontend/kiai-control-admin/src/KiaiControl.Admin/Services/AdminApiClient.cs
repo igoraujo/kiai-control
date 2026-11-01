@@ -66,6 +66,40 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
             ?? throw new HttpRequestException("The API returned an empty dashboard response.");
     }
 
+    public Task<IReadOnlyList<ModalityResponse>> ListReportModalitiesAsync() =>
+        GetListAsync<ModalityResponse>("api/v1/reports/modalities");
+
+    public Task<IReadOnlyList<AttendanceReportRow>> GetAttendanceReportAsync(
+        DateOnly from,
+        DateOnly to,
+        Guid? modalityId) =>
+        GetListAsync<AttendanceReportRow>(
+            $"api/v1/reports/attendance?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}{ModalityQuery(modalityId)}");
+
+    public async Task<FinancialReportResponse> GetFinancialReportAsync(DateOnly from, DateOnly to)
+    {
+        using var response = await SendAuthorizedAsync(HttpMethod.Get,
+            $"api/v1/reports/financial?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}");
+        return await response.Content.ReadFromJsonAsync<FinancialReportResponse>()
+            ?? throw new HttpRequestException("The API returned an empty financial report response.");
+    }
+
+    public Task<IReadOnlyList<ClientPerformanceReportRow>> GetClientPerformanceReportAsync(
+        DateOnly from,
+        DateOnly to,
+        Guid? modalityId,
+        int page,
+        int pageSize) =>
+        GetListAsync<ClientPerformanceReportRow>(
+            $"api/v1/reports/client-performance?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}{ModalityQuery(modalityId)}&page={page}&pageSize={pageSize}");
+
+    public Task<IReadOnlyList<GraduationReportRow>> GetGraduationReportAsync(
+        DateOnly from,
+        DateOnly to,
+        Guid? modalityId) =>
+        GetListAsync<GraduationReportRow>(
+            $"api/v1/reports/graduation?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}{ModalityQuery(modalityId)}");
+
     public Task<IReadOnlyList<ModalityResponse>> ListAssignableClientModalitiesAsync() =>
         ListAsync<ModalityResponse>("clients/modalities", page: 1, pageSize: 200);
 
@@ -273,6 +307,16 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
             HttpMethod.Get, $"api/v1/{resource}?page={page}&pageSize={pageSize}{clientFilter}");
         return await response.Content.ReadFromJsonAsync<List<T>>() ?? [];
     }
+
+    private async Task<IReadOnlyList<T>> GetListAsync<T>(string requestUri)
+    {
+        using var response = await SendAuthorizedAsync(HttpMethod.Get, requestUri);
+        return await response.Content.ReadFromJsonAsync<List<T>>()
+            ?? throw new HttpRequestException("The API returned an empty list response.");
+    }
+
+    private static string ModalityQuery(Guid? modalityId) =>
+        modalityId is null ? string.Empty : $"&modalityId={modalityId.Value:D}";
 
     public async Task<T> GetAsync<T>(string resource)
     {

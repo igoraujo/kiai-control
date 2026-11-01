@@ -5,6 +5,8 @@ using System.Text.Json;
 using KiaiControl.Admin.Services;
 using KiaiControl.Contracts.Auth;
 using KiaiControl.Contracts.Billing;
+using KiaiControl.Contracts.Modalities;
+using KiaiControl.Contracts.Reports;
 
 namespace KiaiControl.Admin.UnitTests;
 
@@ -144,6 +146,38 @@ public sealed class AdminApiClientTests
         Assert.Contains("/billing/subscriptions?", handler.Requests[0].RequestUri!.PathAndQuery);
         Assert.Contains("/billing?", handler.Requests[1].RequestUri!.PathAndQuery);
         Assert.Contains("/billing/payments?", handler.Requests[2].RequestUri!.PathAndQuery);
+    }
+
+    [Fact]
+    public async Task ReportMethods_ShouldUseDateModalityAndPaginationFilters()
+    {
+        var modalityId = Guid.NewGuid();
+        var from = new DateOnly(2026, 1, 1);
+        var to = new DateOnly(2026, 1, 31);
+        var handler = new QueueHttpMessageHandler(
+            JsonResponse(Array.Empty<ModalityResponse>()),
+            JsonResponse(Array.Empty<AttendanceReportRow>()),
+            JsonResponse(new FinancialReportResponse()),
+            JsonResponse(Array.Empty<ClientPerformanceReportRow>()),
+            JsonResponse(Array.Empty<GraduationReportRow>()));
+        var session = new AdminSession();
+        await session.SetAsync(CreateSession("access-token", "refresh-token", Guid.NewGuid()));
+        var api = CreateClient(handler, session);
+
+        await api.ListReportModalitiesAsync();
+        await api.GetAttendanceReportAsync(from, to, modalityId);
+        await api.GetFinancialReportAsync(from, to);
+        await api.GetClientPerformanceReportAsync(from, to, modalityId, page: 2, pageSize: 50);
+        await api.GetGraduationReportAsync(from, to, modalityId);
+
+        Assert.Contains("/reports/modalities", handler.Requests[0].RequestUri!.PathAndQuery);
+        Assert.Contains("from=2026-01-01", handler.Requests[1].RequestUri!.Query);
+        Assert.Contains("to=2026-01-31", handler.Requests[1].RequestUri!.Query);
+        Assert.Contains($"modalityId={modalityId:D}", handler.Requests[1].RequestUri!.Query);
+        Assert.Contains("/reports/financial?from=2026-01-01&to=2026-01-31", handler.Requests[2].RequestUri!.PathAndQuery);
+        Assert.Contains("page=2", handler.Requests[3].RequestUri!.Query);
+        Assert.Contains("pageSize=50", handler.Requests[3].RequestUri!.Query);
+        Assert.Contains($"modalityId={modalityId:D}", handler.Requests[4].RequestUri!.Query);
     }
 
     private static AdminApiClient CreateClient(QueueHttpMessageHandler handler, AdminSession session) =>

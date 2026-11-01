@@ -6,160 +6,322 @@
 <PageTitle>Dashboard | Kiai Control</PageTitle>
 
 <MudStack Spacing="3" Class="dashboard-page">
-	<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="dashboard-heading">
-		<div>
-			<MudText Typo="Typo.h4">Visão geral</MudText>
-			<MudText Typo="Typo.body2" Color="Color.Secondary">Resumo operacional da sua academia</MudText>
-		</div>
-		<MudSelect T="int" Value="_selectedMonth" ValueChanged="LoadDashboardAsync" Label="Período" Variant="Variant.Outlined" Margin="Margin.Dense" Class="period-select">
-			<MudSelectItem Value="@DateTime.Today.Month">Este mês</MudSelectItem>
-			<MudSelectItem Value="@DateTime.Today.AddMonths(-1).Month">Mês passado</MudSelectItem>
-		</MudSelect>
-	</MudStack>
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="dashboard-heading">
+        <div>
+            <MudText Typo="Typo.h4">Visão geral</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">Resumo operacional da sua academia</MudText>
+        </div>
+    </MudStack>
 
-	@if (_isLoading)
-	{
-		<MudGrid Spacing="3">
-			@for (var index = 0; index < 4; index++)
-			{
-				<MudItem xs="12" sm="6" lg="3"><MudSkeleton Height="132px" /></MudItem>
-			}
-		</MudGrid>
-	}
-	else if (!string.IsNullOrEmpty(_errorMessage))
-	{
-		<MudAlert Severity="Severity.Error" Variant="Variant.Outlined">
-			@_errorMessage
-			<MudButton Variant="Variant.Text" Color="Color.Error" OnClick="ReloadAsync">Tentar novamente</MudButton>
-		</MudAlert>
-	}
-	else if (_report is not null)
-	{
-	<MudGrid Spacing="3">
-		<MudItem xs="12" sm="6" lg="3">
-			<MudCard Class="metric-card metric-card-primary">
-				<MudCardContent>
-					<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-						<div>
-							<MudText Typo="Typo.caption" Class="metric-label">Alunos ativos</MudText>
-							<MudText Typo="Typo.h4" Class="metric-value">@_report.ActiveClients</MudText>
-						</div>
-						<MudAvatar Color="Color.Primary" Variant="Variant.Filled"><MudIcon Icon="@Icons.Material.Filled.Groups" /></MudAvatar>
-					</MudStack>
-					<MudText Typo="Typo.caption" Class="metric-note">@_report.NewClients novos · @_report.CanceledClients cancelados</MudText>
-				</MudCardContent>
-			</MudCard>
-		</MudItem>
+    <MudPaper Class="pa-4" Elevation="0">
+        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+            <MudDatePicker @bind-Date="_fromDate" Label="De" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" Margin="Margin.Dense" />
+            <MudDatePicker @bind-Date="_toDate" Label="Até" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" Margin="Margin.Dense" />
+            <MudSelect T="Guid?" @bind-Value="_selectedModalityId" Label="Modalidade" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+                @foreach (var modality in _modalities)
+                {
+                    <MudSelectItem T="Guid?" Value="@((Guid?)modality.Id)">@modality.Name</MudSelectItem>
+                }
+            </MudSelect>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.FilterAlt"
+                       Disabled="_isLoading" OnClick="LoadDashboardAsync">Aplicar filtros</MudButton>
+        </MudStack>
+        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">
+            O filtro de modalidade se aplica aos relatórios de frequência, desempenho e graduações.
+        </MudText>
+    </MudPaper>
 
-		<MudItem xs="12" sm="6" lg="3">
-			<MudCard Class="metric-card metric-card-warning">
-				<MudCardContent>
-					<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-						<div>
-							<MudText Typo="Typo.caption" Class="metric-label">Frequência média</MudText>
-							<MudText Typo="Typo.h4" Class="metric-value">@_report.AttendanceRate.ToString("N1")%</MudText>
-						</div>
-						<MudAvatar Color="Color.Tertiary" Variant="Variant.Filled"><MudIcon Icon="@Icons.Material.Filled.FactCheck" /></MudAvatar>
-					</MudStack>
-					<MudText Typo="Typo.caption" Class="metric-note">@_report.CompletedLessons aulas concluídas</MudText>
-				</MudCardContent>
-			</MudCard>
-		</MudItem>
+    @if (_isLoading)
+    {
+        <MudGrid Spacing="3">
+            @for (var index = 0; index < 4; index++)
+            {
+                <MudItem xs="12" sm="6" lg="3"><MudSkeleton Height="132px" /></MudItem>
+            }
+        </MudGrid>
+    }
+    else if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">
+            @_errorMessage
+            <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="LoadDashboardAsync">Tentar novamente</MudButton>
+        </MudAlert>
+    }
+    else if (_report is not null)
+    {
+        <MudGrid Spacing="3">
+            <MudItem xs="12" sm="6" lg="3">
+                <MudCard Class="metric-card metric-card-primary">
+                    <MudCardContent>
+                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                            <div>
+                                <MudText Typo="Typo.caption" Class="metric-label">Alunos ativos</MudText>
+                                <MudText Typo="Typo.h4" Class="metric-value">@_report.ActiveClients</MudText>
+                            </div>
+                            <MudAvatar Color="Color.Primary" Variant="Variant.Filled"><MudIcon Icon="@Icons.Material.Filled.Groups" /></MudAvatar>
+                        </MudStack>
+                        <MudText Typo="Typo.caption" Class="metric-note">@_report.NewClients novos · @_report.CanceledClients cancelados</MudText>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
 
-		<MudItem xs="12" sm="6" lg="3">
-			<MudCard Class="metric-card metric-card-success">
-				<MudCardContent>
-					<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-						<div>
-							<MudText Typo="Typo.caption" Class="metric-label">Receita recebida</MudText>
-							<MudText Typo="Typo.h4" Class="metric-value">@FormatCurrency(_report.RevenueReceived)</MudText>
-						</div>
-						<MudAvatar Color="Color.Secondary" Variant="Variant.Filled"><MudIcon Icon="@Icons.Material.Filled.Payments" /></MudAvatar>
-					</MudStack>
-					<MudText Typo="Typo.caption" Class="metric-note">Prevista: @FormatCurrency(_report.RevenueExpected)</MudText>
-				</MudCardContent>
-			</MudCard>
-		</MudItem>
+            <MudItem xs="12" sm="6" lg="3">
+                <MudCard Class="metric-card metric-card-warning">
+                    <MudCardContent>
+                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                            <div>
+                                <MudText Typo="Typo.caption" Class="metric-label">Frequência média</MudText>
+                                <MudText Typo="Typo.h4" Class="metric-value">@_report.AttendanceRate.ToString("N1")%</MudText>
+                            </div>
+                            <MudAvatar Color="Color.Tertiary" Variant="Variant.Filled"><MudIcon Icon="@Icons.Material.Filled.FactCheck" /></MudAvatar>
+                        </MudStack>
+                        <MudText Typo="Typo.caption" Class="metric-note">@_report.CompletedLessons aulas concluídas</MudText>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
 
-		<MudItem xs="12" sm="6" lg="3">
-			<MudCard Class="metric-card metric-card-neutral">
-				<MudCardContent>
-					<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-						<div>
-							<MudText Typo="Typo.caption" Class="metric-label">Receita em atraso</MudText>
-							<MudText Typo="Typo.h4" Class="metric-value">@FormatCurrency(_report.RevenueOverdue)</MudText>
-						</div>
-						<MudAvatar Color="Color.Info" Variant="Variant.Filled"><MudIcon Icon="@Icons.Material.Filled.WarningAmber" /></MudAvatar>
-					</MudStack>
-					<MudText Typo="Typo.caption" Class="metric-note">No período selecionado</MudText>
-				</MudCardContent>
-			</MudCard>
-		</MudItem>
-	</MudGrid>
-	<MudGrid Spacing="3">
-		<MudItem xs="12" lg="8">
-			<MudPaper Elevation="0" Class="report-period-note">
-				<MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Color="Color.Primary" />
-				<MudText Typo="Typo.body2">Dados de @_periodLabel</MudText>
-			</MudPaper>
-		</MudItem>
-	</MudGrid>
-	}
+            <MudItem xs="12" sm="6" lg="3">
+                <MudCard Class="metric-card metric-card-success">
+                    <MudCardContent>
+                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                            <div>
+                                <MudText Typo="Typo.caption" Class="metric-label">Receita recebida</MudText>
+                                <MudText Typo="Typo.h4" Class="metric-value">@FormatCurrency(_report.RevenueReceived)</MudText>
+                            </div>
+                            <MudAvatar Color="Color.Secondary" Variant="Variant.Filled"><MudIcon Icon="@Icons.Material.Filled.Payments" /></MudAvatar>
+                        </MudStack>
+                        <MudText Typo="Typo.caption" Class="metric-note">Prevista: @FormatCurrency(_report.RevenueExpected)</MudText>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+
+            <MudItem xs="12" sm="6" lg="3">
+                <MudCard Class="metric-card metric-card-neutral">
+                    <MudCardContent>
+                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                            <div>
+                                <MudText Typo="Typo.caption" Class="metric-label">Receita em atraso</MudText>
+                                <MudText Typo="Typo.h4" Class="metric-value">@FormatCurrency(_report.RevenueOverdue)</MudText>
+                            </div>
+                            <MudAvatar Color="Color.Info" Variant="Variant.Filled"><MudIcon Icon="@Icons.Material.Filled.WarningAmber" /></MudAvatar>
+                        </MudStack>
+                        <MudText Typo="Typo.caption" Class="metric-note">No período selecionado</MudText>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        </MudGrid>
+
+        <MudPaper Elevation="0" Class="report-period-note">
+            <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Color="Color.Primary" />
+            <MudText Typo="Typo.body2">Dados de @_periodLabel</MudText>
+        </MudPaper>
+
+        <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" Class="pa-4">
+            <MudTabPanel Text="Frequência" Icon="@Icons.Material.Filled.FactCheck">
+                <MudTable Items="_attendanceRows" Dense="true" Hover="true">
+                    <HeaderContent>
+                        <MudTh>Modalidade</MudTh>
+                        <MudTh>Aulas realizadas</MudTh>
+                        <MudTh>Presenças</MudTh>
+                        <MudTh>Faltas</MudTh>
+                        <MudTh>Frequência</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.ModalityName</MudTd>
+                        <MudTd>@context.LessonsHeld</MudTd>
+                        <MudTd>@context.AttendanceCount</MudTd>
+                        <MudTd>@context.AbsenceCount</MudTd>
+                        <MudTd>@context.AttendanceRate.ToString("N1")%</MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent><MudText>Nenhum dado de frequência no período.</MudText></NoRecordsContent>
+                </MudTable>
+            </MudTabPanel>
+
+            <MudTabPanel Text="Financeiro" Icon="@Icons.Material.Filled.AccountBalanceWallet">
+                @if (_financialReport is not null)
+                {
+                    <MudGrid Spacing="2">
+                        <MudItem xs="12" sm="6" md="3"><MudPaper Class="pa-3"><MudText Typo="Typo.caption">Emitido</MudText><MudText Typo="Typo.h6">@FormatCurrency(_financialReport.AmountIssued)</MudText><MudText Typo="Typo.caption">@_financialReport.InvoicesIssued faturas</MudText></MudPaper></MudItem>
+                        <MudItem xs="12" sm="6" md="3"><MudPaper Class="pa-3"><MudText Typo="Typo.caption">Pago</MudText><MudText Typo="Typo.h6">@FormatCurrency(_financialReport.AmountPaid)</MudText></MudPaper></MudItem>
+                        <MudItem xs="12" sm="6" md="3"><MudPaper Class="pa-3"><MudText Typo="Typo.caption">Em aberto</MudText><MudText Typo="Typo.h6">@FormatCurrency(_financialReport.AmountOutstanding)</MudText></MudPaper></MudItem>
+                        <MudItem xs="12" sm="6" md="3"><MudPaper Class="pa-3"><MudText Typo="Typo.caption">Em atraso</MudText><MudText Typo="Typo.h6">@FormatCurrency(_financialReport.AmountOverdue)</MudText><MudText Typo="Typo.caption">@_financialReport.InvoicesOverdue faturas</MudText></MudPaper></MudItem>
+                    </MudGrid>
+                }
+            </MudTabPanel>
+
+            <MudTabPanel Text="Desempenho dos alunos" Icon="@Icons.Material.Filled.Groups">
+                <MudTable Items="_performanceRows" Dense="true" Hover="true">
+                    <HeaderContent>
+                        <MudTh>Aluno</MudTh>
+                        <MudTh>Presenças</MudTh>
+                        <MudTh>Aulas disponíveis</MudTh>
+                        <MudTh>Frequência</MudTh>
+                        <MudTh>Valor pago</MudTh>
+                        <MudTh>Metas ativas</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.FullName</MudTd>
+                        <MudTd>@context.AttendanceCount</MudTd>
+                        <MudTd>@context.LessonsAvailable</MudTd>
+                        <MudTd>@context.AttendanceRate.ToString("N1")%</MudTd>
+                        <MudTd>@FormatCurrency(context.AmountPaid)</MudTd>
+                        <MudTd>@context.ActiveFitnessGoals</MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent><MudText>Nenhum dado de desempenho no período.</MudText></NoRecordsContent>
+                </MudTable>
+                <MudStack Row="true" Justify="Justify.FlexEnd" AlignItems="AlignItems.Center" Spacing="2" Class="mt-3">
+                    <MudText Typo="Typo.caption">Página @_performancePage · até @_performancePageSize alunos por página</MudText>
+                    <MudButton Variant="Variant.Outlined" Disabled="@(_performancePage <= 1 || _isLoading)" OnClick="() => LoadPerformancePageAsync(_performancePage - 1)">Anterior</MudButton>
+                    <MudButton Variant="Variant.Outlined" Disabled="@(_performanceRows.Count < _performancePageSize || _isLoading)" OnClick="() => LoadPerformancePageAsync(_performancePage + 1)">Próxima</MudButton>
+                </MudStack>
+            </MudTabPanel>
+
+            <MudTabPanel Text="Graduações" Icon="@Icons.Material.Filled.MilitaryTech">
+                <MudTable Items="_graduationRows" Dense="true" Hover="true">
+                    <HeaderContent>
+                        <MudTh>Modalidade</MudTh>
+                        <MudTh>Graduações no período</MudTh>
+                        <MudTh>Última graduação</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.ModalityName</MudTd>
+                        <MudTd>@context.PromotionCount</MudTd>
+                        <MudTd>@(context.PromotionCount == 0 ? "—" : context.LatestPromotion.ToString("dd/MM/yyyy"))</MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent><MudText>Nenhuma graduação registrada no período.</MudText></NoRecordsContent>
+                </MudTable>
+            </MudTabPanel>
+        </MudTabs>
+    }
 </MudStack>
 
 @code {
-	private DashboardReportResponse? _report;
-	private bool _isLoading = true;
-	private int _selectedMonth = DateTime.Today.Month;
-	private string? _errorMessage;
-	private string _periodLabel = string.Empty;
+    private DashboardReportResponse? _report;
+    private FinancialReportResponse? _financialReport;
+    private IReadOnlyList<ModalityResponse> _modalities = [];
+    private IReadOnlyList<AttendanceReportRow> _attendanceRows = [];
+    private IReadOnlyList<ClientPerformanceReportRow> _performanceRows = [];
+    private IReadOnlyList<GraduationReportRow> _graduationRows = [];
+    private DateTime? _fromDate = new(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private DateTime? _toDate = DateTime.Today;
+    private Guid? _selectedModalityId;
+    private bool _isLoading = true;
+    private int _performancePage = 1;
+    private const int _performancePageSize = 50;
+    private string? _errorMessage;
+    private string _periodLabel = string.Empty;
 
-	protected override async Task OnInitializedAsync()
-	{
-		if (Session.Current is null)
-		{
-			Navigation.NavigateTo("/login");
-			return;
-		}
+    protected override async Task OnInitializedAsync()
+    {
+        if (Session.Current is null)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
 
-		await LoadDashboardAsync(_selectedMonth);
-	}
+        try
+        {
+            _modalities = await Api.ListReportModalitiesAsync();
+            await LoadDashboardAsync();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await Session.ClearAsync();
+            Navigation.NavigateTo("/login");
+        }
+        catch (HttpRequestException)
+        {
+            _isLoading = false;
+            _errorMessage = "Não foi possível carregar os relatórios. Verifique se a API está disponível.";
+        }
+    }
 
-	private async Task LoadDashboardAsync(int month)
-	{
-		_selectedMonth = month;
-		var year = DateTime.Today.Year;
-		if (month > DateTime.Today.Month)
-		{
-			year--;
-		}
+    private async Task LoadDashboardAsync()
+    {
+        if (_fromDate is null || _toDate is null)
+        {
+            _errorMessage = "Informe as datas inicial e final do período.";
+            return;
+        }
 
-		var from = new DateOnly(year, month, 1);
-		var to = from.AddMonths(1).AddDays(-1);
-		_periodLabel = from.ToString("MMMM yyyy", System.Globalization.CultureInfo.GetCultureInfo("pt-BR"));
-		_isLoading = true;
-		_errorMessage = null;
+        var from = DateOnly.FromDateTime(_fromDate.Value);
+        var to = DateOnly.FromDateTime(_toDate.Value);
+        if (to < from || to.DayNumber - from.DayNumber > 366)
+        {
+            _errorMessage = "O período deve ser válido e não pode ultrapassar 367 dias.";
+            return;
+        }
 
-		try
-		{
-			_report = await Api.GetDashboardAsync(from, to);
-		}
-		catch (UnauthorizedAccessException)
-		{
-			await Session.ClearAsync();
-			Navigation.NavigateTo("/login");
-		}
-		catch (HttpRequestException)
-		{
-			_errorMessage = "Não foi possível carregar o dashboard. Verifique se a API está disponível.";
-		}
-		finally
-		{
-			_isLoading = false;
-		}
-	}
+        _isLoading = true;
+        _errorMessage = null;
+        _performancePage = 1;
+        _periodLabel = $"{from:dd/MM/yyyy} a {to:dd/MM/yyyy}";
 
-	private Task ReloadAsync() => LoadDashboardAsync(_selectedMonth);
+        try
+        {
+            var dashboardTask = Api.GetDashboardAsync(from, to);
+            var attendanceTask = Api.GetAttendanceReportAsync(from, to, _selectedModalityId);
+            var financialTask = Api.GetFinancialReportAsync(from, to);
+            var performanceTask = Api.GetClientPerformanceReportAsync(from, to, _selectedModalityId, _performancePage, _performancePageSize);
+            var graduationTask = Api.GetGraduationReportAsync(from, to, _selectedModalityId);
+            await Task.WhenAll(dashboardTask, attendanceTask, financialTask, performanceTask, graduationTask);
 
-	private static string FormatCurrency(decimal amount) => amount.ToString("C0", System.Globalization.CultureInfo.GetCultureInfo("pt-BR"));
+            _report = await dashboardTask;
+            _attendanceRows = await attendanceTask;
+            _financialReport = await financialTask;
+            _performanceRows = await performanceTask;
+            _graduationRows = await graduationTask;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await Session.ClearAsync();
+            Navigation.NavigateTo("/login");
+        }
+        catch (HttpRequestException)
+        {
+            _errorMessage = "Não foi possível carregar os relatórios. Verifique se a API está disponível.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task LoadPerformancePageAsync(int page)
+    {
+        if (_fromDate is null || _toDate is null || page < 1)
+        {
+            return;
+        }
+
+        _isLoading = true;
+        _errorMessage = null;
+        try
+        {
+            var rows = await Api.GetClientPerformanceReportAsync(
+                DateOnly.FromDateTime(_fromDate.Value),
+                DateOnly.FromDateTime(_toDate.Value),
+                _selectedModalityId,
+                page,
+                _performancePageSize);
+            _performanceRows = rows;
+            _performancePage = page;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await Session.ClearAsync();
+            Navigation.NavigateTo("/login");
+        }
+        catch (HttpRequestException)
+        {
+            _errorMessage = "Não foi possível carregar o relatório de desempenho dos alunos.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private static string FormatCurrency(decimal amount) =>
+        amount.ToString("C0", System.Globalization.CultureInfo.GetCultureInfo("pt-BR"));
 }
