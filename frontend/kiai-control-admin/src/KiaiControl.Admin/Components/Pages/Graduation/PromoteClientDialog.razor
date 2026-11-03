@@ -45,7 +45,7 @@
     {
         if (_eventDate is null)
         {
-            throw new ArgumentException("Informe a data da graduação.");
+            throw new ArgumentException(AdminSystemMessages.GraduationDateRequired);
         }
 
         return Api.PromoteClientAsync(Client.ClientId, new PromoteClientRequest

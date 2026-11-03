@@ -185,7 +185,7 @@
         }
         catch (HttpRequestException exception)
         {
-            _errorMessage = $"Não foi possível carregar as notificações: {exception.Message}";
+            _errorMessage = string.Format(AdminSystemMessages.FailedToLoadNotifications, exception.Message);
         }
         finally
         {
@@ -197,7 +197,7 @@
     {
         if (_recipientId is null || string.IsNullOrWhiteSpace(_title) || string.IsNullOrWhiteSpace(_body))
         {
-            _errorMessage = "Selecione o aluno e preencha o título e a mensagem.";
+            _errorMessage = AdminSystemMessages.StudentTitleAndMessageRequired;
             return;
         }
 
@@ -208,7 +208,7 @@
             var client = _clients.FirstOrDefault(item => item.Id == _recipientId.Value);
             if (client is null)
             {
-                _errorMessage = "O aluno selecionado não está mais disponível. Atualize os dados e tente novamente.";
+                _errorMessage = AdminSystemMessages.SelectedStudentUnavailableRefreshData;
                 return;
             }
 
@@ -222,7 +222,7 @@
             _recipientId = null;
             _title = string.Empty;
             _body = string.Empty;
-            Snackbar.Add("Comunicado registrado para o aluno.", Severity.Success);
+            Snackbar.Add(AdminSystemMessages.AnnouncementSentToStudent, Severity.Success);
             await LoadAsync();
         }
         catch (UnauthorizedAccessException)
@@ -232,7 +232,7 @@
         }
         catch (HttpRequestException exception)
         {
-            _errorMessage = $"Não foi possível registrar o comunicado: {exception.Message}";
+            _errorMessage = string.Format(AdminSystemMessages.FailedToSendAnnouncement, exception.Message);
         }
         finally
         {
@@ -248,7 +248,7 @@
         {
             await Api.MarkNotificationAsReadAsync(notification.Id);
             _inbox = await Api.ListMyNotificationsAsync(pageSize: 50);
-            Snackbar.Add("Notificação marcada como lida.", Severity.Success);
+            Snackbar.Add(AdminSystemMessages.NotificationMarkedAsRead, Severity.Success);
         }
         catch (UnauthorizedAccessException)
         {
@@ -257,7 +257,7 @@
         }
         catch (HttpRequestException exception)
         {
-            _errorMessage = $"Não foi possível atualizar a notificação: {exception.Message}";
+            _errorMessage = string.Format(AdminSystemMessages.FailedToUpdateNotification, exception.Message);
         }
         finally
         {

@@ -10,12 +10,14 @@ public static class AuthQueries
             ua.email as Email,
             ua.password_hash as PasswordHash,
             ua.is_active as IsActive,
-            coalesce((
+            ua.must_change_password as MustChangePassword,
+            array_cat(coalesce((
                 select array_agg(distinct r.code::text)
                 from person_roles pr
                 join roles r on r.id = pr.role_id
                 where pr.person_id = p.id
-            ), array[]::text[]) as Roles,
+            ), array[]::text[]), case when ua.is_platform_owner
+                then array['platform_owner']::text[] else array[]::text[] end) as Roles,
             coalesce((
                 select array_agg(distinct permission.code::text)
                 from person_roles pr
@@ -44,12 +46,14 @@ public static class AuthQueries
             ua.email as Email,
             ua.password_hash as PasswordHash,
             ua.is_active as IsActive,
-            coalesce((
+            ua.must_change_password as MustChangePassword,
+            array_cat(coalesce((
                 select array_agg(distinct r.code::text)
                 from person_roles pr
                 join roles r on r.id = pr.role_id
                 where pr.person_id = p.id
-            ), array[]::text[]) as Roles,
+            ), array[]::text[]), case when ua.is_platform_owner
+                then array['platform_owner']::text[] else array[]::text[] end) as Roles,
             coalesce((
                 select array_agg(distinct permission.code::text)
                 from person_roles pr
@@ -139,7 +143,8 @@ public static class AuthQueries
         update user_accounts
         set
             password_hash = @PasswordHash,
-            updated_at = @UpdatedAt
+            updated_at = @UpdatedAt,
+            must_change_password = false
         where id = @UserId;
         ";
 

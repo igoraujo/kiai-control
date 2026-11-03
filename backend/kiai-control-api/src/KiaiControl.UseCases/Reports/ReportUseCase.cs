@@ -102,17 +102,17 @@ public sealed class ReportUseCase(IReportRepository repository)
     {
         if (organizationId == Guid.Empty)
         {
-            throw new ArgumentException("OrganizationId is required.");
+            throw new ArgumentException(SystemMessages.OrganizationIdIsRequired);
         }
 
         if (from == default || to < from)
         {
-            throw new ArgumentException("The report period is invalid.");
+            throw new ArgumentException(SystemMessages.TheReportPeriodIsInvalid);
         }
 
         if (to.DayNumber - from.DayNumber > 366)
         {
-            throw new ArgumentException("Report periods cannot exceed 367 days.");
+            throw new ArgumentException(SystemMessages.ReportPeriodsCannotExceed367Days);
         }
     }
 }

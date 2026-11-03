@@ -22,12 +22,12 @@ public sealed class JwtOptions
     {
         if (string.IsNullOrWhiteSpace(Issuer) || string.IsNullOrWhiteSpace(Audience))
         {
-            throw new InvalidOperationException("JWT issuer and audience must be configured.");
+            throw new InvalidOperationException(SystemMessages.JWTIssuerAndAudienceMustBeConfigured);
         }
 
         if (AccessTokenExpirationMinutes <= 0 || RefreshTokenExpirationDays <= 0)
         {
-            throw new InvalidOperationException("JWT access and refresh token lifetimes must be positive.");
+            throw new InvalidOperationException(SystemMessages.JWTAccessAndRefreshTokenLifetimesMustBePositive);
         }
     }
 
@@ -38,7 +38,7 @@ public sealed class JwtOptions
         {
             if (!isDevelopment)
             {
-                throw new InvalidOperationException("Jwt:SigningKey must be configured outside Development.");
+                throw new InvalidOperationException(SystemMessages.JwtSigningKeyMustBeConfiguredOutsideDevelopment);
             }
 
             signingKey = DevelopmentSigningKey;
@@ -46,7 +46,7 @@ public sealed class JwtOptions
 
         if (Encoding.UTF8.GetByteCount(signingKey) < 32)
         {
-            throw new InvalidOperationException("Jwt:SigningKey must contain at least 32 UTF-8 bytes for HS256.");
+            throw new InvalidOperationException(SystemMessages.JwtSigningKeyMustContainAtLeast32UTF8BytesForHS256);
         }
 
         return signingKey;

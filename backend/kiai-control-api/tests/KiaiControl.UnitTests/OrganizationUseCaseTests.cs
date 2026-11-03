@@ -76,6 +76,11 @@ public sealed class OrganizationUseCaseTests
             return Task.FromResult<Organization?>(null);
         }
 
+        public Task<IReadOnlyList<Organization>> ListAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyList<Organization>>([]);
+        }
+
         public Task<Organization?> UpdateAsync(Organization organization, CancellationToken cancellationToken = default)
         {
             return Task.FromResult<Organization?>(null);

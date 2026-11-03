@@ -58,7 +58,7 @@
     {
         if (_paidAt is null)
         {
-            throw new ArgumentException("Informe a data do pagamento.");
+            throw new ArgumentException(AdminSystemMessages.PaymentDateRequired);
         }
 
         await Api.RegisterInvoicePaymentAsync(Invoice.Id, new RegisterPaymentRequest

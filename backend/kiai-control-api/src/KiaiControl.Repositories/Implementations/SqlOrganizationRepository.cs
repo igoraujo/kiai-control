@@ -52,6 +52,13 @@ public sealed class SqlOrganizationRepository(IDbConnectionFactory dbConnectionF
         return await connection.QuerySingleOrDefaultAsync<Organization>(OrganizationQueries.GetById, new { OrganizationId = organizationId });
     }
 
+    public async Task<IReadOnlyList<Organization>> ListAsync(CancellationToken cancellationToken = default)
+    {
+        using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
+        var organizations = await connection.QueryAsync<Organization>(OrganizationQueries.List);
+        return organizations.ToList();
+    }
+
     public async Task<Organization?> UpdateAsync(Organization organization, CancellationToken cancellationToken = default)
     {
         organization.UpdatedAt = DateTimeOffset.UtcNow;

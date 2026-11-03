@@ -16,17 +16,17 @@ public sealed class AuditLogUseCase(IAuditLogRepository auditLogRepository)
     {
         if (organizationId == Guid.Empty)
         {
-            throw new ArgumentException("OrganizationId is required.");
+            throw new ArgumentException(SystemMessages.OrganizationIdIsRequired);
         }
 
         if (from is not null && to is not null && to <= from)
         {
-            throw new ArgumentException("To must be later than From.");
+            throw new ArgumentException(SystemMessages.ToMustBeLaterThanFrom);
         }
 
         if (from is not null && to is not null && to.Value - from.Value > TimeSpan.FromDays(366))
         {
-            throw new ArgumentException("Audit query range cannot exceed 366 days.");
+            throw new ArgumentException(SystemMessages.AuditQueryRangeCannotExceed366Days);
         }
 
         var logs = await auditLogRepository.ListAsync(organizationId, from, to, page, pageSize, cancellationToken);

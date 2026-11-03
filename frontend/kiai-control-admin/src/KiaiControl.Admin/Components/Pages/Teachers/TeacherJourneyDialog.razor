@@ -196,7 +196,7 @@
         }
         catch (HttpRequestException exception)
         {
-            _errorMessage = $"Não foi possível carregar os horários do professor. {exception.Message}";
+            _errorMessage = string.Format(AdminSystemMessages.FailedToLoadTeacherSchedules, exception.Message);
         }
         finally
         {
@@ -208,7 +208,7 @@
     {
         if (_from is null || _to is null || _to.Value.Date < _from.Value.Date)
         {
-            _errorMessage = "Informe um período válido para consultar a agenda.";
+            _errorMessage = AdminSystemMessages.ValidScheduleQueryPeriodRequired;
             return;
         }
 
@@ -228,7 +228,7 @@
         }
         catch (HttpRequestException exception)
         {
-            _errorMessage = $"Não foi possível carregar a agenda do professor. {exception.Message}";
+            _errorMessage = string.Format(AdminSystemMessages.FailedToLoadTeacherSchedule, exception.Message);
         }
         finally
         {
@@ -243,7 +243,7 @@
             || !TimeOnly.TryParse(_endsAt, out var endsAt)
             || endsAt <= startsAt)
         {
-            _errorMessage = "Selecione uma modalidade e informe um intervalo de horário válido.";
+            _errorMessage = AdminSystemMessages.ModalityAndValidTimeRangeRequired;
             return;
         }
 

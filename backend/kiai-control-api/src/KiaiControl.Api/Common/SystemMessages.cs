@@ -1,0 +1,55 @@
+namespace KiaiControl.Api.Common;
+
+public static class SystemMessages
+{
+    public const string ChangeTemporaryPasswordBeforeProceeding = "Troque sua senha temporária para continuar.";
+    public const string InitialPlatformOwnerNameMustNotExceed180Characters = "O nome do dono da plataforma não pode exceder 180 caracteres.";
+    public const string InitialPlatformOwnerPasswordMustHaveAtLeast12Characters = "A senha inicial do dono da plataforma deve ter pelo menos 12 caracteres.";
+    public const string PlatformOwnerConfigurationMustBeComplete = "Configure e-mail, nome e senha do dono da plataforma em conjunto.";
+    public const string PlatformOwnerEmailAlreadyBelongsToAnotherAccount = "O e-mail configurado para o dono da plataforma já pertence a outra conta.";
+    public const string PlatformOwnerWasAlreadyProvisionedWithAnotherEmail = "O dono da plataforma já foi provisionado com outro e-mail; altere a conta por um procedimento administrativo seguro.";
+    public const string AAulaOAlunoOuAMatriculaAtivaNaoEstaDisponivelNestaOrganizacao = "A aula, o aluno ou a matrícula ativa não está disponível nesta organização.";
+    public const string ABranchWithThisNameAlreadyExistsInTheOrganization = "A branch with this name already exists in the organization.";
+    public const string AConnectionStringRedisDeveSerConfiguradaQuandoOProviderDeCacheForRedis = "A connection string Redis deve ser configurada quando o provider de cache for Redis.";
+    public const string AFaixaJaExisteOuOSistemaDeGraduacaoNaoEstaDisponivelNestaOrganizacao = "A faixa já existe ou o sistema de graduação não está disponível nesta organização.";
+    public const string AFaixaNaoExisteOuJaPossuiGraduacoesRegistradasCorrijaOuRemovaPrimeiroOsGrausNaoUtilizados = "A faixa não existe ou já possui graduações registradas. Corrija ou remova primeiro os graus não utilizados.";
+    public const string AFaixaNaoExisteTemNomeDuplicadoOuAQuantidadeDeGrausEMenorQueOsGrausJaCadastrados = "A faixa não existe, tem nome duplicado ou a quantidade de graus é menor que os graus já cadastrados.";
+    public const string AFaixaNaoFoiEncontradaOuTodosOsGrausConfiguradosJaForamCadastrados = "A faixa não foi encontrada ou todos os graus configurados já foram cadastrados.";
+    public const string AMedalWithThisCodeAlreadyExists = "A medal with this code already exists.";
+    public const string AModalidadeNaoFoiEncontradaEstaInativaOuNaoEUmaArteMarcialNestaOrganizacao = "A modalidade não foi encontrada, está inativa ou não é uma arte marcial nesta organização.";
+    public const string AnOpenRankingCycleWasNotFound = "An open ranking cycle was not found.";
+    public const string CheckInIndisponivelConfirmeSuaMatriculaOHorarioDaAulaOuSeJaRealizouOCheckIn = "Check-in indisponível: confirme sua matrícula, o horário da aula ou se já realizou o check-in.";
+    public const string ClientIdAndClientPlanSubscriptionIdAreRequired = "ClientId and ClientPlanSubscriptionId are required.";
+    public const string ClientIdAndLessonIdAreRequired = "ClientId and LessonId are required.";
+    public const string ClientIdMustBeAValidIdentifier = "ClientId must be a valid identifier.";
+    public const string EsteCheckInJaFoiValidadoOuNaoEstaMaisDisponivel = "Este check-in já foi validado ou não está mais disponível.";
+    public const string JWTAccessAndRefreshTokenLifetimesMustBePositive = "JWT access and refresh token lifetimes must be positive.";
+    public const string JWTIssuerAndAudienceMustBeConfigured = "JWT issuer and audience must be configured.";
+    public const string JwtSigningKeyMustBeConfiguredOutsideDevelopment = "Jwt:SigningKey must be configured outside Development.";
+    public const string JwtSigningKeyMustContainAtLeast32UTF8BytesForHS256 = "Jwt:SigningKey must contain at least 32 UTF-8 bytes for HS256.";
+    public const string OAlunoNaoEstaVinculadoAModalidadeONivelNaoEstaDisponivelOuJaExisteUmaGraduacao = "O aluno não está vinculado à modalidade, o nível não está disponível ou já existe uma graduação.";
+    public const string OContextoDaOrganizacaoNaoFoiInformado = "O contexto da organização não foi informado.";
+    public const string OGrauNaoFoiEncontradoNestaFaixaEOrganizacao = "O grau não foi encontrado nesta faixa e organização.";
+    public const string OHorarioJaExisteOuAUnidadeProfessorEstaIndisponivelParaEstaModalidade = "O horário já existe ou a unidade/professor está indisponível para esta modalidade.";
+    public const string OnlyActiveTeachersCanBeAssignedToASchedule = "Only active teachers can be assigned to a schedule.";
+    public const string OrganizationContextIsRequired = "Organization context is required.";
+    public const string PersonOrRoleWasNotFoundInThisOrganization = "Person or role was not found in this organization.";
+    public const string PromotionIsInvalidLevelMustAdvanceTheCurrentRankAndAnyManualEvaluationMustPass = "Promotion is invalid: level must advance the current rank and any manual evaluation must pass.";
+    public const string RoleOrPermissionCodeWasNotFound = "Role or permission code was not found.";
+    public const string SoEPossivelExcluirOUltimoGrauDaSequenciaEEleNaoPodeTerSidoUsadoEmGraduacoes = "Só é possível excluir o último grau da sequência, e ele não pode ter sido usado em graduações.";
+    public const string TheActiveFitnessGoalWasNotFoundInThisOrganization = "The active fitness goal was not found in this organization.";
+    public const string TheActiveGraduationSystemWasNotFoundInThisOrganization = "The active graduation system was not found in this organization.";
+    public const string TheActiveModalityIsUnavailableInThisOrganization = "The active modality is unavailable in this organization.";
+    public const string TheBranchIsReferencedByPeopleOrClassGroups = "The branch is referenced by people or class groups.";
+    public const string TheClientOrActiveModalityIsUnavailableInThisOrganization = "The client or active modality is unavailable in this organization.";
+    public const string TheClientOrActivePlanIsUnavailableOrTheClientAlreadyHasAnActiveSubscription = "The client or active plan is unavailable, or the client already has an active subscription.";
+    public const string TheClientOrModalityIsUnavailableInThisOrganization = "The client or modality is unavailable in this organization.";
+    public const string TheInvoiceIsUnavailableClosedOrThePaymentExceedsItsOutstandingBalance = "The invoice is unavailable, closed, or the payment exceeds its outstanding balance.";
+    public const string TheLessonIsUnavailableOrOneOrMoreClientsAreNotActivelyEnrolledInItsClassGroup = "The lesson is unavailable or one or more clients are not actively enrolled in its class group.";
+    public const string TheMedalOrRecipientIsUnavailableInThisOrganization = "The medal or recipient is unavailable in this organization.";
+    public const string TheModalityIsUnavailableInThisOrganization = "The modality is unavailable in this organization.";
+    public const string TheModalityOrBranchIsUnavailableOrThisScheduleAlreadyExists = "The modality or branch is unavailable, or this schedule already exists.";
+    public const string TheModalityOrClassGroupIsUnavailableInThisOrganization = "The modality or class group is unavailable in this organization.";
+    public const string TheNotificationRecipientDoesNotExistInThisOrganization = "The notification recipient does not exist in this organization.";
+    public const string TheOrganizationDocumentOrOwnerEMailIsAlreadyRegistered = "The organization document or owner e-mail is already registered.";
+}

@@ -38,3 +38,12 @@ public sealed class ModalityResponse
 
     public DateTimeOffset? UpdatedAt { get; init; }
 }
+
+public sealed class WorkspaceCapabilitiesResponse
+{
+    public bool HasMartialArts { get; init; }
+
+    public bool HasFitnessActivities { get; init; }
+
+    public bool HasGraduation { get; init; }
+}

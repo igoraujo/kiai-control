@@ -37,6 +37,211 @@ public sealed class AdminCriticalFlowsTests
     }
 
     [Fact]
+    public async Task AdminCanCollapseNavigationSectionsForMartialArtsAndFitness()
+    {
+        await using var environment = new E2EEnvironment();
+        await environment.StartAsync();
+
+        using var playwright = await Playwright.CreateAsync();
+        await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
+        {
+            Headless = true
+        });
+        var page = await browser.NewPageAsync();
+
+        await page.GotoAsync($"{environment.AdminUrl}/login");
+        await page.GetByLabel("E-mail").FillAsync(environment.OwnerEmail);
+        await page.GetByLabel("Senha").FillAsync(environment.OwnerPassword);
+        await page.GetByRole(AriaRole.Button, new() { Name = "Entrar" }).ClickAsync();
+        await page.WaitForFunctionAsync("() => window.location.pathname === '/'");
+
+        await CreateModalityAsync(page, environment.AdminUrl, "Artes marciais E2E", "martial_art");
+        await CreateModalityAsync(page, environment.AdminUrl, "Fitness E2E", "fitness");
+        await page.GotoAsync($"{environment.AdminUrl}/");
+        await page.ReloadAsync();
+        await page.WaitForFunctionAsync("() => window.location.pathname === '/'");
+
+        var martialArtsSection = page.GetByRole(AriaRole.Button, new() { Name = "Artes marciais" });
+        var fitnessSection = page.GetByRole(AriaRole.Button, new() { Name = "Musculação e Fitness" });
+        await martialArtsSection.WaitForAsync();
+        await fitnessSection.WaitForAsync();
+
+        var martialArtsExpanded = await martialArtsSection.GetAttributeAsync("aria-expanded");
+        var fitnessExpanded = await fitnessSection.GetAttributeAsync("aria-expanded");
+        Assert.Equal("true", martialArtsExpanded);
+        Assert.Equal("true", fitnessExpanded);
+
+        await martialArtsSection.ClickAsync();
+        await WaitForSectionExpandedAsync(page, "menu-section-martialarts", false);
+        Assert.Equal("false", await martialArtsSection.GetAttributeAsync("aria-expanded"));
+        Assert.Equal("true", await fitnessSection.GetAttributeAsync("aria-expanded"));
+        Assert.False(await page.Locator("#menu-section-martialarts").IsVisibleAsync());
+
+        await fitnessSection.ClickAsync();
+        await WaitForSectionExpandedAsync(page, "menu-section-fitness", false);
+        Assert.Equal("false", await fitnessSection.GetAttributeAsync("aria-expanded"));
+        await martialArtsSection.ClickAsync();
+        await WaitForSectionExpandedAsync(page, "menu-section-martialarts", true);
+        Assert.Equal("true", await martialArtsSection.GetAttributeAsync("aria-expanded"));
+        Assert.Equal("false", await fitnessSection.GetAttributeAsync("aria-expanded"));
+    }
+
+    [Fact]
+    public async Task AdminCanCompleteMartialArtsFitnessCommunityAndAuditJourneysOnMobile()
+    {
+        await using var environment = new E2EEnvironment();
+        await environment.StartAsync();
+
+        using var playwright = await Playwright.CreateAsync();
+        await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
+        {
+            Headless = true
+        });
+        var page = await browser.NewPageAsync();
+
+        await page.GotoAsync($"{environment.AdminUrl}/login");
+        await page.GetByLabel("E-mail").FillAsync(environment.OwnerEmail);
+        await page.GetByLabel("Senha").FillAsync(environment.OwnerPassword);
+        await page.GetByRole(AriaRole.Button, new() { Name = "Entrar" }).ClickAsync();
+        await page.WaitForFunctionAsync("() => window.location.pathname === '/'");
+
+        const string modalityName = "Jiu-Jitsu Jornada E2E";
+        const string clientName = "Aluno Jornada E2E";
+        const string clientEmail = "journey-client@example.test";
+        await CreateModalityAsync(page, environment.AdminUrl, modalityName, "martial_art");
+
+        await page.GotoAsync($"{environment.AdminUrl}/clients");
+        await page.GetByRole(AriaRole.Button, new() { Name = "Novo aluno" }).ClickAsync();
+        await page.GetByLabel("Nome completo").FillAsync(clientName);
+        await page.GetByLabel("Email", new() { Exact = true }).FillAsync(clientEmail);
+        await page.GetByLabel("Telefone", new() { Exact = true }).FillAsync("(11) 99999-0202");
+        await page.GetByLabel("Modalidades do aluno").ClickAsync();
+        await page.GetByText(modalityName, new() { Exact = true }).Last.ClickAsync();
+        await page.GetByLabel("Modalidades do aluno").ClickAsync();
+        await page.GetByRole(AriaRole.Button, new() { Name = "Salvar" }).ClickAsync();
+        await page.GetByText(clientName, new() { Exact = true }).WaitForAsync();
+
+        await page.GotoAsync($"{environment.AdminUrl}/graduation");
+        await page.GetByRole(AriaRole.Combobox, new() { Name = "Modalidade" }).ClickAsync();
+        await page.GetByText(modalityName, new() { Exact = true }).Last.ClickAsync();
+        await page.GetByLabel("Nome do sistema").FillAsync("Sistema Jornada E2E");
+        await page.GetByRole(AriaRole.Button, new() { Name = "Criar sistema" }).ClickAsync();
+        await page.GetByText("Faixas e graus — Sistema Jornada E2E", new() { Exact = true }).WaitForAsync();
+        await page.GetByLabel("Nome da faixa").FillAsync("Branca");
+        await page.GetByLabel("Quantidade de graus").FillAsync("4");
+        await page.GetByLabel("Aulas para alcançar a faixa").FillAsync("0");
+        await page.GetByRole(AriaRole.Button, new() { Name = "Cadastrar faixa" }).ClickAsync();
+        await page.GetByRole(AriaRole.Row).Filter(new() { HasText = "Branca" }).First.WaitForAsync();
+        await page.GetByLabel("Aulas para o próximo grau").FillAsync("0");
+        await page.GetByRole(AriaRole.Button, new() { Name = "Adicionar grau" }).ClickAsync();
+        await page.GetByRole(AriaRole.Row).Filter(new() { HasText = "1º grau" }).WaitForAsync();
+
+        await page.GetByRole(AriaRole.Combobox, new() { Name = "Aluno" }).ClickAsync();
+        await page.GetByText(clientName, new() { Exact = true }).Last.ClickAsync();
+        await page.GetByRole(AriaRole.Combobox, new() { Name = "Nível inicial" }).ClickAsync();
+        await page.GetByText("Branca", new() { Exact = true }).Last.ClickAsync();
+        await page.GetByRole(AriaRole.Button, new() { Name = "Registrar nível" }).ClickAsync();
+        var eligibleClient = page.GetByRole(AriaRole.Row).Filter(new() { HasText = clientName });
+        await eligibleClient.GetByRole(AriaRole.Button, new() { Name = "Registrar graduação" }).WaitForAsync();
+        await eligibleClient.GetByRole(AriaRole.Button, new() { Name = "Registrar graduação" }).ClickAsync();
+        await page.GetByRole(AriaRole.Dialog).GetByRole(AriaRole.Button, new() { Name = "Confirmar graduação" }).ClickAsync();
+        await page.GetByRole(AriaRole.Row).Filter(new() { HasText = clientName }).GetByText("1º grau").WaitForAsync();
+
+        await page.GotoAsync($"{environment.AdminUrl}/fitness");
+        await page.GetByRole(AriaRole.Button, new() { Name = "Nova meta" }).ClickAsync();
+        var goalDialog = page.GetByRole(AriaRole.Dialog);
+        await goalDialog.GetByRole(AriaRole.Combobox, new() { Name = "Aluno" }).ClickAsync();
+        await page.GetByText(clientName, new() { Exact = true }).Last.ClickAsync();
+        await goalDialog.GetByLabel("Meta", new() { Exact = true }).FillAsync("Treinar 3 vezes");
+        await goalDialog.GetByLabel("Alvo").FillAsync("3");
+        await goalDialog.GetByLabel("Unidade (ex.: kg, cm, aulas)").FillAsync("aulas");
+        await goalDialog.GetByRole(AriaRole.Button, new() { Name = "Criar meta" }).ClickAsync();
+        var goalRow = page.GetByRole(AriaRole.Row).Filter(new() { HasText = "Treinar 3 vezes" });
+        try
+        {
+            await goalRow.WaitForAsync(new LocatorWaitForOptions { Timeout = 10_000 });
+        }
+        catch (TimeoutException exception)
+        {
+            throw new InvalidOperationException(
+                $"Fitness goal was not listed after creation.{Environment.NewLine}{await page.Locator("body").InnerTextAsync()}{Environment.NewLine}{environment.ProcessOutput}",
+                exception);
+        }
+        await goalRow.GetByRole(AriaRole.Button, new() { Name = "Registrar progresso" }).ClickAsync();
+        var progressDialog = page.GetByRole(AriaRole.Dialog);
+        await progressDialog.GetByLabel("Novo progresso").FillAsync("3");
+        await progressDialog.GetByRole(AriaRole.Button, new() { Name = "Registrar progresso" }).ClickAsync();
+        try
+        {
+            await goalRow.GetByText("Concluída", new() { Exact = true })
+                .WaitForAsync(new LocatorWaitForOptions { Timeout = 10_000 });
+        }
+        catch (TimeoutException exception)
+        {
+            throw new InvalidOperationException(
+                $"Fitness goal did not reach the target after recording progress.{Environment.NewLine}{await page.Locator("body").InnerTextAsync()}{Environment.NewLine}{environment.ProcessOutput}",
+                exception);
+        }
+        await goalRow.GetByRole(AriaRole.Button, new() { Name = "Histórico de progresso" }).ClickAsync();
+        await page.GetByRole(AriaRole.Dialog).GetByText("3,00", new() { Exact = false }).WaitForAsync();
+        await page.GetByRole(AriaRole.Dialog).GetByRole(AriaRole.Button, new() { Name = "Fechar" }).ClickAsync();
+
+        await page.GotoAsync($"{environment.AdminUrl}/rankings");
+        var cycleName = page.GetByLabel("Nome do ciclo");
+        await cycleName.FillAsync("Ciclo Jornada E2E");
+        await cycleName.PressAsync("Tab");
+        await page.WaitForFunctionAsync(
+            "() => [...document.querySelectorAll('button')].some(button => button.textContent?.trim() === 'Criar ciclo' && !button.disabled)");
+        await page.GetByRole(AriaRole.Button, new() { Name = "Criar ciclo" }).ClickAsync();
+        await page.GetByRole(AriaRole.Button, new() { Name = "Recalcular ranking" }).WaitForAsync();
+        await page.GetByRole(AriaRole.Button, new() { Name = "Recalcular ranking" }).ClickAsync();
+        await page.GetByText("Ranking recalculado.", new() { Exact = true }).WaitForAsync();
+        await page.GetByLabel("Nome", new() { Exact = true }).FillAsync("Medalha Jornada E2E");
+        await page.GetByLabel("Código único").FillAsync("medalha-jornada-e2e");
+        await page.GetByLabel("Descrição").FillAsync("Conquista registrada pelo fluxo E2E.");
+        await page.GetByRole(AriaRole.Button, new() { Name = "Criar medalha" }).ClickAsync();
+        await page.GetByText("Medalha Jornada E2E", new() { Exact = true }).WaitForAsync();
+        await page.GetByRole(AriaRole.Combobox, new() { Name = "Aluno" }).ClickAsync();
+        await page.GetByRole(AriaRole.Option, new() { Name = clientName }).ClickAsync();
+        await page.WaitForFunctionAsync(
+            "name => document.querySelector('div[role=\"combobox\"][aria-label=\"Aluno\"]')?.textContent?.includes(name)",
+            clientName);
+        await page.GetByRole(AriaRole.Combobox, new() { Name = "Medalha" }).ClickAsync();
+        await page.GetByRole(AriaRole.Option, new() { Name = "Medalha Jornada E2E" }).ClickAsync();
+        await page.WaitForFunctionAsync(
+            "() => document.querySelector('div[role=\"combobox\"][aria-label=\"Medalha\"]')?.textContent?.includes('Medalha Jornada E2E')");
+        Assert.Contains(clientName, await page.GetByRole(AriaRole.Combobox, new() { Name = "Aluno" }).InnerTextAsync());
+        Assert.Contains("Medalha Jornada E2E", await page.GetByRole(AriaRole.Combobox, new() { Name = "Medalha" }).InnerTextAsync());
+        await page.GetByLabel("Motivo (opcional)").FillAsync("Participação na jornada.");
+        await page.GetByRole(AriaRole.Button, new() { Name = "Conceder" }).ClickAsync();
+        await page.GetByText("Participação na jornada.", new() { Exact = true }).WaitForAsync();
+
+        await page.GotoAsync($"{environment.AdminUrl}/notifications");
+        await page.GetByRole(AriaRole.Combobox, new() { Name = "Aluno" }).ClickAsync();
+        await page.GetByText(clientName, new() { Exact = true }).Last.ClickAsync();
+        await page.GetByLabel("Título").FillAsync("Comunicado Jornada E2E");
+        await page.GetByLabel("Mensagem").FillAsync("Mensagem entregue na caixa do aluno.");
+        await page.GetByRole(AriaRole.Button, new() { Name = "Registrar comunicado" }).ClickAsync();
+        await page.GetByRole(AriaRole.Row).Filter(new() { HasText = "Comunicado Jornada E2E" }).WaitForAsync();
+
+        await page.GotoAsync($"{environment.AdminUrl}/audit");
+        await page.GetByRole(AriaRole.Heading, new() { Name = "Auditoria" }).WaitForAsync();
+        await page.GetByText("Criou/registrou", new() { Exact = true }).First.WaitForAsync();
+
+        await page.SetViewportSizeAsync(390, 844);
+        foreach (var route in new[] { "graduation", "fitness", "rankings", "notifications", "audit" })
+        {
+            await page.GotoAsync($"{environment.AdminUrl}/{route}");
+            await page.Locator("h4").First.WaitForAsync();
+            var documentWidth = await page.EvaluateAsync<int>("() => document.documentElement.scrollWidth");
+            var viewportWidth = await page.EvaluateAsync<int>("() => document.documentElement.clientWidth");
+            Assert.True(
+                documentWidth <= viewportWidth,
+                $"The /{route} page overflows horizontally on a {viewportWidth}px viewport ({documentWidth}px document width).");
+        }
+    }
+
+    [Fact]
     public async Task AdminCanManageClientAttendanceAndPaymentInBrowser()
     {
         await using var environment = new E2EEnvironment();
@@ -195,11 +400,35 @@ public sealed class AdminCriticalFlowsTests
 
         return lessons[0];
     }
+
+    private static async Task CreateModalityAsync(IPage page, string adminUrl, string name, string type)
+    {
+        await page.GotoAsync($"{adminUrl}/modalities");
+        await page.GetByRole(AriaRole.Button, new() { Name = "Nova modalidade" }).ClickAsync();
+        await page.GetByLabel("Nome", new() { Exact = true }).FillAsync(name);
+        if (type != "martial_art")
+        {
+            await page.GetByRole(AriaRole.Combobox, new() { Name = "Tipo" }).ClickAsync();
+            await page.GetByText("Fitness", new() { Exact = true }).Last.ClickAsync();
+        }
+
+        await page.GetByRole(AriaRole.Button, new() { Name = "Salvar" }).ClickAsync();
+        await page.GetByText(name, new() { Exact = true }).WaitForAsync();
+    }
+
+    private static Task WaitForSectionExpandedAsync(IPage page, string sectionId, bool expanded) =>
+        page.WaitForFunctionAsync(
+            "(args) => document.querySelector(`[aria-controls='${args.id}']`)?.getAttribute('aria-expanded') === String(args.expanded)",
+            new { id = sectionId, expanded });
 }
 
 internal sealed class E2EEnvironment : IAsyncDisposable
 {
     private const string OwnerPasswordValue = "Owner!E2E123456";
+    private const string OwnerPasswordAfterFirstLogin = "Owner!Final123456";
+    private const string PlatformOwnerEmailValue = "platform-owner@example.test";
+    private const string PlatformOwnerPasswordValue = "Platform!Temp12345";
+    private const string PlatformOwnerPasswordAfterFirstLogin = "Platform!Final12345";
     private const string ClientPassword = "Client!E2E123456";
     private readonly PostgreSqlContainer _database = new PostgreSqlBuilder("postgres:17-alpine")
         .WithDatabase("kiai_e2e")
@@ -244,33 +473,31 @@ internal sealed class E2EEnvironment : IAsyncDisposable
         var configuration = new DirectoryInfo(AppContext.BaseDirectory).Parent?.Name ?? "Debug";
         _apiPort = GetAvailablePort();
         _adminPort = GetAvailablePort();
+        var apiEnvironment = new Dictionary<string, string>
+        {
+            ["ASPNETCORE_ENVIRONMENT"] = "Development",
+            ["ASPNETCORE_URLS"] = ApiUrl,
+            ["TZ"] = "UTC",
+            ["ConnectionStrings__PostgreSql"] = ConnectionString,
+            ["Cache__Provider"] = "Memory"
+        };
+        if (!seedAdmin)
+        {
+            apiEnvironment["PlatformOwner__Email"] = PlatformOwnerEmailValue;
+            apiEnvironment["PlatformOwner__FullName"] = "E2E Platform Owner";
+            apiEnvironment["PlatformOwner__Password"] = PlatformOwnerPasswordValue;
+        }
+
         _apiProcess = StartApplication(
             Path.Combine(root, "backend", "kiai-control-api", "src", "KiaiControl.Api", "bin", configuration, "net10.0", "KiaiControl.Api.dll"),
             Path.Combine(root, "backend", "kiai-control-api", "src", "KiaiControl.Api"),
             _apiOutput,
-            new Dictionary<string, string>
-            {
-                ["ASPNETCORE_ENVIRONMENT"] = "Development",
-                ["ASPNETCORE_URLS"] = ApiUrl,
-                ["TZ"] = "UTC",
-                ["ConnectionStrings__PostgreSql"] = ConnectionString,
-                ["Cache__Provider"] = "Memory"
-            });
+            apiEnvironment);
         await WaitForHttpAsync($"{ApiUrl}/health/live", _apiProcess, _apiOutput);
 
         if (!seedAdmin)
         {
-            using var httpClient = new HttpClient();
-            var registrationResponse = await httpClient.PostAsJsonAsync($"{ApiUrl}/api/v1/organizations", new
-            {
-                name = $"E2E Academy {Guid.NewGuid():N}",
-                ownerFullName = "E2E Owner",
-                ownerEmail = OwnerEmail,
-                ownerPassword = OwnerPassword
-            });
-            registrationResponse.EnsureSuccessStatusCode();
-            using var registration = JsonDocument.Parse(await registrationResponse.Content.ReadAsStringAsync());
-            _organizationId = registration.RootElement.GetProperty("organization").GetProperty("id").GetGuid();
+            await RegisterOrganizationAsPlatformOwnerAsync();
         }
 
         await SetOrganizationTimezoneAsync();
@@ -288,6 +515,68 @@ internal sealed class E2EEnvironment : IAsyncDisposable
         await WaitForHttpAsync(AdminUrl, _adminProcess, _adminOutput);
     }
 
+    private async Task RegisterOrganizationAsPlatformOwnerAsync()
+    {
+        using var httpClient = new HttpClient { BaseAddress = new Uri($"{ApiUrl}/api/v1/") };
+        await SignInAndChangePasswordAsync(
+            httpClient,
+            PlatformOwnerEmailValue,
+            PlatformOwnerPasswordValue,
+            PlatformOwnerPasswordAfterFirstLogin);
+        await SignInAndChangePasswordAsync(
+            httpClient,
+            PlatformOwnerEmailValue,
+            PlatformOwnerPasswordAfterFirstLogin,
+            PlatformOwnerPasswordAfterFirstLogin);
+
+        using var registrationResponse = await httpClient.PostAsJsonAsync("platform/organizations", new
+        {
+            name = $"E2E Academy {Guid.NewGuid():N}",
+            ownerFullName = "E2E Owner",
+            ownerEmail = OwnerEmail,
+            ownerPassword = OwnerPasswordValue
+        });
+        registrationResponse.EnsureSuccessStatusCode();
+        using var registration = JsonDocument.Parse(await registrationResponse.Content.ReadAsStringAsync());
+        _organizationId = registration.RootElement.GetProperty("organization").GetProperty("id").GetGuid();
+
+        await SignInAndChangePasswordAsync(
+            httpClient,
+            OwnerEmail,
+            OwnerPasswordValue,
+            OwnerPasswordAfterFirstLogin);
+        OwnerPassword = OwnerPasswordAfterFirstLogin;
+    }
+
+    private static async Task SignInAndChangePasswordAsync(
+        HttpClient httpClient,
+        string email,
+        string currentPassword,
+        string newPassword)
+    {
+        httpClient.DefaultRequestHeaders.Authorization = null;
+        using var loginResponse = await httpClient.PostAsJsonAsync("auth/login", new
+        {
+            email,
+            password = currentPassword
+        });
+        loginResponse.EnsureSuccessStatusCode();
+        using var login = JsonDocument.Parse(await loginResponse.Content.ReadAsStringAsync());
+
+        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer",
+            login.RootElement.GetProperty("accessToken").GetString());
+        if (!string.Equals(currentPassword, newPassword, StringComparison.Ordinal))
+        {
+            using var changePasswordResponse = await httpClient.PostAsJsonAsync("auth/change-password", new
+            {
+                currentPassword,
+                newPassword
+            });
+            changePasswordResponse.EnsureSuccessStatusCode();
+        }
+    }
+
     public async Task VerifyFreshDatabaseBootstrapAsync()
     {
         await using var connection = new NpgsqlConnection(ConnectionString);
@@ -295,7 +584,10 @@ internal sealed class E2EEnvironment : IAsyncDisposable
         await using var command = new NpgsqlCommand(
             """
             select
-                (select count(*) from schema_migrations) = 8
+                exists (
+                    select 1 from schema_migrations
+                    where migration_name = '010_platform_owner_and_temporary_passwords.sql'
+                )
                 and (select count(*) from organizations where id = @OrganizationId and email = 'admin@kiai.local') = 1
                 and (select count(*) from user_accounts where email = 'admin@kiai.local' and is_active) = 1
                 and to_regclass('public.modality_schedules') is not null

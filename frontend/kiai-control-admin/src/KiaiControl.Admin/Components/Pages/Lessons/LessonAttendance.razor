@@ -180,7 +180,9 @@
     {
         await RunAttendanceActionAsync(
             () => Api.ValidateCheckInAsync(checkIn.Id, status),
-            status == "absent" ? "Check-in recusado e falta registrada." : "Check-in validado.");
+            status == "absent"
+                ? AdminSystemMessages.CheckInRejectedAndAbsenceRecorded
+                : AdminSystemMessages.CheckInValidated);
     }
 
             private Task ConfirmCheckInAsync(AttendanceRecordResponse checkIn) => ValidateCheckInAsync(checkIn, "present");
@@ -203,13 +205,13 @@
 
         if (entries.Count == 0)
         {
-            Snackbar.Add("Selecione a presença de pelo menos um aluno.", Severity.Warning);
+            Snackbar.Add(AdminSystemMessages.AttendanceSelectionRequired, Severity.Warning);
             return;
         }
 
         await RunAttendanceActionAsync(
             async () => await Api.SaveLessonAttendanceAsync(LessonId, new SaveAttendanceCallRequest { Entries = entries }),
-            "Chamada salva.");
+            AdminSystemMessages.AttendanceSaved);
     }
 
     private async Task RunAttendanceActionAsync<T>(Func<Task<T>> action, string message)

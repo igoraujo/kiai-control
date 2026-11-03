@@ -83,7 +83,7 @@
         }
         catch (HttpRequestException exception)
         {
-            Snackbar.Add($"Não foi possível carregar as unidades: {exception.Message}", Severity.Warning);
+            Snackbar.Add(string.Format(AdminSystemMessages.FailedToLoadBranches, exception.Message), Severity.Warning);
         }
     }
 
@@ -117,7 +117,7 @@
             }
             catch (HttpRequestException exception)
             {
-                Snackbar.Add($"Não foi possível carregar as modalidades do aluno: {exception.Message}", Severity.Error);
+                Snackbar.Add(string.Format(AdminSystemMessages.FailedToLoadStudentModalities, exception.Message), Severity.Error);
                 return;
             }
         }
@@ -160,7 +160,7 @@
         }
         catch (HttpRequestException exception)
         {
-            Snackbar.Add($"Não foi possível carregar a jornada do aluno: {exception.Message}", Severity.Error);
+            Snackbar.Add(string.Format(AdminSystemMessages.FailedToLoadStudentJourney, exception.Message), Severity.Error);
         }
     }
 }

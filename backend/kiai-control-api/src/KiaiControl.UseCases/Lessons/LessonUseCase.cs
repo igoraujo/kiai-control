@@ -13,7 +13,7 @@ public sealed class LessonUseCase(ILessonRepository lessonRepository)
     {
         if (request.ModalityId == Guid.Empty)
         {
-            throw new ArgumentException("ModalityId is required.");
+            throw new ArgumentException(SystemMessages.ModalityIdIsRequired);
         }
 
         ValidateInterval(organizationId, request.StartsAt, request.EndsAt);
@@ -42,7 +42,7 @@ public sealed class LessonUseCase(ILessonRepository lessonRepository)
     {
         if (from is not null && to is not null && from >= to)
         {
-            throw new ArgumentException("The end of the lesson range must be later than its start.");
+            throw new ArgumentException(SystemMessages.TheEndOfTheLessonRangeMustBeLaterThanItsStart);
         }
 
         var lessons = await lessonRepository.ListByOrganizationAsync(
@@ -83,12 +83,12 @@ public sealed class LessonUseCase(ILessonRepository lessonRepository)
     {
         if (organizationId == Guid.Empty)
         {
-            throw new ArgumentException("OrganizationId is required.");
+            throw new ArgumentException(SystemMessages.OrganizationIdIsRequired);
         }
 
         if (request.Reason?.Length > 255)
         {
-            throw new ArgumentException("Reason must not exceed 255 characters.");
+            throw new ArgumentException(SystemMessages.ReasonMustNotExceed255Characters);
         }
 
         var canceled = await lessonRepository.CancelAsync(
@@ -123,17 +123,17 @@ public sealed class LessonUseCase(ILessonRepository lessonRepository)
     {
         if (organizationId == Guid.Empty || request.ModalityId == Guid.Empty)
         {
-            throw new ArgumentException("OrganizationId and ModalityId are required.");
+            throw new ArgumentException(SystemMessages.OrganizationIdAndModalityIdAreRequired);
         }
 
         if (request.EndDate < request.StartDate)
         {
-            throw new ArgumentException("EndDate must be on or after StartDate.");
+            throw new ArgumentException(SystemMessages.EndDateMustBeOnOrAfterStartDate);
         }
 
         if (request.EndDate.DayNumber - request.StartDate.DayNumber > 90)
         {
-            throw new ArgumentException("The generation range cannot exceed 90 days.");
+            throw new ArgumentException(SystemMessages.TheGenerationRangeCannotExceed90Days);
         }
 
         var lessons = await lessonRepository.GenerateFromModalitySchedulesAsync(
@@ -152,12 +152,12 @@ public sealed class LessonUseCase(ILessonRepository lessonRepository)
     {
         if (organizationId == Guid.Empty)
         {
-            throw new ArgumentException("OrganizationId is required.");
+            throw new ArgumentException(SystemMessages.OrganizationIdIsRequired);
         }
 
         if (endsAt <= startsAt)
         {
-            throw new ArgumentException("EndsAt must be later than StartsAt.");
+            throw new ArgumentException(SystemMessages.EndsAtMustBeLaterThanStartsAt);
         }
     }
 

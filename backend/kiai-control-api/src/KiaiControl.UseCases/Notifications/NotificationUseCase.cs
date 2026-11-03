@@ -15,24 +15,24 @@ public sealed class NotificationUseCase(INotificationRepository notificationRepo
     {
         if (organizationId == Guid.Empty || request.PersonId == Guid.Empty)
         {
-            throw new ArgumentException("OrganizationId and PersonId are required.");
+            throw new ArgumentException(SystemMessages.OrganizationIdAndPersonIdAreRequired);
         }
 
         if (string.IsNullOrWhiteSpace(request.Title) || request.Title.Trim().Length > 160
             || string.IsNullOrWhiteSpace(request.Body) || request.Body.Length > 10000)
         {
-            throw new ArgumentException("Title and Body are required and must be within their maximum lengths.");
+            throw new ArgumentException(SystemMessages.TitleAndBodyAreRequiredAndMustBeWithinTheirMaximumLengths);
         }
 
         var channel = AllowedChannels.FirstOrDefault(value => string.Equals(value, request.Channel.Trim(), StringComparison.OrdinalIgnoreCase));
         if (channel is null)
         {
-            throw new ArgumentException("Channel must be in_app, push or email.");
+            throw new ArgumentException(SystemMessages.ChannelMustBeInAppPushOrEmail);
         }
 
         if (request.ScheduledAt is not null && request.ScheduledAt <= DateTimeOffset.UtcNow)
         {
-            throw new ArgumentException("ScheduledAt must be in the future.");
+            throw new ArgumentException(SystemMessages.ScheduledAtMustBeInTheFuture);
         }
 
         var notification = await notificationRepository.CreateAsync(new Notification
@@ -67,7 +67,7 @@ public sealed class NotificationUseCase(INotificationRepository notificationRepo
     {
         if (organizationId == Guid.Empty)
         {
-            throw new ArgumentException("OrganizationId is required.");
+            throw new ArgumentException(SystemMessages.OrganizationIdIsRequired);
         }
 
         var notifications = await notificationRepository.ListByOrganizationAsync(
@@ -84,7 +84,7 @@ public sealed class NotificationUseCase(INotificationRepository notificationRepo
         EnsureIds(organizationId, personId);
         if (notificationId == Guid.Empty)
         {
-            throw new ArgumentException("NotificationId is required.");
+            throw new ArgumentException(SystemMessages.NotificationIdIsRequired);
         }
 
         return notificationRepository.MarkAsReadAsync(organizationId, personId, notificationId, cancellationToken);
@@ -94,7 +94,7 @@ public sealed class NotificationUseCase(INotificationRepository notificationRepo
     {
         if (organizationId == Guid.Empty || personId == Guid.Empty)
         {
-            throw new ArgumentException("OrganizationId and PersonId are required.");
+            throw new ArgumentException(SystemMessages.OrganizationIdAndPersonIdAreRequired);
         }
     }
 

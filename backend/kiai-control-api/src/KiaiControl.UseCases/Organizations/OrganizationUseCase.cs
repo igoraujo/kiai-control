@@ -17,7 +17,7 @@ public sealed class OrganizationUseCase(IOrganizationRepository organizationRepo
 
         if (request.OwnerPassword.Length < 12)
         {
-            throw new ArgumentException("OwnerPassword must have at least 12 characters.");
+            throw new ArgumentException(SystemMessages.OwnerPasswordMustHaveAtLeast12Characters);
         }
 
         var organization = await organizationRepository.RegisterAsync(
@@ -48,11 +48,17 @@ public sealed class OrganizationUseCase(IOrganizationRepository organizationRepo
     {
         if (organizationId == Guid.Empty)
         {
-            throw new ArgumentException("OrganizationId is required.");
+            throw new ArgumentException(SystemMessages.OrganizationIdIsRequired);
         }
 
         var organization = await organizationRepository.GetByIdAsync(organizationId, cancellationToken);
         return organization is null ? null : ToResponse(organization);
+    }
+
+    public async Task<IReadOnlyList<OrganizationResponse>> ListAsync(CancellationToken cancellationToken)
+    {
+        var organizations = await organizationRepository.ListAsync(cancellationToken);
+        return organizations.Select(ToResponse).ToList();
     }
 
     public async Task<OrganizationResponse?> UpdateAsync(
@@ -77,12 +83,12 @@ public sealed class OrganizationUseCase(IOrganizationRepository organizationRepo
     {
         if (string.IsNullOrWhiteSpace(name) || name.Trim().Length > 160)
         {
-            throw new ArgumentException("Name is required and must not exceed 160 characters.");
+            throw new ArgumentException(SystemMessages.NameIsRequiredAndMustNotExceed160Characters);
         }
 
         if (tradeName?.Length > 160 || document?.Length > 30 || phone?.Length > 30)
         {
-            throw new ArgumentException("One or more organization fields exceed their maximum length.");
+            throw new ArgumentException(SystemMessages.OneOrMoreOrganizationFieldsExceedTheirMaximumLength);
         }
 
         if (!string.IsNullOrWhiteSpace(email))
@@ -95,7 +101,7 @@ public sealed class OrganizationUseCase(IOrganizationRepository organizationRepo
     {
         if (string.IsNullOrWhiteSpace(name) || name.Trim().Length > 180)
         {
-            throw new ArgumentException("OwnerFullName is required and must not exceed 180 characters.");
+            throw new ArgumentException(SystemMessages.OwnerFullNameIsRequiredAndMustNotExceed180Characters);
         }
     }
 
@@ -107,7 +113,7 @@ public sealed class OrganizationUseCase(IOrganizationRepository organizationRepo
         }
         catch (FormatException)
         {
-            throw new ArgumentException($"{fieldName} must be a valid e-mail address.");
+            throw new ArgumentException(string.Format(SystemMessages.MustBeAValidEMailAddress, fieldName));
         }
     }
 

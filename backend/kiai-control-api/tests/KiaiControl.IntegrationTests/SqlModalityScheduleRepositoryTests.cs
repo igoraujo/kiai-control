@@ -10,6 +10,46 @@ namespace KiaiControl.IntegrationTests;
 public sealed class SqlModalityScheduleRepositoryTests(PostgreSqlFixture fixture)
 {
     [Fact]
+    public async Task ListActiveTypesAsync_ShouldReturnDistinctActiveTypesWithinOrganization()
+    {
+        var organizationId = Guid.NewGuid();
+
+        await using (var connection = new NpgsqlConnection(fixture.ConnectionString))
+        {
+            await connection.OpenAsync();
+            await using var command = new NpgsqlCommand(
+                """
+                insert into organizations (id, name, status)
+                values (@organizationId, @name, 'active');
+                insert into modalities (id, organization_id, name, type, is_active)
+                values
+                    (@martialId, @organizationId, 'Jiu-Jitsu', 'martial_art', true),
+                    (@secondMartialId, @organizationId, 'Karate', 'martial_art', true),
+                    (@fitnessId, @organizationId, 'Musculação', 'fitness', true),
+                    (@inactiveId, @organizationId, 'Fitness inativo', 'fitness', false);
+                """,
+                connection);
+            command.Parameters.AddWithValue("organizationId", organizationId);
+            command.Parameters.AddWithValue("name", $"Capabilities integration {organizationId:N}");
+            command.Parameters.AddWithValue("martialId", Guid.NewGuid());
+            command.Parameters.AddWithValue("secondMartialId", Guid.NewGuid());
+            command.Parameters.AddWithValue("fitnessId", Guid.NewGuid());
+            command.Parameters.AddWithValue("inactiveId", Guid.NewGuid());
+            await command.ExecuteNonQueryAsync();
+        }
+
+        var services = new ServiceCollection();
+        services.AddKiaiRepositories(fixture.ConnectionString);
+        using var provider = services.BuildServiceProvider();
+        var modalityRepository = provider.GetRequiredService<IModalityRepository>();
+
+        var activeTypes = await modalityRepository.ListActiveTypesAsync(organizationId);
+
+        Assert.Equal(["fitness", "martial_art"], activeTypes.Order(StringComparer.Ordinal));
+        Assert.Empty(await modalityRepository.ListActiveTypesAsync(Guid.NewGuid()));
+    }
+
+    [Fact]
     public async Task Migration_ShouldRemoveClassGroupSchema()
     {
         await using var connection = new NpgsqlConnection(fixture.ConnectionString);
@@ -549,10 +589,12 @@ public sealed class SqlModalityScheduleRepositoryTests(PostgreSqlFixture fixture
         {
             FitnessGoalId = fitnessGoal.Id,
             RecordedValue = 12,
-            Notes = "Meta atingida"
+            Notes = "Meta atingida",
+            CreatedByPersonId = teacherPersonId
         });
         Assert.NotNull(progress);
         Assert.Equal(12m, progress.RecordedValue);
+        Assert.Equal(teacherId, progress.CreatedByTeacherId);
         var progressHistory = await progressionRepository.ListFitnessProgressRecordsAsync(
             organizationId, fitnessGoal.Id, page: 1, pageSize: 20);
         Assert.Equal(progress.Id, Assert.Single(progressHistory).Id);
@@ -574,11 +616,14 @@ public sealed class SqlModalityScheduleRepositoryTests(PostgreSqlFixture fixture
             DueDate = new DateOnly(2026, 2, 1)
         });
         Assert.NotNull(goalWithHistory);
-        await progressionRepository.RecordFitnessProgressAsync(organizationId, new FitnessProgressRecord
+        var clientRecordedProgress = await progressionRepository.RecordFitnessProgressAsync(organizationId, new FitnessProgressRecord
         {
             FitnessGoalId = goalWithHistory.Id,
-            RecordedValue = 2
+            RecordedValue = 2,
+            CreatedByPersonId = authorizedPersonId
         });
+        Assert.NotNull(clientRecordedProgress);
+        Assert.Null(clientRecordedProgress.CreatedByTeacherId);
         await progressionRepository.RecordFitnessProgressAsync(organizationId, new FitnessProgressRecord
         {
             FitnessGoalId = goalWithHistory.Id,

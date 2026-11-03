@@ -1,4 +1,4 @@
-﻿@page "/"
+@page "/"
 @inject AdminSession Session
 @inject AdminApiClient Api
 @inject NavigationManager Navigation
@@ -27,7 +27,7 @@
                        Disabled="_isLoading" OnClick="LoadDashboardAsync">Aplicar filtros</MudButton>
         </MudStack>
         <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">
-            O filtro de modalidade se aplica aos relatórios de frequência, desempenho e graduações.
+            O filtro de modalidade se aplica aos relatórios de frequência, desempenho e, quando disponíveis, graduações.
         </MudText>
     </MudPaper>
 
@@ -176,21 +176,24 @@
                 </MudStack>
             </MudTabPanel>
 
-            <MudTabPanel Text="Graduações" Icon="@Icons.Material.Filled.MilitaryTech">
-                <MudTable Items="_graduationRows" Dense="true" Hover="true">
-                    <HeaderContent>
-                        <MudTh>Modalidade</MudTh>
-                        <MudTh>Graduações no período</MudTh>
-                        <MudTh>Última graduação</MudTh>
-                    </HeaderContent>
-                    <RowTemplate>
-                        <MudTd>@context.ModalityName</MudTd>
-                        <MudTd>@context.PromotionCount</MudTd>
-                        <MudTd>@(context.PromotionCount == 0 ? "—" : context.LatestPromotion.ToString("dd/MM/yyyy"))</MudTd>
-                    </RowTemplate>
-                    <NoRecordsContent><MudText>Nenhuma graduação registrada no período.</MudText></NoRecordsContent>
-                </MudTable>
-            </MudTabPanel>
+            @if (HasGraduation)
+            {
+                <MudTabPanel Text="Graduações" Icon="@Icons.Material.Filled.MilitaryTech">
+                    <MudTable Items="_graduationRows" Dense="true" Hover="true">
+                        <HeaderContent>
+                            <MudTh>Modalidade</MudTh>
+                            <MudTh>Graduações no período</MudTh>
+                            <MudTh>Última graduação</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>@context.ModalityName</MudTd>
+                            <MudTd>@context.PromotionCount</MudTd>
+                            <MudTd>@(context.PromotionCount == 0 ? "—" : context.LatestPromotion.ToString("dd/MM/yyyy"))</MudTd>
+                        </RowTemplate>
+                        <NoRecordsContent><MudText>Nenhuma graduação registrada no período.</MudText></NoRecordsContent>
+                    </MudTable>
+                </MudTabPanel>
+            }
         </MudTabs>
     }
 </MudStack>
@@ -210,6 +213,9 @@
     private const int _performancePageSize = 50;
     private string? _errorMessage;
     private string _periodLabel = string.Empty;
+
+    private bool HasGraduation => _modalities.Any(modality =>
+        modality.IsActive && string.Equals(modality.Type, "martial_art", StringComparison.OrdinalIgnoreCase));
 
     protected override async Task OnInitializedAsync()
     {
@@ -232,7 +238,7 @@
         catch (HttpRequestException)
         {
             _isLoading = false;
-            _errorMessage = "Não foi possível carregar os relatórios. Verifique se a API está disponível.";
+            _errorMessage = AdminSystemMessages.FailedToLoadReportsCheckApiAvailability;
         }
     }
 
@@ -240,7 +246,7 @@
     {
         if (_fromDate is null || _toDate is null)
         {
-            _errorMessage = "Informe as datas inicial e final do período.";
+            _errorMessage = AdminSystemMessages.PeriodStartAndEndDatesRequired;
             return;
         }
 
@@ -248,7 +254,7 @@
         var to = DateOnly.FromDateTime(_toDate.Value);
         if (to < from || to.DayNumber - from.DayNumber > 366)
         {
-            _errorMessage = "O período deve ser válido e não pode ultrapassar 367 dias.";
+            _errorMessage = AdminSystemMessages.PeriodMustBeValidAndAtMost367Days;
             return;
         }
 
@@ -263,7 +269,9 @@
             var attendanceTask = Api.GetAttendanceReportAsync(from, to, _selectedModalityId);
             var financialTask = Api.GetFinancialReportAsync(from, to);
             var performanceTask = Api.GetClientPerformanceReportAsync(from, to, _selectedModalityId, _performancePage, _performancePageSize);
-            var graduationTask = Api.GetGraduationReportAsync(from, to, _selectedModalityId);
+            var graduationTask = HasGraduation
+                ? Api.GetGraduationReportAsync(from, to, _selectedModalityId)
+                : Task.FromResult<IReadOnlyList<GraduationReportRow>>([]);
             await Task.WhenAll(dashboardTask, attendanceTask, financialTask, performanceTask, graduationTask);
 
             _report = await dashboardTask;
@@ -279,7 +287,7 @@
         }
         catch (HttpRequestException)
         {
-            _errorMessage = "Não foi possível carregar os relatórios. Verifique se a API está disponível.";
+            _errorMessage = AdminSystemMessages.FailedToLoadReportsCheckApiAvailability;
         }
         finally
         {
@@ -314,7 +322,7 @@
         }
         catch (HttpRequestException)
         {
-            _errorMessage = "Não foi possível carregar o relatório de desempenho dos alunos.";
+            _errorMessage = AdminSystemMessages.FailedToLoadStudentPerformanceReport;
         }
         finally
         {

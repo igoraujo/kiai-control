@@ -2,6 +2,50 @@ namespace KiaiControl.Repositories.Queries.Auth;
 
 public static class AccessControlQueries
 {
+    public const string ListPeopleWithoutAccounts = @"
+        select person.id as PersonId, person.full_name as FullName, person.email as Email
+        from persons person
+        where person.organization_id = @OrganizationId
+          and person.deleted_at is null
+          and not exists (
+              select 1 from user_accounts account where account.person_id = person.id
+          )
+        order by person.full_name;
+        ";
+
+    public const string CreateUserAccount = @"
+        with target_person as (
+            update persons person
+            set email = @Email
+            where person.id = @PersonId
+              and person.organization_id = @OrganizationId
+              and person.deleted_at is null
+              and not exists (
+                  select 1 from user_accounts account where account.person_id = person.id
+              )
+            returning person.id
+        ), created_account as (
+            insert into user_accounts (
+                id, person_id, email, password_hash, is_active, is_platform_owner,
+                must_change_password, created_at
+            )
+            select @UserId, target_person.id, @Email, @PasswordHash, true, false, true, now()
+            from target_person
+            returning person_id
+        ), assigned_role as (
+            insert into person_roles (person_id, role_id, granted_by_user_account_id, granted_at)
+            select created_account.person_id, role.id, @GrantedByUserId, now()
+            from created_account
+            cross join roles role
+            where role.code = @RoleCode::role_code
+            on conflict (person_id, role_id) do update
+            set granted_by_user_account_id = excluded.granted_by_user_account_id,
+                granted_at = excluded.granted_at
+            returning person_id
+        )
+        select person_id from assigned_role;
+        ";
+
     public const string ListRoles = @"
         select id, code::text as Code, name, description
         from roles order by code;

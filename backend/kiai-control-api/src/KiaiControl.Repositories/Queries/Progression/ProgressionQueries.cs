@@ -451,7 +451,12 @@ public static class ProgressionQueries
             for update
         ), inserted as (
             insert into fitness_progress_records (id, fitness_goal_id, recorded_value, notes, recorded_at, created_by_teacher_id)
-            select @Id, target.id, @RecordedValue, @Notes, @RecordedAt, @CreatedByTeacherId from target
+            select @Id, target.id, @RecordedValue, @Notes, @RecordedAt,
+                   (select teacher.id
+                    from teachers teacher
+                    where teacher.organization_id = target.organization_id
+                      and teacher.person_id = @CreatedByPersonId)
+            from target
             returning id, fitness_goal_id as FitnessGoalId, recorded_value as RecordedValue,
                       notes, recorded_at as RecordedAt, created_by_teacher_id as CreatedByTeacherId
         ), updated as (

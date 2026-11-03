@@ -13,7 +13,7 @@ public sealed class Pbkdf2PasswordHasher : IPasswordHasher
     {
         if (string.IsNullOrWhiteSpace(input))
         {
-            throw new ArgumentException("Input cannot be empty.", nameof(input));
+            throw new ArgumentException(SystemMessages.InputCannotBeEmpty, nameof(input));
         }
 
         Span<byte> salt = stackalloc byte[SaltSize];

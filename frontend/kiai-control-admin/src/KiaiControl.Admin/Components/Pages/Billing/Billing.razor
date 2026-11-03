@@ -269,7 +269,7 @@
                 new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
             if (await dialog.Result is { Canceled: false })
             {
-                Snackbar.Add("Plano salvo.", Severity.Success);
+                Snackbar.Add(AdminSystemMessages.PlanSaved, Severity.Success);
                 await LoadAsync();
             }
         }
@@ -283,7 +283,7 @@
     {
         if (_clients.Count == 0 || !_plans.Any(plan => plan.IsActive))
         {
-            Snackbar.Add("Cadastre um aluno e um plano ativo antes de criar a assinatura.", Severity.Warning);
+            Snackbar.Add(AdminSystemMessages.StudentAndActivePlanRequiredForSubscription, Severity.Warning);
             return;
         }
 
@@ -295,7 +295,7 @@
             }, new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
         if (await dialog.Result is { Canceled: false })
         {
-            Snackbar.Add("Assinatura criada.", Severity.Success);
+            Snackbar.Add(AdminSystemMessages.SubscriptionCreated, Severity.Success);
             await LoadAsync();
         }
     }
@@ -315,7 +315,7 @@
             {
                 EndsAt = DateOnly.FromDateTime(DateTime.Today)
             });
-            Snackbar.Add("Assinatura encerrada.", Severity.Success);
+            Snackbar.Add(AdminSystemMessages.SubscriptionEnded, Severity.Success);
             await LoadAsync();
         });
     }
@@ -324,7 +324,7 @@
     {
         if (_referenceMonth is null)
         {
-            Snackbar.Add("Selecione a competência.", Severity.Warning);
+            Snackbar.Add(AdminSystemMessages.BillingPeriodRequired, Severity.Warning);
             return;
         }
 
@@ -332,7 +332,7 @@
         {
             var month = new DateOnly(_referenceMonth.Value.Year, _referenceMonth.Value.Month, 1);
             var generated = await Api.GenerateInvoicesAsync(new GenerateInvoicesRequest { ReferenceMonth = month });
-            Snackbar.Add($"{generated.Count} fatura(s) gerada(s).", Severity.Success);
+            Snackbar.Add(string.Format(AdminSystemMessages.InvoicesGenerated, generated.Count), Severity.Success);
             await LoadAsync();
         });
     }
@@ -344,7 +344,7 @@
             new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
         if (await dialog.Result is { Canceled: false })
         {
-            Snackbar.Add("Pagamento registrado.", Severity.Success);
+            Snackbar.Add(AdminSystemMessages.PaymentRecorded, Severity.Success);
             await LoadAsync();
         }
     }
@@ -361,7 +361,7 @@
         await RunOperationAsync(async () =>
         {
             await Api.DeactivateBillingPlanAsync(plan.Id);
-            Snackbar.Add("Plano desativado.", Severity.Success);
+            Snackbar.Add(AdminSystemMessages.PlanDeactivated, Severity.Success);
             await LoadAsync();
         });
     }

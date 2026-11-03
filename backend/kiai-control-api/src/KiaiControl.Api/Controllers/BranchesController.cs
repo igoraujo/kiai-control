@@ -20,14 +20,14 @@ public sealed class BranchesController(OrganizationContext organizationContext, 
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
         {
             var branch = await branchUseCase.CreateAsync(organizationId, request, cancellationToken);
             return branch is null
-                ? Conflict("A branch with this name already exists in the organization.")
+                ? Conflict(SystemMessages.ABranchWithThisNameAlreadyExistsInTheOrganization)
                 : CreatedAtAction(nameof(GetById), new { id = branch.Id }, branch);
         }
         catch (ArgumentException exception)
@@ -44,7 +44,7 @@ public sealed class BranchesController(OrganizationContext organizationContext, 
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         var branches = await branchUseCase.ListAsync(organizationId, page, pageSize, cancellationToken);
@@ -56,7 +56,7 @@ public sealed class BranchesController(OrganizationContext organizationContext, 
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         var branch = await branchUseCase.GetByIdAsync(organizationId, id, cancellationToken);
@@ -71,7 +71,7 @@ public sealed class BranchesController(OrganizationContext organizationContext, 
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
@@ -90,7 +90,7 @@ public sealed class BranchesController(OrganizationContext organizationContext, 
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         if (await branchUseCase.GetByIdAsync(organizationId, id, cancellationToken) is null)
@@ -99,6 +99,6 @@ public sealed class BranchesController(OrganizationContext organizationContext, 
         }
 
         var deleted = await branchUseCase.DeleteAsync(organizationId, id, cancellationToken);
-        return deleted ? NoContent() : Conflict("The branch is referenced by people or class groups.");
+        return deleted ? NoContent() : Conflict(SystemMessages.TheBranchIsReferencedByPeopleOrClassGroups);
     }
 }

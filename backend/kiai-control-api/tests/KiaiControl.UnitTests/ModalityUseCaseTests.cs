@@ -42,6 +42,35 @@ public sealed class ModalityUseCaseTests
     }
 
     [Fact]
+    public async Task ListActiveTypesAsync_ShouldReturnOnlyActiveTypesForOrganization()
+    {
+        var repository = new InMemoryModalityRepository();
+        var useCase = new ModalityUseCase(repository);
+        var organizationId = Guid.NewGuid();
+        await useCase.CreateAsync(organizationId, new CreateModalityRequest
+        {
+            Name = "Jiu-Jitsu",
+            Type = "martial_art"
+        }, CancellationToken.None);
+        var fitness = await useCase.CreateAsync(organizationId, new CreateModalityRequest
+        {
+            Name = "Musculação",
+            Type = "fitness"
+        }, CancellationToken.None);
+        await useCase.UpdateAsync(organizationId, fitness.Id, new UpdateModalityRequest
+        {
+            Name = "Musculação",
+            Type = "fitness",
+            IsActive = false
+        }, CancellationToken.None);
+
+        var activeTypes = await useCase.ListActiveTypesAsync(organizationId, CancellationToken.None);
+
+        Assert.Equal(["martial_art"], activeTypes);
+        Assert.Empty(await useCase.ListActiveTypesAsync(Guid.NewGuid(), CancellationToken.None));
+    }
+
+    [Fact]
     public async Task ListClientModalitiesAsync_ShouldReturnOnlyLinkedModalitiesWithinOrganization()
     {
         var repository = new InMemoryModalityRepository();

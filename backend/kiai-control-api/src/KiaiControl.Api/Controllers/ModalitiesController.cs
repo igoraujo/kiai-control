@@ -32,7 +32,7 @@ public sealed class ModalitiesController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
@@ -54,7 +54,7 @@ public sealed class ModalitiesController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         var modalities = await modalityUseCase.ListAsync(organizationId, page, pageSize, cancellationToken);
@@ -66,7 +66,7 @@ public sealed class ModalitiesController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         var modality = await modalityUseCase.GetByIdAsync(organizationId, id, cancellationToken);
@@ -81,7 +81,7 @@ public sealed class ModalitiesController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
@@ -100,7 +100,7 @@ public sealed class ModalitiesController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         var deactivated = await modalityUseCase.DeleteAsync(organizationId, id, cancellationToken);
@@ -114,7 +114,7 @@ public sealed class ModalitiesController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("O contexto da organização não foi informado.");
+            return BadRequest(SystemMessages.OContextoDaOrganizacaoNaoFoiInformado);
         }
 
         try
@@ -136,14 +136,14 @@ public sealed class ModalitiesController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("O contexto da organização não foi informado.");
+            return BadRequest(SystemMessages.OContextoDaOrganizacaoNaoFoiInformado);
         }
 
         try
         {
             var created = await modalityScheduleUseCase.CreateAsync(organizationId, id, request, cancellationToken);
             return created is null
-                ? Conflict("O horário já existe ou a unidade/professor está indisponível para esta modalidade.")
+                ? Conflict(SystemMessages.OHorarioJaExisteOuAUnidadeProfessorEstaIndisponivelParaEstaModalidade)
                 : CreatedAtRoute("ListModalitySchedules", new { id }, created);
         }
         catch (ArgumentException exception)
@@ -160,7 +160,7 @@ public sealed class ModalitiesController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("O contexto da organização não foi informado.");
+            return BadRequest(SystemMessages.OContextoDaOrganizacaoNaoFoiInformado);
         }
 
         try

@@ -216,6 +216,18 @@ public sealed class InMemoryModalityRepository : IModalityRepository
         return Task.FromResult<IReadOnlyList<Modality>>(modalities);
     }
 
+    public Task<IReadOnlyList<string>> ListActiveTypesAsync(
+        Guid organizationId,
+        CancellationToken cancellationToken = default)
+    {
+        var types = _modalities
+            .Where(item => item.OrganizationId == organizationId && item.IsActive)
+            .Select(item => item.Type)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        return Task.FromResult<IReadOnlyList<string>>(types);
+    }
+
     public Task<Modality?> GetByIdAsync(Guid organizationId, Guid id, CancellationToken cancellationToken = default)
     {
         var modality = _modalities.FirstOrDefault(item => item.OrganizationId == organizationId && item.Id == id);

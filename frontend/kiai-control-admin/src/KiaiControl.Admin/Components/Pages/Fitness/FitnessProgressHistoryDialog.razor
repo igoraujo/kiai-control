@@ -84,7 +84,7 @@
         }
         catch (HttpRequestException exception)
         {
-            _errorMessage = $"Não foi possível carregar o histórico: {exception.Message}";
+            _errorMessage = string.Format(AdminSystemMessages.FailedToLoadHistory, exception.Message);
         }
         finally
         {

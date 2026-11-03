@@ -22,6 +22,52 @@ public sealed class AccessControlController(
         return Ok(await accessControlUseCase.ListRolesAsync(cancellationToken));
     }
 
+    [HttpGet("people/without-account")]
+    public async Task<ActionResult<IReadOnlyList<UserAccountCandidateResponse>>> ListPeopleWithoutAccountsAsync(
+        CancellationToken cancellationToken)
+    {
+        if (organizationContext.OrganizationId is not Guid organizationId)
+        {
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
+        }
+
+        return Ok(await accessControlUseCase.ListPeopleWithoutAccountsAsync(organizationId, cancellationToken));
+    }
+
+    [HttpPost("people/{personId:guid}/account")]
+    public async Task<ActionResult<UserAccountResponse>> CreateUserAccountAsync(
+        Guid personId,
+        [FromBody] CreateUserAccountRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (organizationContext.OrganizationId is not Guid organizationId || !TryGetUserId(out var actorUserId))
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            var account = await accessControlUseCase.CreateUserAccountAsync(
+                organizationId,
+                personId,
+                actorUserId,
+                request,
+                User.IsInRole("owner"),
+                cancellationToken);
+            return account is null
+                ? Conflict(KiaiControl.UseCases.Common.SystemMessages.PersonAlreadyHasAnAccountOrEmailIsAlreadyInUse)
+                : StatusCode(StatusCodes.Status201Created, account);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(exception.Message);
+        }
+    }
+
     [HttpGet("permissions")]
     [Authorize(Roles = "owner")]
     [Authorize(Policy = PermissionCodes.AccessPermissionsManage)]
@@ -35,7 +81,7 @@ public sealed class AccessControlController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
@@ -68,7 +114,7 @@ public sealed class AccessControlController(
                 request.RoleCode,
                 User.IsInRole("owner"),
                 cancellationToken);
-            return assigned ? NoContent() : NotFound("Person or role was not found in this organization.");
+            return assigned ? NoContent() : NotFound(SystemMessages.PersonOrRoleWasNotFoundInThisOrganization);
         }
         catch (UnauthorizedAccessException)
         {
@@ -85,7 +131,7 @@ public sealed class AccessControlController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
@@ -115,7 +161,7 @@ public sealed class AccessControlController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
@@ -149,7 +195,7 @@ public sealed class AccessControlController(
         {
             var granted = await accessControlUseCase.GrantRolePermissionAsync(
                 organizationId, roleCode, request.PermissionCode, actorUserId, cancellationToken);
-            return granted ? NoContent() : NotFound("Role or permission code was not found.");
+            return granted ? NoContent() : NotFound(SystemMessages.RoleOrPermissionCodeWasNotFound);
         }
         catch (ArgumentException exception)
         {

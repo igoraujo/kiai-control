@@ -31,7 +31,7 @@ public sealed class ClientsController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         if (request.OrganizationId != Guid.Empty && request.OrganizationId != organizationId)
@@ -64,7 +64,7 @@ public sealed class ClientsController(
     {
         if (organizationContext.OrganizationId is null)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         var clients = await clientUseCase.ListAsync(organizationContext.OrganizationId.Value, page, pageSize, cancellationToken);
@@ -76,7 +76,7 @@ public sealed class ClientsController(
     {
         if (organizationContext.OrganizationId is null)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         var client = await clientUseCase.GetByIdAsync(organizationContext.OrganizationId.Value, id, cancellationToken);
@@ -89,7 +89,7 @@ public sealed class ClientsController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         var modalities = await modalityUseCase.ListAsync(organizationId, 1, 200, cancellationToken);
@@ -101,7 +101,7 @@ public sealed class ClientsController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         if (await clientUseCase.GetByIdAsync(organizationId, clientId, cancellationToken) is null)
@@ -117,7 +117,7 @@ public sealed class ClientsController(
     {
         if (organizationContext.OrganizationId is null)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
@@ -140,7 +140,7 @@ public sealed class ClientsController(
     {
         if (organizationContext.OrganizationId is null)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         var deleted = await clientUseCase.DeleteAsync(organizationContext.OrganizationId.Value, id, cancellationToken);
@@ -152,13 +152,13 @@ public sealed class ClientsController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
         {
             var linked = await modalityUseCase.LinkClientAsync(organizationId, clientId, modalityId, cancellationToken);
-            return linked ? NoContent() : NotFound("The client or active modality is unavailable in this organization.");
+            return linked ? NoContent() : NotFound(SystemMessages.TheClientOrActiveModalityIsUnavailableInThisOrganization);
         }
         catch (ArgumentException exception)
         {
@@ -171,7 +171,7 @@ public sealed class ClientsController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         var unlinked = await modalityUseCase.UnlinkClientAsync(organizationId, clientId, modalityId, cancellationToken);

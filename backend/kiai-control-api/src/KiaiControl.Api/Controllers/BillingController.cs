@@ -29,7 +29,7 @@ public sealed class BillingController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         if (request.OrganizationId != Guid.Empty && request.OrganizationId != organizationId)
@@ -41,7 +41,7 @@ public sealed class BillingController(
 
         if (request.ClientId == Guid.Empty || request.ClientPlanSubscriptionId == Guid.Empty)
         {
-            return BadRequest("ClientId and ClientPlanSubscriptionId are required.");
+            return BadRequest(SystemMessages.ClientIdAndClientPlanSubscriptionIdAreRequired);
         }
 
         try
@@ -64,12 +64,12 @@ public sealed class BillingController(
     {
         if (organizationContext.OrganizationId is null)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         if (clientId == Guid.Empty)
         {
-            return BadRequest("ClientId must be a valid identifier.");
+            return BadRequest(SystemMessages.ClientIdMustBeAValidIdentifier);
         }
 
         var billingItems = await billingUseCase.ListAsync(
@@ -82,7 +82,7 @@ public sealed class BillingController(
     {
         if (organizationContext.OrganizationId is null)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         var billing = await billingUseCase.GetByIdAsync(organizationContext.OrganizationId.Value, id, cancellationToken);
@@ -94,7 +94,7 @@ public sealed class BillingController(
     {
         if (organizationContext.OrganizationId is null)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
@@ -113,7 +113,7 @@ public sealed class BillingController(
     {
         if (organizationContext.OrganizationId is null)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         var deleted = await billingUseCase.DeleteAsync(organizationContext.OrganizationId.Value, id, cancellationToken);
@@ -128,14 +128,14 @@ public sealed class BillingController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
         {
             var payment = await billingUseCase.RegisterPaymentAsync(organizationId, id, request, cancellationToken);
             return payment is null
-                ? Conflict("The invoice is unavailable, closed, or the payment exceeds its outstanding balance.")
+                ? Conflict(SystemMessages.TheInvoiceIsUnavailableClosedOrThePaymentExceedsItsOutstandingBalance)
                 : CreatedAtAction(nameof(GetById), new { id }, payment);
         }
         catch (ArgumentException exception)
@@ -153,12 +153,12 @@ public sealed class BillingController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         if (clientId == Guid.Empty)
         {
-            return BadRequest("ClientId must be a valid identifier.");
+            return BadRequest(SystemMessages.ClientIdMustBeAValidIdentifier);
         }
 
         var payments = await billingUseCase.ListPaymentsAsync(organizationId, page, pageSize, cancellationToken, clientId);
@@ -172,7 +172,7 @@ public sealed class BillingController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         if (await billingUseCase.GetByIdAsync(organizationId, id, cancellationToken) is null)
@@ -191,7 +191,7 @@ public sealed class BillingController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
@@ -217,7 +217,7 @@ public sealed class BillingController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         var plans = await billingCatalogUseCase.ListPlansAsync(organizationId, page, pageSize, cancellationToken);
@@ -232,7 +232,7 @@ public sealed class BillingController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
@@ -255,7 +255,7 @@ public sealed class BillingController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         var deactivated = await billingCatalogUseCase.DeactivatePlanAsync(organizationId, id, cancellationToken);
@@ -270,14 +270,14 @@ public sealed class BillingController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
         {
             var subscription = await billingCatalogUseCase.CreateSubscriptionAsync(organizationId, clientId, request, cancellationToken);
             return subscription is null
-                ? Conflict("The client or active plan is unavailable, or the client already has an active subscription.")
+                ? Conflict(SystemMessages.TheClientOrActivePlanIsUnavailableOrTheClientAlreadyHasAnActiveSubscription)
                 : StatusCode(StatusCodes.Status201Created, subscription);
         }
         catch (ArgumentException exception)
@@ -295,12 +295,12 @@ public sealed class BillingController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         if (clientId == Guid.Empty)
         {
-            return BadRequest("ClientId must be a valid identifier.");
+            return BadRequest(SystemMessages.ClientIdMustBeAValidIdentifier);
         }
 
         return Ok(await billingCatalogUseCase.ListSubscriptionsAsync(
@@ -315,7 +315,7 @@ public sealed class BillingController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
@@ -336,7 +336,7 @@ public sealed class BillingController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try

@@ -99,6 +99,8 @@ create table user_accounts (
     email varchar(160) not null unique,
     password_hash varchar(255) not null,
     is_active boolean not null default true,
+    is_platform_owner boolean not null default false,
+    must_change_password boolean not null default false,
     last_login_at timestamptz,
     created_at timestamptz not null default now(),
     updated_at timestamptz

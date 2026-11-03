@@ -24,7 +24,7 @@ public sealed class RankingController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         var clientsTask = clientUseCase.ListAsync(organizationId, 1, 200, cancellationToken);
@@ -45,13 +45,13 @@ public sealed class RankingController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
         {
             var cycle = await rankingUseCase.CreateCycleAsync(organizationId, request, cancellationToken);
-            return cycle is null ? Conflict("The modality or class group is unavailable in this organization.")
+            return cycle is null ? Conflict(SystemMessages.TheModalityOrClassGroupIsUnavailableInThisOrganization)
                 : StatusCode(StatusCodes.Status201Created, cycle);
         }
         catch (ArgumentException exception)
@@ -68,7 +68,7 @@ public sealed class RankingController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         return Ok(await rankingUseCase.ListCyclesAsync(organizationId, page, pageSize, cancellationToken));
@@ -80,11 +80,11 @@ public sealed class RankingController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         var entries = await rankingUseCase.RecalculateAsync(organizationId, cycleId, cancellationToken);
-        return entries is null ? NotFound("An open ranking cycle was not found.") : Ok(entries);
+        return entries is null ? NotFound(SystemMessages.AnOpenRankingCycleWasNotFound) : Ok(entries);
     }
 
     [HttpGet("rankings/current")]
@@ -95,7 +95,7 @@ public sealed class RankingController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         return Ok(await rankingUseCase.GetCurrentAsync(organizationId, DateOnly.FromDateTime(DateTime.UtcNow), page, pageSize, cancellationToken));
@@ -110,7 +110,7 @@ public sealed class RankingController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         return Ok(await rankingUseCase.GetByCycleAsync(organizationId, cycleId, page, pageSize, cancellationToken));
@@ -122,13 +122,13 @@ public sealed class RankingController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
         {
             var medal = await rankingUseCase.CreateMedalAsync(organizationId, request, cancellationToken);
-            return medal is null ? Conflict("A medal with this code already exists.") : StatusCode(StatusCodes.Status201Created, medal);
+            return medal is null ? Conflict(SystemMessages.AMedalWithThisCodeAlreadyExists) : StatusCode(StatusCodes.Status201Created, medal);
         }
         catch (ArgumentException exception)
         {
@@ -141,7 +141,7 @@ public sealed class RankingController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         return Ok(await rankingUseCase.ListMedalsAsync(organizationId, cancellationToken));
@@ -156,13 +156,13 @@ public sealed class RankingController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
         {
             var award = await rankingUseCase.AwardMedalAsync(organizationId, medalId, request, cancellationToken);
-            return award is null ? NotFound("The medal or recipient is unavailable in this organization.")
+            return award is null ? NotFound(SystemMessages.TheMedalOrRecipientIsUnavailableInThisOrganization)
                 : StatusCode(StatusCodes.Status201Created, award);
         }
         catch (ArgumentException exception)
@@ -176,7 +176,7 @@ public sealed class RankingController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         return Ok(await rankingUseCase.ListClientMedalsAsync(organizationId, clientId, cancellationToken));

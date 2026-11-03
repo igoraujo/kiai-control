@@ -12,5 +12,7 @@ public sealed class FitnessProgressRecord
 
     public DateTimeOffset RecordedAt { get; set; }
 
+    public Guid? CreatedByPersonId { get; set; }
+
     public Guid? CreatedByTeacherId { get; set; }
 }

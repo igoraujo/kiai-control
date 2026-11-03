@@ -48,7 +48,7 @@
     {
         if (_date is null || !TimeOnly.TryParse(_startsAt, out var startsAt) || !TimeOnly.TryParse(_endsAt, out var endsAt) || endsAt <= startsAt)
         {
-            throw new ArgumentException("Informe data e horários válidos; o término deve ser posterior ao início.");
+            throw new ArgumentException(AdminSystemMessages.ValidDateAndTimesWithEndAfterStartRequired);
         }
 
         var startLocal = _date.Value.Date.Add(startsAt.ToTimeSpan());
@@ -60,7 +60,7 @@
 
         if (Item is null)
         {
-            throw new InvalidOperationException("Somente uma aula existente pode ser reagendada.");
+            throw new InvalidOperationException(AdminSystemMessages.OnlyExistingLessonsCanBeRescheduledIndividually);
         }
 
         await Api.RescheduleLessonAsync(Item.Id, new RescheduleLessonRequest

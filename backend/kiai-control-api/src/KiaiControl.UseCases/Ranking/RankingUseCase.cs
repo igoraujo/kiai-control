@@ -14,7 +14,7 @@ public sealed class RankingUseCase(IRankingRepository repository)
         if (organizationId == Guid.Empty || string.IsNullOrWhiteSpace(request.Name) || request.Name.Trim().Length > 120
             || request.StartsAt == default || request.EndsAt < request.StartsAt)
         {
-            throw new ArgumentException("Ranking cycle fields are invalid.");
+            throw new ArgumentException(SystemMessages.RankingCycleFieldsAreInvalid);
         }
 
         var cycle = await repository.CreateCycleAsync(new RankingCycle
@@ -62,7 +62,7 @@ public sealed class RankingUseCase(IRankingRepository repository)
             || string.IsNullOrWhiteSpace(request.Name) || request.Name.Trim().Length > 120
             || request.Description?.Length > 255 || request.PointsBonus < 0)
         {
-            throw new ArgumentException("Medal fields are invalid.");
+            throw new ArgumentException(SystemMessages.MedalFieldsAreInvalid);
         }
 
         var medal = await repository.CreateMedalAsync(new Medal
@@ -88,7 +88,7 @@ public sealed class RankingUseCase(IRankingRepository repository)
     {
         if (organizationId == Guid.Empty || medalId == Guid.Empty || request.PersonId == Guid.Empty || request.Reason?.Length > 255)
         {
-            throw new ArgumentException("Medal award fields are invalid.");
+            throw new ArgumentException(SystemMessages.MedalAwardFieldsAreInvalid);
         }
 
         var award = await repository.AwardMedalAsync(new PersonMedal
@@ -119,7 +119,7 @@ public sealed class RankingUseCase(IRankingRepository repository)
     {
         if (organizationId == Guid.Empty)
         {
-            throw new ArgumentException("OrganizationId is required.");
+            throw new ArgumentException(SystemMessages.OrganizationIdIsRequired);
         }
     }
 
@@ -128,7 +128,7 @@ public sealed class RankingUseCase(IRankingRepository repository)
         EnsureOrganization(organizationId);
         if (id == Guid.Empty)
         {
-            throw new ArgumentException("Identifier is required.");
+            throw new ArgumentException(SystemMessages.IdentifierIsRequired);
         }
     }
 

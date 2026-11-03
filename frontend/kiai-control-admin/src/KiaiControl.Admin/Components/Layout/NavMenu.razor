@@ -1,5 +1,8 @@
-﻿@inject AdminSession Session
+@inject AdminSession Session
+@inject AdminApiClient Api
+@inject NavigationManager Navigation
 @using KiaiControl.Contracts.Auth
+@using KiaiControl.Contracts.Modalities
 
 <MudNavMenu Class="nav-root">
     <MudText Typo="Typo.overline" Class="menu-kicker">Navegação</MudText>
@@ -8,101 +11,275 @@
         <MudAvatar Size="Size.Medium" Color="Color.Secondary" Variant="Variant.Filled">KC</MudAvatar>
         <div>
             <MudText Typo="Typo.subtitle1" Class="menu-title">Kiai Control</MudText>
-            <MudText Typo="Typo.caption" Class="menu-subtitle">Academia Central</MudText>
+            <MudText Typo="Typo.caption" Class="menu-subtitle">@(IsPlatformOwner ? "Administração da plataforma" : "Academia Central")</MudText>
         </div>
     </div>
 
     <MudDivider Class="menu-divider" />
 
+    @if (IsPlatformOwner)
+    {
+        <section class="menu-section">
+            <MudNavLink Href="/platform/organizations" Icon="@Icons.Material.Filled.Business">
+                Organizações
+            </MudNavLink>
+        </section>
+    }
+
     @if (HasPermission(PermissionCodes.ReportsRead))
     {
-        <MudText Typo="Typo.overline" Class="menu-kicker">Principal</MudText>
-        <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.SpaceDashboard">Dashboard</MudNavLink>
-    }
-    @if (HasPermission(PermissionCodes.BillingManage))
-    {
-        <MudNavLink Href="/billing" Icon="@Icons.Material.Filled.AccountBalanceWallet">Financeiro</MudNavLink>
-    }
-
-    @if (HasPermission(PermissionCodes.ClientsManage)
-        || HasPermission(PermissionCodes.BranchesManage))
-    {
-        <MudText Typo="Typo.overline" Class="menu-kicker">Cadastros</MudText>
-    }
-    @if (HasPermission(PermissionCodes.ClientsManage))
-    {
-        <MudNavLink Href="/clients" Icon="@Icons.Material.Filled.Groups">Alunos</MudNavLink>
-    }
-    @if (HasPermission(PermissionCodes.BranchesManage))
-    {
-        <MudNavLink Href="/branches" Icon="@Icons.Material.Filled.Business">Unidades</MudNavLink>
-    }
-    @if (HasPermission(PermissionCodes.TeachersManage)
-        || HasPermission(PermissionCodes.ModalitiesManage)
-        || HasPermission(PermissionCodes.GraduationManage)
-        || HasPermission(PermissionCodes.FitnessManage)
-        || HasPermission(PermissionCodes.RankingManage)
-        || CanReadAudit
-        || HasPermission(PermissionCodes.NotificationsRead)
-        || HasPermission(PermissionCodes.AccessPermissionsManage))
-    {
-        <MudText Typo="Typo.overline" Class="menu-kicker">Gestão</MudText>
-    }
-    @if (HasPermission(PermissionCodes.TeachersManage))
-    {
-        <MudNavLink Href="/teachers" Icon="@Icons.Material.Filled.School">Professores</MudNavLink>
-    }
-    @if (HasPermission(PermissionCodes.ModalitiesManage))
-    {
-        <MudNavLink Href="/modalities" Icon="@Icons.Material.Filled.SportsMartialArts">Modalidades</MudNavLink>
-    }
-    @if (HasPermission(PermissionCodes.GraduationManage))
-    {
-        <MudNavLink Href="/graduation" Icon="@Icons.Material.Filled.MilitaryTech">Graduações</MudNavLink>
-    }
-    @if (HasPermission(PermissionCodes.FitnessManage))
-    {
-        <MudNavLink Href="/fitness" Icon="@Icons.Material.Filled.FitnessCenter">Metas fitness</MudNavLink>
-    }
-    @if (HasPermission(PermissionCodes.RankingManage))
-    {
-        <MudNavLink Href="/rankings" Icon="@Icons.Material.Filled.Leaderboard">Rankings e medalhas</MudNavLink>
-    }
-    @if (HasPermission(PermissionCodes.NotificationsRead))
-    {
-        <MudNavLink Href="/notifications" Icon="@Icons.Material.Filled.Notifications">Notificações</MudNavLink>
-    }
-    @if (CanReadAudit)
-    {
-        <MudNavLink Href="/audit" Icon="@Icons.Material.Filled.ManageSearch">Auditoria</MudNavLink>
-    }
-    @if (HasPermission(PermissionCodes.AccessPermissionsManage))
-    {
-        <MudNavLink Href="/access" Icon="@Icons.Material.Filled.AdminPanelSettings">Acesso e permissões</MudNavLink>
+        <section class="menu-section">
+            <button type="button" class="menu-section-toggle"
+                    aria-expanded="@(IsSectionExpanded(MenuSection.Principal) ? "true" : "false")"
+                    aria-controls="@GetSectionContentId(MenuSection.Principal)"
+                    @onclick="() => ToggleSection(MenuSection.Principal)">
+                <span>Principal</span>
+                <MudIcon Icon="@GetSectionIcon(MenuSection.Principal)" />
+            </button>
+            <div id="@GetSectionContentId(MenuSection.Principal)" class="menu-section-content"
+                 hidden="@(!IsSectionExpanded(MenuSection.Principal))">
+                <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.SpaceDashboard">Dashboard</MudNavLink>
+            </div>
+        </section>
     }
 
-    @if (HasPermission(PermissionCodes.LessonsManage)
-        || HasPermission(PermissionCodes.AttendanceManage))
+    @if (HasSharedManagementLinks)
     {
-        <MudText Typo="Typo.overline" Class="menu-kicker">Operação</MudText>
+        <section class="menu-section">
+            <button type="button" class="menu-section-toggle"
+                    aria-expanded="@(IsSectionExpanded(MenuSection.AcademyManagement) ? "true" : "false")"
+                    aria-controls="@GetSectionContentId(MenuSection.AcademyManagement)"
+                    @onclick="() => ToggleSection(MenuSection.AcademyManagement)">
+                <span>Gestão da academia</span>
+                <MudIcon Icon="@GetSectionIcon(MenuSection.AcademyManagement)" />
+            </button>
+            <div id="@GetSectionContentId(MenuSection.AcademyManagement)" class="menu-section-content"
+                 hidden="@(!IsSectionExpanded(MenuSection.AcademyManagement))">
+                @if (HasPermission(PermissionCodes.ClientsManage))
+                {
+                    <MudNavLink Href="/clients" Icon="@Icons.Material.Filled.Groups">Alunos</MudNavLink>
+                }
+                @if (HasPermission(PermissionCodes.TeachersManage))
+                {
+                    <MudNavLink Href="/teachers" Icon="@Icons.Material.Filled.School">Professores</MudNavLink>
+                }
+                @if (HasPermission(PermissionCodes.BranchesManage))
+                {
+                    <MudNavLink Href="/branches" Icon="@Icons.Material.Filled.Business">Unidades</MudNavLink>
+                }
+                @if (HasPermission(PermissionCodes.ModalitiesManage))
+                {
+                    <MudNavLink Href="/modalities" Icon="@Icons.Material.Filled.SportsMartialArts">Modalidades</MudNavLink>
+                }
+                @if (HasPermission(PermissionCodes.BillingManage))
+                {
+                    <MudNavLink Href="/billing" Icon="@Icons.Material.Filled.AccountBalanceWallet">Financeiro</MudNavLink>
+                }
+            </div>
+        </section>
     }
-    @if (HasPermission(PermissionCodes.LessonsManage))
+
+    @if (HasMartialArtsLinks)
     {
-        <MudNavLink Href="/lessons" Icon="@Icons.Material.Filled.CalendarMonth">Aulas</MudNavLink>
+        <section class="menu-section">
+            <button type="button" class="menu-section-toggle"
+                    aria-expanded="@(IsSectionExpanded(MenuSection.MartialArts) ? "true" : "false")"
+                    aria-controls="@GetSectionContentId(MenuSection.MartialArts)"
+                    @onclick="() => ToggleSection(MenuSection.MartialArts)">
+                <span>Artes marciais</span>
+                <MudIcon Icon="@GetSectionIcon(MenuSection.MartialArts)" />
+            </button>
+            <div id="@GetSectionContentId(MenuSection.MartialArts)" class="menu-section-content"
+                 hidden="@(!IsSectionExpanded(MenuSection.MartialArts))">
+                @if (HasPermission(PermissionCodes.GraduationManage) && _capabilities?.HasGraduation == true)
+                {
+                    <MudNavLink Href="/graduation" Icon="@Icons.Material.Filled.MilitaryTech">Graduações</MudNavLink>
+                }
+            </div>
+        </section>
     }
-    @if (HasPermission(PermissionCodes.AttendanceManage))
+
+    @if (HasFitnessLinks)
     {
-        <MudNavLink Href="/attendance/pending" Icon="@Icons.Material.Filled.HowToReg">Check-ins pendentes</MudNavLink>
+        <section class="menu-section">
+            <button type="button" class="menu-section-toggle"
+                    aria-expanded="@(IsSectionExpanded(MenuSection.Fitness) ? "true" : "false")"
+                    aria-controls="@GetSectionContentId(MenuSection.Fitness)"
+                    @onclick="() => ToggleSection(MenuSection.Fitness)">
+                <span>Musculação e Fitness</span>
+                <MudIcon Icon="@GetSectionIcon(MenuSection.Fitness)" />
+            </button>
+            <div id="@GetSectionContentId(MenuSection.Fitness)" class="menu-section-content"
+                 hidden="@(!IsSectionExpanded(MenuSection.Fitness))">
+                @if (HasPermission(PermissionCodes.FitnessManage))
+                {
+                    <MudNavLink Href="/fitness" Icon="@Icons.Material.Filled.FitnessCenter">Metas e progresso</MudNavLink>
+                }
+            </div>
+        </section>
+    }
+
+    @if (HasPermission(PermissionCodes.LessonsManage) || HasPermission(PermissionCodes.AttendanceManage))
+    {
+        <section class="menu-section">
+            <button type="button" class="menu-section-toggle"
+                    aria-expanded="@(IsSectionExpanded(MenuSection.Routine) ? "true" : "false")"
+                    aria-controls="@GetSectionContentId(MenuSection.Routine)"
+                    @onclick="() => ToggleSection(MenuSection.Routine)">
+                <span>Rotina</span>
+                <MudIcon Icon="@GetSectionIcon(MenuSection.Routine)" />
+            </button>
+            <div id="@GetSectionContentId(MenuSection.Routine)" class="menu-section-content"
+                 hidden="@(!IsSectionExpanded(MenuSection.Routine))">
+                @if (HasPermission(PermissionCodes.LessonsManage))
+                {
+                    <MudNavLink Href="/lessons" Icon="@Icons.Material.Filled.CalendarMonth">Aulas</MudNavLink>
+                }
+                @if (HasPermission(PermissionCodes.AttendanceManage))
+                {
+                    <MudNavLink Href="/attendance/pending" Icon="@Icons.Material.Filled.HowToReg">Check-ins pendentes</MudNavLink>
+                }
+            </div>
+        </section>
+    }
+
+    @if (HasCommunityLinks)
+    {
+        <section class="menu-section">
+            <button type="button" class="menu-section-toggle"
+                    aria-expanded="@(IsSectionExpanded(MenuSection.Community) ? "true" : "false")"
+                    aria-controls="@GetSectionContentId(MenuSection.Community)"
+                    @onclick="() => ToggleSection(MenuSection.Community)">
+                <span>Comunidade</span>
+                <MudIcon Icon="@GetSectionIcon(MenuSection.Community)" />
+            </button>
+            <div id="@GetSectionContentId(MenuSection.Community)" class="menu-section-content"
+                 hidden="@(!IsSectionExpanded(MenuSection.Community))">
+                <MudNavLink Href="/rankings" Icon="@Icons.Material.Filled.Leaderboard">Rankings e medalhas</MudNavLink>
+            </div>
+        </section>
+    }
+
+    @if (HasAdministrationLinks)
+    {
+        <section class="menu-section">
+            <button type="button" class="menu-section-toggle"
+                    aria-expanded="@(IsSectionExpanded(MenuSection.Administration) ? "true" : "false")"
+                    aria-controls="@GetSectionContentId(MenuSection.Administration)"
+                    @onclick="() => ToggleSection(MenuSection.Administration)">
+                <span>Administração</span>
+                <MudIcon Icon="@GetSectionIcon(MenuSection.Administration)" />
+            </button>
+            <div id="@GetSectionContentId(MenuSection.Administration)" class="menu-section-content"
+                 hidden="@(!IsSectionExpanded(MenuSection.Administration))">
+                @if (HasPermission(PermissionCodes.NotificationsRead))
+                {
+                    <MudNavLink Href="/notifications" Icon="@Icons.Material.Filled.Notifications">Notificações</MudNavLink>
+                }
+                @if (CanReadAudit)
+                {
+                    <MudNavLink Href="/audit" Icon="@Icons.Material.Filled.ManageSearch">Auditoria</MudNavLink>
+                }
+                @if (HasPermission(PermissionCodes.AccessManage))
+                {
+                    <MudNavLink Href="/access" Icon="@Icons.Material.Filled.AdminPanelSettings">Acesso e permissões</MudNavLink>
+                }
+            </div>
+        </section>
+    }
+
+    @if (!string.IsNullOrEmpty(_capabilityError))
+    {
+        <MudAlert Severity="Severity.Error" Dense="true" Class="ma-2">@_capabilityError</MudAlert>
     }
 </MudNavMenu>
 
 @code {
+    private WorkspaceCapabilitiesResponse? _capabilities;
+    private string? _capabilityError;
+    private readonly Dictionary<MenuSection, bool> _expandedSections =
+        Enum.GetValues<MenuSection>().ToDictionary(section => section, _ => true);
+
     private bool HasPermission(string permission) =>
         Session.Current?.User.Permissions.Contains(permission, StringComparer.OrdinalIgnoreCase) == true;
+
+    private bool IsPlatformOwner =>
+        Session.Current?.User.Roles.Contains("platform_owner", StringComparer.OrdinalIgnoreCase) == true;
+
+    private bool HasSharedManagementLinks =>
+        HasPermission(PermissionCodes.ClientsManage)
+        || HasPermission(PermissionCodes.TeachersManage)
+        || HasPermission(PermissionCodes.BranchesManage)
+        || HasPermission(PermissionCodes.ModalitiesManage)
+        || HasPermission(PermissionCodes.BillingManage);
+
+    private bool HasMartialArtsLinks =>
+        _capabilities?.HasGraduation == true && HasPermission(PermissionCodes.GraduationManage);
+
+    private bool HasFitnessLinks =>
+        _capabilities?.HasFitnessActivities == true && HasPermission(PermissionCodes.FitnessManage);
+
+    private bool HasCommunityLinks => HasPermission(PermissionCodes.RankingManage);
+
+    private bool HasAdministrationLinks =>
+        HasPermission(PermissionCodes.NotificationsRead)
+        || CanReadAudit
+        || HasPermission(PermissionCodes.AccessManage);
 
     private bool CanReadAudit =>
         HasPermission(PermissionCodes.AuditRead)
         && Session.Current?.User.Roles.Any(role =>
             role.Equals("owner", StringComparison.OrdinalIgnoreCase)
             || role.Equals("admin", StringComparison.OrdinalIgnoreCase)) == true;
+
+    private bool IsSectionExpanded(MenuSection section) => _expandedSections[section];
+
+    private void ToggleSection(MenuSection section)
+    {
+        _expandedSections[section] = !IsSectionExpanded(section);
+    }
+
+    private string GetSectionContentId(MenuSection section) =>
+        $"menu-section-{section.ToString().ToLowerInvariant()}";
+
+    private string GetSectionIcon(MenuSection section) =>
+        IsSectionExpanded(section) ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Session.Current is null)
+        {
+            return;
+        }
+
+        if (IsPlatformOwner)
+        {
+            return;
+        }
+
+        try
+        {
+            _capabilities = await Api.GetWorkspaceCapabilitiesAsync();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await Session.ClearAsync();
+            Navigation.NavigateTo("/login");
+        }
+        catch (HttpRequestException)
+        {
+            _capabilityError = "Não foi possível carregar as áreas da academia.";
+        }
+    }
+
+    private enum MenuSection
+    {
+        Principal,
+        AcademyManagement,
+        MartialArts,
+        Fitness,
+        Routine,
+        Community,
+        Administration
+    }
 }

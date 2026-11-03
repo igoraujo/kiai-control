@@ -34,7 +34,7 @@ public sealed class TeachersController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         if (request.OrganizationId != Guid.Empty && request.OrganizationId != organizationId)
@@ -67,7 +67,7 @@ public sealed class TeachersController(
     {
         if (organizationContext.OrganizationId is null)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         var teachers = await teacherUseCase.ListAsync(organizationContext.OrganizationId.Value, page, pageSize, cancellationToken);
@@ -79,7 +79,7 @@ public sealed class TeachersController(
     {
         if (organizationContext.OrganizationId is null)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         var teacher = await teacherUseCase.GetByIdAsync(organizationContext.OrganizationId.Value, id, cancellationToken);
@@ -92,7 +92,7 @@ public sealed class TeachersController(
     {
         if (organizationContext.OrganizationId is null)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
@@ -115,7 +115,7 @@ public sealed class TeachersController(
     {
         if (organizationContext.OrganizationId is null)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         var deleted = await teacherUseCase.DeleteAsync(organizationContext.OrganizationId.Value, id, cancellationToken);
@@ -129,7 +129,7 @@ public sealed class TeachersController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         if (await teacherUseCase.GetByIdAsync(organizationId, id, cancellationToken) is null)
@@ -149,7 +149,7 @@ public sealed class TeachersController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         var teacher = await teacherUseCase.GetByIdAsync(organizationId, id, cancellationToken);
@@ -160,7 +160,7 @@ public sealed class TeachersController(
 
         if (!string.Equals(teacher.Status, "active", StringComparison.OrdinalIgnoreCase))
         {
-            return Conflict("Only active teachers can be assigned to a schedule.");
+            return Conflict(SystemMessages.OnlyActiveTeachersCanBeAssignedToASchedule);
         }
 
         try
@@ -174,7 +174,7 @@ public sealed class TeachersController(
                 EndsAt = request.EndsAt
             }, cancellationToken);
             return schedule is null
-                ? Conflict("The modality or branch is unavailable, or this schedule already exists.")
+                ? Conflict(SystemMessages.TheModalityOrBranchIsUnavailableOrThisScheduleAlreadyExists)
                 : CreatedAtAction(nameof(ListSchedulesAsync), new { id }, schedule);
         }
         catch (ArgumentException exception)
@@ -191,7 +191,7 @@ public sealed class TeachersController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         var schedules = await modalityScheduleUseCase.ListByTeacherAsync(organizationId, id, cancellationToken);
@@ -217,7 +217,7 @@ public sealed class TeachersController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         if (await teacherUseCase.GetByIdAsync(organizationId, id, cancellationToken) is null)

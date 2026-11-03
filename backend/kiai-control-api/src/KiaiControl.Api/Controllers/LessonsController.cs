@@ -35,14 +35,14 @@ public sealed class LessonsController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
         {
             var created = await lessonUseCase.CreateAsync(organizationId, request, cancellationToken);
             return created is null
-                ? Conflict("The modality is unavailable in this organization.")
+                ? Conflict(SystemMessages.TheModalityIsUnavailableInThisOrganization)
                 : CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
         }
         catch (ArgumentException exception)
@@ -59,14 +59,14 @@ public sealed class LessonsController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
         {
             var created = await lessonUseCase.GenerateFromModalitySchedulesAsync(organizationId, request, cancellationToken);
             return created is null
-                ? NotFound("The active modality is unavailable in this organization.")
+                ? NotFound(SystemMessages.TheActiveModalityIsUnavailableInThisOrganization)
                 : CreatedAtRoute("ListLessons", new { page = 1, pageSize = Math.Max(created.Count, 1) }, created);
         }
         catch (ArgumentException exception)
@@ -87,7 +87,7 @@ public sealed class LessonsController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
@@ -107,7 +107,7 @@ public sealed class LessonsController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         var lesson = await lessonUseCase.GetByIdAsync(organizationId, id, cancellationToken);
@@ -123,7 +123,7 @@ public sealed class LessonsController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
@@ -146,7 +146,7 @@ public sealed class LessonsController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
@@ -169,7 +169,7 @@ public sealed class LessonsController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
@@ -191,7 +191,7 @@ public sealed class LessonsController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         var lesson = await lessonUseCase.GetByIdAsync(organizationId, id, cancellationToken);
@@ -212,7 +212,7 @@ public sealed class LessonsController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         if (await lessonUseCase.GetByIdAsync(organizationId, id, cancellationToken) is null)
@@ -234,7 +234,7 @@ public sealed class LessonsController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         if (await lessonUseCase.GetByIdAsync(organizationId, id, cancellationToken) is null)
@@ -252,7 +252,7 @@ public sealed class LessonsController(
             var attendance = await attendanceUseCase.SaveLessonCallAsync(
                 organizationId, id, validatorPersonId, request, cancellationToken);
             return attendance is null
-                ? Conflict("The lesson is unavailable or one or more clients are not actively enrolled in its class group.")
+                ? Conflict(SystemMessages.TheLessonIsUnavailableOrOneOrMoreClientsAreNotActivelyEnrolledInItsClassGroup)
                 : Ok(attendance);
         }
         catch (ArgumentException exception)

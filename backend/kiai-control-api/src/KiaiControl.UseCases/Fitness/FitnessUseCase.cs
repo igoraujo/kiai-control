@@ -15,7 +15,7 @@ public sealed class FitnessUseCase(IProgressionRepository repository)
     {
         if (organizationId == Guid.Empty || request.ClientId == Guid.Empty)
         {
-            throw new ArgumentException("OrganizationId and ClientId are required.");
+            throw new ArgumentException(SystemMessages.OrganizationIdAndClientIdAreRequired);
         }
 
         if (string.IsNullOrWhiteSpace(request.Title) || request.Title.Trim().Length > 160
@@ -23,13 +23,13 @@ public sealed class FitnessUseCase(IProgressionRepository repository)
             || request.StartsAt == default || request.DueDate < request.StartsAt
             || request.Unit?.Length > 30)
         {
-            throw new ArgumentException("Fitness goal fields are invalid.");
+            throw new ArgumentException(SystemMessages.FitnessGoalFieldsAreInvalid);
         }
 
         var goalType = AllowedTypes.FirstOrDefault(type => string.Equals(type, request.GoalType.Trim(), StringComparison.OrdinalIgnoreCase));
         if (goalType is null)
         {
-            throw new ArgumentException("GoalType is not supported.");
+            throw new ArgumentException(SystemMessages.GoalTypeIsNotSupported);
         }
 
         var goal = await repository.CreateFitnessGoalAsync(new FitnessGoal
@@ -63,13 +63,13 @@ public sealed class FitnessUseCase(IProgressionRepository repository)
     public async Task<FitnessProgressResponse?> RecordProgressAsync(
         Guid organizationId,
         Guid goalId,
-        Guid? teacherId,
+        Guid? actorPersonId,
         RecordFitnessProgressRequest request,
         CancellationToken cancellationToken)
     {
         if (organizationId == Guid.Empty || goalId == Guid.Empty || request.RecordedValue < 0 || request.Notes?.Length > 255)
         {
-            throw new ArgumentException("Progress record fields are invalid.");
+            throw new ArgumentException(SystemMessages.ProgressRecordFieldsAreInvalid);
         }
 
         var record = await repository.RecordFitnessProgressAsync(organizationId, new FitnessProgressRecord
@@ -77,7 +77,7 @@ public sealed class FitnessUseCase(IProgressionRepository repository)
             FitnessGoalId = goalId,
             RecordedValue = request.RecordedValue,
             Notes = Normalize(request.Notes),
-            CreatedByTeacherId = teacherId
+            CreatedByPersonId = actorPersonId
         }, cancellationToken);
         return record is null ? null : new FitnessProgressResponse
         {
@@ -99,7 +99,7 @@ public sealed class FitnessUseCase(IProgressionRepository repository)
     {
         if (organizationId == Guid.Empty || goalId == Guid.Empty)
         {
-            throw new ArgumentException("OrganizationId and GoalId are required.");
+            throw new ArgumentException(SystemMessages.OrganizationIdAndGoalIdAreRequired);
         }
 
         var records = await repository.ListFitnessProgressRecordsAsync(
@@ -120,7 +120,7 @@ public sealed class FitnessUseCase(IProgressionRepository repository)
         EnsureOrganization(organizationId);
         if (goalId == Guid.Empty)
         {
-            throw new ArgumentException("GoalId is required.");
+            throw new ArgumentException(SystemMessages.GoalIdIsRequired);
         }
 
         return repository.CancelFitnessGoalAsync(organizationId, goalId, cancellationToken);
@@ -131,7 +131,7 @@ public sealed class FitnessUseCase(IProgressionRepository repository)
         EnsureOrganization(organizationId);
         if (clientId == Guid.Empty)
         {
-            throw new ArgumentException("ClientId is required.");
+            throw new ArgumentException(SystemMessages.ClientIdIsRequired);
         }
 
         var goals = await repository.ListFitnessGoalsAsync(organizationId, clientId, 1, 200, cancellationToken);
@@ -149,7 +149,7 @@ public sealed class FitnessUseCase(IProgressionRepository repository)
     {
         if (organizationId == Guid.Empty)
         {
-            throw new ArgumentException("OrganizationId is required.");
+            throw new ArgumentException(SystemMessages.OrganizationIdIsRequired);
         }
     }
 

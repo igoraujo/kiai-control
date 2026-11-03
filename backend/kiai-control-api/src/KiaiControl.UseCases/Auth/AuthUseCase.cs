@@ -17,18 +17,18 @@ public sealed class AuthUseCase(
     {
         if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
         {
-            throw new ArgumentException("Email and password are required.");
+            throw new ArgumentException(SystemMessages.EmailAndPasswordAreRequired);
         }
 
         var user = await authRepository.GetByEmailAsync(request.Email.Trim(), cancellationToken);
         if (user is null || !user.IsActive)
         {
-            throw new UnauthorizedAccessException("Invalid credentials.");
+            throw new UnauthorizedAccessException(SystemMessages.InvalidCredentials);
         }
 
         if (!passwordHasher.Verify(request.Password, user.PasswordHash))
         {
-            throw new UnauthorizedAccessException("Invalid credentials.");
+            throw new UnauthorizedAccessException(SystemMessages.InvalidCredentials);
         }
 
         var issued = await IssueSessionAsync(user, ipAddress, cancellationToken);
@@ -39,7 +39,7 @@ public sealed class AuthUseCase(
     {
         if (string.IsNullOrWhiteSpace(refreshToken))
         {
-            throw new UnauthorizedAccessException("Invalid refresh token.");
+            throw new UnauthorizedAccessException(SystemMessages.InvalidRefreshToken);
         }
 
         var now = DateTimeOffset.UtcNow;
@@ -48,13 +48,13 @@ public sealed class AuthUseCase(
 
         if (currentSession is null || currentSession.RevokedAt.HasValue || currentSession.ExpiresAt <= now)
         {
-            throw new UnauthorizedAccessException("Invalid refresh token.");
+            throw new UnauthorizedAccessException(SystemMessages.InvalidRefreshToken);
         }
 
         var user = await authRepository.GetByIdAsync(currentSession.UserId, cancellationToken);
         if (user is null || !user.IsActive)
         {
-            throw new UnauthorizedAccessException("Invalid refresh token.");
+            throw new UnauthorizedAccessException(SystemMessages.InvalidRefreshToken);
         }
 
         var refreshedSession = await IssueSessionAsync(user, ipAddress, cancellationToken);
@@ -78,28 +78,28 @@ public sealed class AuthUseCase(
     {
         if (userId == Guid.Empty)
         {
-            throw new UnauthorizedAccessException("Invalid user context.");
+            throw new UnauthorizedAccessException(SystemMessages.InvalidUserContext);
         }
 
         if (string.IsNullOrWhiteSpace(request.CurrentPassword) || string.IsNullOrWhiteSpace(request.NewPassword))
         {
-            throw new ArgumentException("CurrentPassword and NewPassword are required.");
+            throw new ArgumentException(SystemMessages.CurrentPasswordAndNewPasswordAreRequired);
         }
 
         if (request.NewPassword.Length < 8)
         {
-            throw new ArgumentException("NewPassword must have at least 8 characters.");
+            throw new ArgumentException(SystemMessages.NewPasswordMustHaveAtLeast8Characters);
         }
 
         var user = await authRepository.GetByIdAsync(userId, cancellationToken);
         if (user is null || !user.IsActive)
         {
-            throw new UnauthorizedAccessException("Invalid user context.");
+            throw new UnauthorizedAccessException(SystemMessages.InvalidUserContext);
         }
 
         if (!passwordHasher.Verify(request.CurrentPassword, user.PasswordHash))
         {
-            throw new UnauthorizedAccessException("Current password is invalid.");
+            throw new UnauthorizedAccessException(SystemMessages.CurrentPasswordIsInvalid);
         }
 
         var now = DateTimeOffset.UtcNow;
@@ -108,7 +108,7 @@ public sealed class AuthUseCase(
 
         if (!updated)
         {
-            throw new InvalidOperationException("Could not update password.");
+            throw new InvalidOperationException(SystemMessages.CouldNotUpdatePassword);
         }
 
         _ = await authRepository.RevokeSessionsByUserIdAsync(userId, now, cancellationToken);
@@ -135,7 +135,8 @@ public sealed class AuthUseCase(
             OrganizationId = user.OrganizationId,
             Email = user.Email,
             Roles = user.Roles,
-            Permissions = user.Permissions
+            Permissions = user.Permissions,
+            MustChangePassword = user.MustChangePassword
         };
     }
 
@@ -143,7 +144,7 @@ public sealed class AuthUseCase(
     {
         if (string.IsNullOrWhiteSpace(request.Email))
         {
-            throw new ArgumentException("Email is required.");
+            throw new ArgumentException(SystemMessages.EmailIsRequired);
         }
 
         var normalizedEmail = request.Email.Trim();
@@ -180,12 +181,12 @@ public sealed class AuthUseCase(
     {
         if (string.IsNullOrWhiteSpace(request.Token) || string.IsNullOrWhiteSpace(request.NewPassword))
         {
-            throw new ArgumentException("Token and NewPassword are required.");
+            throw new ArgumentException(SystemMessages.TokenAndNewPasswordAreRequired);
         }
 
         if (request.NewPassword.Length < 8)
         {
-            throw new ArgumentException("NewPassword must have at least 8 characters.");
+            throw new ArgumentException(SystemMessages.NewPasswordMustHaveAtLeast8Characters);
         }
 
         var now = DateTimeOffset.UtcNow;
@@ -194,13 +195,13 @@ public sealed class AuthUseCase(
 
         if (resetToken is null || resetToken.RevokedAt.HasValue || resetToken.UsedAt.HasValue || resetToken.ExpiresAt <= now)
         {
-            throw new UnauthorizedAccessException("Invalid reset token.");
+            throw new UnauthorizedAccessException(SystemMessages.InvalidResetToken);
         }
 
         var user = await authRepository.GetByIdAsync(resetToken.UserId, cancellationToken);
         if (user is null || !user.IsActive)
         {
-            throw new UnauthorizedAccessException("Invalid reset token.");
+            throw new UnauthorizedAccessException(SystemMessages.InvalidResetToken);
         }
 
         var newPasswordHash = passwordHasher.Hash(request.NewPassword);
@@ -208,7 +209,7 @@ public sealed class AuthUseCase(
 
         if (!updated)
         {
-            throw new InvalidOperationException("Could not update password.");
+            throw new InvalidOperationException(SystemMessages.CouldNotUpdatePassword);
         }
 
         _ = await authRepository.MarkPasswordResetTokenAsUsedAsync(resetToken.Id, now, cancellationToken);
@@ -254,7 +255,8 @@ public sealed class AuthUseCase(
                 OrganizationId = user.OrganizationId,
                 Email = user.Email,
                 Roles = user.Roles,
-                Permissions = user.Permissions
+                Permissions = user.Permissions,
+                MustChangePassword = user.MustChangePassword
             }
         };
 

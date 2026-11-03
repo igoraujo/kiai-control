@@ -49,7 +49,7 @@
     {
         if (_clientId is null || _planId is null || _startsAt is null)
         {
-            throw new ArgumentException("Selecione o aluno, o plano e a data de início.");
+            throw new ArgumentException(AdminSystemMessages.StudentPlanAndStartDateRequired);
         }
 
         await Api.CreateClientSubscriptionAsync(_clientId.Value, new CreateClientSubscriptionRequest

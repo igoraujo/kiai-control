@@ -26,6 +26,10 @@ public sealed class JwtAuthTokenService(
             new(JwtRegisteredClaimNames.Email, user.Email),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
+        if (user.MustChangePassword)
+        {
+            claims.Add(new Claim("must_change_password", "true"));
+        }
         claims.AddRange(user.Roles
             .Where(role => !string.IsNullOrWhiteSpace(role))
             .Distinct(StringComparer.OrdinalIgnoreCase)

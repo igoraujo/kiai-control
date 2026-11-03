@@ -102,7 +102,7 @@
         try
         {
             await Api.CancelLessonAsync(lesson.Id, new CancelLessonRequest());
-            Snackbar.Add("Aula cancelada.", Severity.Success);
+            Snackbar.Add(AdminSystemMessages.LessonCanceled, Severity.Success);
             await LoadAsync();
         }
         catch (UnauthorizedAccessException)

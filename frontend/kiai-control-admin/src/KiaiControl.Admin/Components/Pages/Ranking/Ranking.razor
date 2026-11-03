@@ -314,7 +314,7 @@
         }
         catch (HttpRequestException exception)
         {
-            _errorMessage = $"Não foi possível carregar rankings e medalhas: {exception.Message}";
+            _errorMessage = string.Format(AdminSystemMessages.FailedToLoadRankingsAndMedals, exception.Message);
         }
         finally
         {
@@ -326,7 +326,7 @@
     {
         if (_newCycleStart is null || _newCycleEnd is null || _newCycleEnd.Value.Date < _newCycleStart.Value.Date)
         {
-            _errorMessage = "Informe um período de ciclo válido.";
+            _errorMessage = AdminSystemMessages.ValidRankingCyclePeriodRequired;
             return;
         }
 
@@ -341,7 +341,7 @@
             });
             _newCycleName = string.Empty;
             _selectedCycleId = cycle.Id;
-            Snackbar.Add("Ciclo de ranking criado.", Severity.Success);
+            Snackbar.Add(AdminSystemMessages.RankingCycleCreated, Severity.Success);
             await LoadAsync();
         });
     }
@@ -367,7 +367,7 @@
         }
         catch (HttpRequestException exception)
         {
-            _errorMessage = $"Não foi possível carregar os resultados do ciclo: {exception.Message}";
+            _errorMessage = string.Format(AdminSystemMessages.FailedToLoadCycleResults, exception.Message);
         }
         finally
         {
@@ -386,7 +386,7 @@
         {
             _cycleEntries = await Api.RecalculateRankingAsync(_selectedCycle.Id);
             _currentRanking = await Api.ListCurrentRankingAsync(pageSize: PageSize);
-            Snackbar.Add("Ranking recalculado.", Severity.Success);
+            Snackbar.Add(AdminSystemMessages.RankingRecalculated, Severity.Success);
         });
     }
 
@@ -404,7 +404,7 @@
         }
         catch (HttpRequestException exception)
         {
-            _errorMessage = $"Não foi possível atualizar o ranking: {exception.Message}";
+            _errorMessage = string.Format(AdminSystemMessages.FailedToUpdateRanking, exception.Message);
         }
         finally
         {
@@ -428,7 +428,7 @@
             _newMedalDescription = null;
             _newMedalPoints = 0;
             _medals = await Api.ListMedalsAsync();
-            Snackbar.Add("Medalha criada.", Severity.Success);
+            Snackbar.Add(AdminSystemMessages.MedalCreated, Severity.Success);
         });
     }
 
@@ -452,7 +452,7 @@
         }
         catch (HttpRequestException exception)
         {
-            _errorMessage = $"Não foi possível carregar as medalhas do aluno: {exception.Message}";
+            _errorMessage = string.Format(AdminSystemMessages.FailedToLoadStudentMedals, exception.Message);
         }
     }
 
@@ -460,14 +460,14 @@
     {
         if (_awardClientId is null || _awardMedalId is null)
         {
-            _errorMessage = "Selecione o aluno e a medalha.";
+            _errorMessage = AdminSystemMessages.StudentAndMedalRequired;
             return;
         }
 
         var client = _clients.FirstOrDefault(item => item.Id == _awardClientId.Value);
         if (client is null)
         {
-            _errorMessage = "O aluno selecionado não está mais disponível. Atualize a página e tente novamente.";
+            _errorMessage = AdminSystemMessages.SelectedStudentUnavailableRefreshPage;
             return;
         }
 
@@ -480,7 +480,7 @@
             });
             _awardReason = null;
             _clientMedals = await Api.ListClientMedalsAsync(client.Id);
-            Snackbar.Add("Medalha concedida.", Severity.Success);
+            Snackbar.Add(AdminSystemMessages.MedalAwarded, Severity.Success);
         });
     }
 

@@ -36,6 +36,17 @@ public sealed class SqlModalityRepository(IDbConnectionFactory dbConnectionFacto
         return modalities.ToList();
     }
 
+    public async Task<IReadOnlyList<string>> ListActiveTypesAsync(
+        Guid organizationId,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
+        var types = await connection.QueryAsync<string>(
+            ModalityQueries.ListActiveTypes,
+            new { OrganizationId = organizationId });
+        return types.ToList();
+    }
+
     public async Task<Modality?> GetByIdAsync(Guid organizationId, Guid id, CancellationToken cancellationToken = default)
     {
         using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);

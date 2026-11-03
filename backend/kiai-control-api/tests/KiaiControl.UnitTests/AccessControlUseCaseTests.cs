@@ -1,3 +1,4 @@
+using KiaiControl.Contracts.Auth;
 using KiaiControl.Core.Entities;
 using KiaiControl.Core.Interfaces;
 using KiaiControl.UseCases.Auth;
@@ -10,7 +11,7 @@ public sealed class AccessControlUseCaseTests
     public async Task GrantRolePermissionAsync_ShouldProtectOwnerRole()
     {
         var repository = new FakeAccessControlRepository();
-        var useCase = new AccessControlUseCase(repository);
+        var useCase = new AccessControlUseCase(repository, new FakePasswordHasher());
 
         await Assert.ThrowsAsync<ArgumentException>(() => useCase.GrantRolePermissionAsync(
             Guid.NewGuid(), "owner", "clients.manage", Guid.NewGuid(), CancellationToken.None));
@@ -22,7 +23,7 @@ public sealed class AccessControlUseCaseTests
     public async Task RevokeRolePermissionAsync_ShouldProtectOwnerRole()
     {
         var repository = new FakeAccessControlRepository();
-        var useCase = new AccessControlUseCase(repository);
+        var useCase = new AccessControlUseCase(repository, new FakePasswordHasher());
 
         await Assert.ThrowsAsync<ArgumentException>(() => useCase.RevokeRolePermissionAsync(
             Guid.NewGuid(), "owner", "clients.manage", Guid.NewGuid(), CancellationToken.None));
@@ -34,7 +35,7 @@ public sealed class AccessControlUseCaseTests
     public async Task GrantRolePermissionAsync_ShouldScopeOverrideToOrganizationAndActor()
     {
         var repository = new FakeAccessControlRepository();
-        var useCase = new AccessControlUseCase(repository);
+        var useCase = new AccessControlUseCase(repository, new FakePasswordHasher());
         var organizationId = Guid.NewGuid();
         var actorUserId = Guid.NewGuid();
 
@@ -48,6 +49,56 @@ public sealed class AccessControlUseCaseTests
         Assert.Equal("lessons.manage", repository.LastPermissionCode);
     }
 
+    [Fact]
+    public async Task CreateUserAccountAsync_ShouldNormalizeEmailHashPasswordAndAssignRole()
+    {
+        var repository = new FakeAccessControlRepository();
+        var useCase = new AccessControlUseCase(repository, new FakePasswordHasher());
+        var personId = Guid.NewGuid();
+
+        var account = await useCase.CreateUserAccountAsync(
+            Guid.NewGuid(),
+            personId,
+            Guid.NewGuid(),
+            new CreateUserAccountRequest
+            {
+                Email = "  TEACHER@EXAMPLE.TEST ",
+                TemporaryPassword = "TemporaryPassword123",
+                RoleCode = "teacher"
+            },
+            actorIsOwner: false,
+            CancellationToken.None);
+
+        Assert.NotNull(account);
+        Assert.Equal("teacher@example.test", account.Email);
+        Assert.Equal("teacher", account.RoleCode);
+        Assert.Equal("teacher@example.test", repository.LastAccountEmail);
+        Assert.Equal("HASH:TemporaryPassword123", repository.LastPasswordHash);
+        Assert.Equal("teacher", repository.LastAccountRoleCode);
+    }
+
+    [Fact]
+    public async Task CreateUserAccountAsync_ShouldNotAllowAdminToCreateOwnerAccount()
+    {
+        var repository = new FakeAccessControlRepository();
+        var useCase = new AccessControlUseCase(repository, new FakePasswordHasher());
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => useCase.CreateUserAccountAsync(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            new CreateUserAccountRequest
+            {
+                Email = "owner@example.test",
+                TemporaryPassword = "TemporaryPassword123",
+                RoleCode = "owner"
+            },
+            actorIsOwner: false,
+            CancellationToken.None));
+
+        Assert.Null(repository.LastAccountEmail);
+    }
+
     private sealed class FakeAccessControlRepository : IAccessControlRepository
     {
         public bool PermissionMutationAttempted { get; private set; }
@@ -59,6 +110,32 @@ public sealed class AccessControlUseCaseTests
         public string? LastRoleCode { get; private set; }
 
         public string? LastPermissionCode { get; private set; }
+
+        public string? LastAccountEmail { get; private set; }
+
+        public string? LastPasswordHash { get; private set; }
+
+        public string? LastAccountRoleCode { get; private set; }
+
+        public Task<IReadOnlyList<UserAccountCandidate>> ListPeopleWithoutAccountsAsync(
+            Guid organizationId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<UserAccountCandidate>>([]);
+
+        public Task<bool> CreateUserAccountAsync(
+            Guid organizationId,
+            Guid personId,
+            string email,
+            string passwordHash,
+            string roleCode,
+            Guid grantedByUserId,
+            CancellationToken cancellationToken = default)
+        {
+            LastAccountEmail = email;
+            LastPasswordHash = passwordHash;
+            LastAccountRoleCode = roleCode;
+            return Task.FromResult(true);
+        }
 
         public Task<IReadOnlyList<Role>> ListRolesAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Role>>([]);
 
@@ -96,5 +173,13 @@ public sealed class AccessControlUseCaseTests
             LastActorUserId = actorUserId;
             return Task.FromResult(true);
         }
+
+    }
+
+    private sealed class FakePasswordHasher : IPasswordHasher
+    {
+        public string Hash(string input) => $"HASH:{input}";
+
+        public bool Verify(string input, string hash) => hash == Hash(input);
     }
 }
