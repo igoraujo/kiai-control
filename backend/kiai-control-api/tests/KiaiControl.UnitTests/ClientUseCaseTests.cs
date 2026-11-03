@@ -60,6 +60,26 @@ public sealed class ClientUseCaseTests
     }
 
     [Fact]
+    public async Task GetByPersonIdAsync_ShouldOnlyReturnClientFromRequestedOrganization()
+    {
+        var organizationId = Guid.NewGuid();
+        var repository = new InMemoryClientRepository();
+        var useCase = new ClientUseCase(repository, new InMemoryBranchRepository());
+        var created = await useCase.CreateAsync(new CreateClientRequest
+        {
+            OrganizationId = organizationId,
+            FullName = "Ana Silva"
+        }, CancellationToken.None);
+
+        var found = await useCase.GetByPersonIdAsync(organizationId, created.PersonId, CancellationToken.None);
+        var crossTenant = await useCase.GetByPersonIdAsync(Guid.NewGuid(), created.PersonId, CancellationToken.None);
+
+        Assert.NotNull(found);
+        Assert.Equal(created.Id, found.Id);
+        Assert.Null(crossTenant);
+    }
+
+    [Fact]
     public async Task CreateAsync_ShouldRejectInvalidEmail()
     {
         var useCase = new ClientUseCase(new InMemoryClientRepository(), new InMemoryBranchRepository());

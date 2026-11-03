@@ -107,6 +107,34 @@ public static class ClientQueries
         where c.organization_id = @OrganizationId and c.id = @Id and p.deleted_at is null;
         ";
 
+    public const string GetByPersonId = @"
+        select
+            c.id,
+            c.organization_id as OrganizationId,
+            c.person_id as PersonId,
+            p.branch_id as BranchId,
+            p.full_name as FullName,
+            p.preferred_name as PreferredName,
+            p.email,
+            p.phone,
+            p.birth_date as BirthDate,
+            p.document,
+            p.medical_notes as MedicalNotes,
+            p.emergency_contact_name as EmergencyContactName,
+            p.emergency_contact_phone as EmergencyContactPhone,
+            p.hide_from_ranking as HideFromRanking,
+            c.registration_code as RegistrationCode,
+            c.joined_at as JoinedAt,
+            c.current_status::text as Status,
+            c.created_at as CreatedAt,
+            c.updated_at as UpdatedAt
+        from clients c
+        join persons p on p.id = c.person_id
+        where c.organization_id = @OrganizationId
+            and c.person_id = @PersonId
+            and p.deleted_at is null;
+        ";
+
     public const string Update = @"
         with target as (
             select c.id, c.organization_id, c.person_id
