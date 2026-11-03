@@ -86,10 +86,10 @@ public sealed class FitnessController(
             return BadRequest("Organization context is required.");
         }
 
-        var teacherId = Guid.TryParse(User.FindFirstValue("person_id"), out var personId) ? personId : (Guid?)null;
+        var actorPersonId = Guid.TryParse(User.FindFirstValue("person_id"), out var personId) ? personId : (Guid?)null;
         try
         {
-            var progress = await fitnessUseCase.RecordProgressAsync(organizationId, goalId, teacherId, request, cancellationToken);
+            var progress = await fitnessUseCase.RecordProgressAsync(organizationId, goalId, actorPersonId, request, cancellationToken);
             return progress is null ? NotFound("The active fitness goal was not found in this organization.")
                 : StatusCode(StatusCodes.Status201Created, progress);
         }

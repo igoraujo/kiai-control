@@ -589,10 +589,12 @@ public sealed class SqlModalityScheduleRepositoryTests(PostgreSqlFixture fixture
         {
             FitnessGoalId = fitnessGoal.Id,
             RecordedValue = 12,
-            Notes = "Meta atingida"
+            Notes = "Meta atingida",
+            CreatedByPersonId = teacherPersonId
         });
         Assert.NotNull(progress);
         Assert.Equal(12m, progress.RecordedValue);
+        Assert.Equal(teacherId, progress.CreatedByTeacherId);
         var progressHistory = await progressionRepository.ListFitnessProgressRecordsAsync(
             organizationId, fitnessGoal.Id, page: 1, pageSize: 20);
         Assert.Equal(progress.Id, Assert.Single(progressHistory).Id);
@@ -614,11 +616,14 @@ public sealed class SqlModalityScheduleRepositoryTests(PostgreSqlFixture fixture
             DueDate = new DateOnly(2026, 2, 1)
         });
         Assert.NotNull(goalWithHistory);
-        await progressionRepository.RecordFitnessProgressAsync(organizationId, new FitnessProgressRecord
+        var clientRecordedProgress = await progressionRepository.RecordFitnessProgressAsync(organizationId, new FitnessProgressRecord
         {
             FitnessGoalId = goalWithHistory.Id,
-            RecordedValue = 2
+            RecordedValue = 2,
+            CreatedByPersonId = authorizedPersonId
         });
+        Assert.NotNull(clientRecordedProgress);
+        Assert.Null(clientRecordedProgress.CreatedByTeacherId);
         await progressionRepository.RecordFitnessProgressAsync(organizationId, new FitnessProgressRecord
         {
             FitnessGoalId = goalWithHistory.Id,

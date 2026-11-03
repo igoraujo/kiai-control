@@ -63,7 +63,7 @@ public sealed class FitnessUseCase(IProgressionRepository repository)
     public async Task<FitnessProgressResponse?> RecordProgressAsync(
         Guid organizationId,
         Guid goalId,
-        Guid? teacherId,
+        Guid? actorPersonId,
         RecordFitnessProgressRequest request,
         CancellationToken cancellationToken)
     {
@@ -77,7 +77,7 @@ public sealed class FitnessUseCase(IProgressionRepository repository)
             FitnessGoalId = goalId,
             RecordedValue = request.RecordedValue,
             Notes = Normalize(request.Notes),
-            CreatedByTeacherId = teacherId
+            CreatedByPersonId = actorPersonId
         }, cancellationToken);
         return record is null ? null : new FitnessProgressResponse
         {

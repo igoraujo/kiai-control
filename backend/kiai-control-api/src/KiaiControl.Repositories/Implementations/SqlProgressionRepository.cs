@@ -471,7 +471,7 @@ public sealed class SqlProgressionRepository(IDbConnectionFactory dbConnectionFa
             progress.RecordedValue,
             progress.Notes,
             progress.RecordedAt,
-            progress.CreatedByTeacherId
+            progress.CreatedByPersonId
         }, transaction);
         if (recorded is null)
         {
