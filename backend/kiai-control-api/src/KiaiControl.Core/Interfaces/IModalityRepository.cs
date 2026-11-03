@@ -12,6 +12,8 @@ public interface IModalityRepository
         int pageSize,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<string>> ListActiveTypesAsync(Guid organizationId, CancellationToken cancellationToken = default);
+
     Task<Modality?> GetByIdAsync(Guid organizationId, Guid id, CancellationToken cancellationToken = default);
 
     Task<Modality?> UpdateAsync(Modality modality, CancellationToken cancellationToken = default);

@@ -74,6 +74,13 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
     public Task<IReadOnlyList<ModalityResponse>> ListReportModalitiesAsync() =>
         GetListAsync<ModalityResponse>("api/v1/reports/modalities");
 
+    public async Task<WorkspaceCapabilitiesResponse> GetWorkspaceCapabilitiesAsync()
+    {
+        using var response = await SendAuthorizedAsync(HttpMethod.Get, "api/v1/workspace/capabilities");
+        return await response.Content.ReadFromJsonAsync<WorkspaceCapabilitiesResponse>()
+            ?? throw new HttpRequestException("The API returned empty workspace capabilities.");
+    }
+
     public Task<IReadOnlyList<AttendanceReportRow>> GetAttendanceReportAsync(
         DateOnly from,
         DateOnly to,

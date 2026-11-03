@@ -37,6 +37,18 @@ public sealed class ModalityUseCase(IModalityRepository modalityRepository)
         return modalities.Select(ToResponse).ToList();
     }
 
+    public async Task<IReadOnlyList<string>> ListActiveTypesAsync(
+        Guid organizationId,
+        CancellationToken cancellationToken)
+    {
+        if (organizationId == Guid.Empty)
+        {
+            throw new ArgumentException("OrganizationId is required.");
+        }
+
+        return await modalityRepository.ListActiveTypesAsync(organizationId, cancellationToken);
+    }
+
     public async Task<ModalityResponse?> GetByIdAsync(Guid organizationId, Guid id, CancellationToken cancellationToken)
     {
         var modality = await modalityRepository.GetByIdAsync(organizationId, id, cancellationToken);

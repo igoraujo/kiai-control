@@ -32,6 +32,12 @@ public static class ModalityQueries
         offset @Offset rows fetch next @PageSize rows only;
         ";
 
+    public const string ListActiveTypes = @"
+        select distinct type::text
+        from modalities
+        where organization_id = @OrganizationId and is_active = true;
+        ";
+
     public const string GetById = @"
         select
             id,

@@ -34,6 +34,50 @@
     border-color: rgba(255, 255, 255, 0.08);
 }
 
+.menu-section {
+    margin: 0.2rem 0;
+}
+
+.menu-section-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    min-height: 2.5rem;
+    padding: 0.45rem 0.65rem;
+    border: 0;
+    border-radius: 0.65rem;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.58);
+    font: inherit;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-align: left;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: color 140ms ease, background-color 140ms ease;
+}
+
+.menu-section-toggle:hover,
+.menu-section-toggle:focus-visible {
+    background: rgba(255, 255, 255, 0.06);
+    color: #ffffff;
+}
+
+.menu-section-toggle:focus-visible {
+    outline: 2px solid rgba(240, 138, 36, 0.85);
+    outline-offset: 1px;
+}
+
+.menu-section-toggle :deep(.mud-icon-root) {
+    font-size: 1.15rem;
+}
+
+.menu-section-content {
+    padding: 0.1rem 0 0.35rem;
+}
+
 :deep(.mud-nav-link) {
     border-radius: 0.9rem;
     margin-bottom: 0.3rem;
