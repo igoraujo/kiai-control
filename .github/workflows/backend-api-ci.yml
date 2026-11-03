@@ -69,14 +69,14 @@ jobs:
           dotnet test frontend/kiai-control-admin/tests/KiaiControl.Admin.UnitTests/KiaiControl.Admin.UnitTests.csproj
           --no-build --no-restore
           --logger "trx;LogFileName=admin.trx"
-          --results-directory frontend/kiai-control-admin/TestResults/admin
+          --results-directory frontend/kiai-control-admin/tests/TestResults/admin
 
       - name: Test Admin end-to-end flows
         run: >-
           dotnet test frontend/kiai-control-admin/tests/KiaiControl.Admin.E2ETests/KiaiControl.Admin.E2ETests.csproj
           --no-build --no-restore
           --logger "trx;LogFileName=e2e.trx"
-          --results-directory frontend/kiai-control-admin/TestResults/e2e
+          --results-directory frontend/kiai-control-admin/tests/TestResults/e2e
 
       - name: Verify test reports are non-empty
         run: |
@@ -89,8 +89,8 @@ jobs:
               Path("backend/kiai-control-api/TestResults/unit/unit.trx"),
               Path("backend/kiai-control-api/TestResults/integration/integration.trx"),
               Path("backend/kiai-control-api/TestResults/architecture/architecture.trx"),
-              Path("frontend/kiai-control-admin/TestResults/admin/admin.trx"),
-              Path("frontend/kiai-control-admin/TestResults/e2e/e2e.trx"),
+              Path("frontend/kiai-control-admin/tests/TestResults/admin/admin.trx"),
+              Path("frontend/kiai-control-admin/tests/TestResults/e2e/e2e.trx"),
           ]
           missing = [str(report) for report in reports if not report.is_file()]
           if missing:
@@ -114,6 +114,6 @@ jobs:
           name: test-results
           path: |
             backend/kiai-control-api/TestResults/**/*.trx
-            frontend/kiai-control-admin/TestResults/**/*.trx
+            frontend/kiai-control-admin/tests/TestResults/**/*.trx
           if-no-files-found: warn
           retention-days: 14

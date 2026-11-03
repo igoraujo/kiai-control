@@ -1,5 +1,6 @@
 using Dapper;
 using KiaiControl.Core.Interfaces;
+using KiaiControl.Repositories.Common;
 using KiaiControl.Repositories.Connections;
 using KiaiControl.Repositories.Implementations;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,7 +13,7 @@ public static class ServiceCollectionExtensions
     {
         if (string.IsNullOrWhiteSpace(connectionString))
         {
-            throw new InvalidOperationException("A connection string PostgreSql deve ser configurada para registrar os repositórios de producao.");
+            throw new InvalidOperationException(SystemMessages.PostgreSqlConnectionStringMustBeConfigured);
         }
 
         SqlMapper.AddTypeHandler(new DateOnlyTypeHandler());

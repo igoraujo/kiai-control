@@ -24,7 +24,7 @@ public sealed class NotificationsController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         var clients = await clientUseCase.ListAsync(organizationId, 1, 200, cancellationToken);
@@ -43,14 +43,14 @@ public sealed class NotificationsController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
         {
             var created = await notificationUseCase.CreateAsync(organizationId, request, cancellationToken);
             return created is null
-                ? NotFound("The notification recipient does not exist in this organization.")
+                ? NotFound(SystemMessages.TheNotificationRecipientDoesNotExistInThisOrganization)
                 : StatusCode(StatusCodes.Status201Created, created);
         }
         catch (ArgumentException exception)
@@ -83,7 +83,7 @@ public sealed class NotificationsController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         return Ok(await notificationUseCase.ListOrganizationAsync(organizationId, page, pageSize, cancellationToken));

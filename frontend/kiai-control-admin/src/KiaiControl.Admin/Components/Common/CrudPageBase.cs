@@ -49,8 +49,8 @@ public abstract class CrudPageBase<T> : ComponentBase
         catch (HttpRequestException exception)
         {
             ErrorMessage = exception.StatusCode == System.Net.HttpStatusCode.Forbidden
-                ? "Você não tem permissão para acessar este recurso."
-                : $"Não foi possível carregar os dados. {exception.Message}";
+                ? AdminSystemMessages.ResourceAccessPermissionDenied
+                : string.Format(AdminSystemMessages.FailedToLoadData, exception.Message);
         }
         finally
         {
@@ -66,7 +66,7 @@ public abstract class CrudPageBase<T> : ComponentBase
         var result = await dialog.Result;
         if (result is { Canceled: false })
         {
-            Snackbar.Add("Registro salvo com sucesso.", Severity.Success);
+            Snackbar.Add(AdminSystemMessages.RecordSavedSuccessfully, Severity.Success);
             await LoadAsync();
             return true;
         }
@@ -86,7 +86,7 @@ public abstract class CrudPageBase<T> : ComponentBase
         try
         {
             await Api.DeleteAsync(Resource, id);
-            Snackbar.Add("Registro excluído.", Severity.Success);
+            Snackbar.Add(AdminSystemMessages.RecordDeleted, Severity.Success);
             await LoadAsync();
         }
         catch (UnauthorizedAccessException)

@@ -89,7 +89,7 @@ public static class ServiceCollectionExtensions
         {
             if (string.IsNullOrWhiteSpace(redisOptions.Redis))
             {
-                throw new InvalidOperationException("A connection string Redis deve ser configurada quando o provider de cache for Redis.");
+                throw new InvalidOperationException(SystemMessages.AConnectionStringRedisDeveSerConfiguradaQuandoOProviderDeCacheForRedis);
             }
 
             services.AddStackExchangeRedisCache(options =>

@@ -149,7 +149,7 @@
         }
         catch (HttpRequestException exception)
         {
-            _errorMessage = $"Não foi possível carregar as metas fitness: {exception.Message}";
+            _errorMessage = string.Format(AdminSystemMessages.FailedToLoadFitnessGoals, exception.Message);
         }
         finally
         {
@@ -187,7 +187,7 @@
             new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
         if (await dialog.Result is { Canceled: false })
         {
-            Snackbar.Add("Meta fitness criada.", Severity.Success);
+            Snackbar.Add(AdminSystemMessages.FitnessGoalCreated, Severity.Success);
             await LoadAsync();
         }
     }
@@ -204,7 +204,7 @@
             new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
         if (await dialog.Result is { Canceled: false })
         {
-            Snackbar.Add("Progresso registrado.", Severity.Success);
+            Snackbar.Add(AdminSystemMessages.ProgressRecorded, Severity.Success);
             await LoadAsync();
         }
     }
@@ -238,7 +238,7 @@
         try
         {
             await Api.CancelFitnessGoalAsync(goal.Id);
-            Snackbar.Add("Meta fitness cancelada.", Severity.Success);
+            Snackbar.Add(AdminSystemMessages.FitnessGoalCanceled, Severity.Success);
             await LoadAsync();
         }
         catch (UnauthorizedAccessException)
@@ -248,7 +248,7 @@
         }
         catch (HttpRequestException exception)
         {
-            _errorMessage = $"Não foi possível cancelar a meta: {exception.Message}";
+            _errorMessage = string.Format(AdminSystemMessages.FailedToCancelFitnessGoal, exception.Message);
         }
         finally
         {

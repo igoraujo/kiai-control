@@ -104,7 +104,7 @@
         catch (HttpRequestException exception)
         {
             _errorMessage = exception.StatusCode == System.Net.HttpStatusCode.Forbidden
-                ? "Seu perfil não tem permissão para validar check-ins."
+                ? AdminSystemMessages.CheckInValidationPermissionDenied
                 : exception.Message;
         }
         finally
@@ -137,11 +137,11 @@
         }
     }
 
-    private Task ConfirmAsync(AttendanceRecordResponse record) => ValidateAsync(record, "present", "Presença confirmada.");
+    private Task ConfirmAsync(AttendanceRecordResponse record) => ValidateAsync(record, "present", AdminSystemMessages.AttendanceConfirmed);
 
-    private Task MarkLateAsync(AttendanceRecordResponse record) => ValidateAsync(record, "late", "Presença confirmada como atraso.");
+    private Task MarkLateAsync(AttendanceRecordResponse record) => ValidateAsync(record, "late", AdminSystemMessages.AttendanceMarkedLate);
 
-    private Task RejectAsync(AttendanceRecordResponse record) => ValidateAsync(record, "absent", "Check-in recusado; falta registrada.");
+    private Task RejectAsync(AttendanceRecordResponse record) => ValidateAsync(record, "absent", AdminSystemMessages.CheckInRejectedAbsenceRecorded);
 
     private LessonResponse? LessonFor(Guid lessonId) => _lessons.FirstOrDefault(lesson => lesson.Id == lessonId);
 

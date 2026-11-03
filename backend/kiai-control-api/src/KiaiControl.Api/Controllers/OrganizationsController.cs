@@ -25,7 +25,7 @@ public sealed class OrganizationsController(
         {
             var registration = await organizationUseCase.RegisterAsync(request, cancellationToken);
             return registration is null
-                ? Conflict("The organization document or owner e-mail is already registered.")
+                ? Conflict(SystemMessages.TheOrganizationDocumentOrOwnerEMailIsAlreadyRegistered)
                 : CreatedAtAction(nameof(GetById), new { id = registration.Organization.Id }, registration);
         }
         catch (ArgumentException exception)
@@ -39,7 +39,7 @@ public sealed class OrganizationsController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         if (id != organizationId)
@@ -59,7 +59,7 @@ public sealed class OrganizationsController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         if (id != organizationId)

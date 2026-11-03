@@ -185,7 +185,7 @@
                 _grantedPermissions.Remove(permissionCode);
             }
 
-            Snackbar.Add("Permissão atualizada.", Severity.Success);
+            Snackbar.Add(AdminSystemMessages.PermissionUpdated, Severity.Success);
         }
         catch (UnauthorizedAccessException)
         {

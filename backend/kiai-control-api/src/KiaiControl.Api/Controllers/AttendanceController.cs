@@ -28,7 +28,7 @@ public sealed class AttendanceController(OrganizationContext organizationContext
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         if (request.OrganizationId != Guid.Empty && request.OrganizationId != organizationId)
@@ -40,7 +40,7 @@ public sealed class AttendanceController(OrganizationContext organizationContext
 
         if (request.ClientId == Guid.Empty || request.LessonId == Guid.Empty)
         {
-            return BadRequest("ClientId and LessonId are required.");
+            return BadRequest(SystemMessages.ClientIdAndLessonIdAreRequired);
         }
 
         try
@@ -52,7 +52,7 @@ public sealed class AttendanceController(OrganizationContext organizationContext
 
             var created = await attendanceUseCase.CreateAsync(request, validatorPersonId, cancellationToken);
             return created is null
-                ? Conflict("A aula, o aluno ou a matrícula ativa não está disponível nesta organização.")
+                ? Conflict(SystemMessages.AAulaOAlunoOuAMatriculaAtivaNaoEstaDisponivelNestaOrganizacao)
                 : CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
         }
         catch (ArgumentException exception)
@@ -79,7 +79,7 @@ public sealed class AttendanceController(OrganizationContext organizationContext
             var record = await attendanceUseCase.CheckInAsync(
                 organizationId, personId, request.LessonId, checkedInAt, cancellationToken);
             return record is null
-                ? Conflict("Check-in indisponível: confirme sua matrícula, o horário da aula ou se já realizou o check-in.")
+                ? Conflict(SystemMessages.CheckInIndisponivelConfirmeSuaMatriculaOHorarioDaAulaOuSeJaRealizouOCheckIn)
                 : StatusCode(StatusCodes.Status201Created, record);
         }
         catch (ArgumentException exception)
@@ -98,7 +98,7 @@ public sealed class AttendanceController(OrganizationContext organizationContext
     {
         if (organizationContext.OrganizationId is null)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         var attendance = await attendanceUseCase.ListAsync(organizationContext.OrganizationId.Value, page, pageSize, cancellationToken);
@@ -115,7 +115,7 @@ public sealed class AttendanceController(OrganizationContext organizationContext
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         return Ok(await attendanceUseCase.ListPendingAsync(organizationId, page, pageSize, cancellationToken));
@@ -138,7 +138,7 @@ public sealed class AttendanceController(OrganizationContext organizationContext
         {
             var record = await attendanceUseCase.ValidateCheckInAsync(
                 organizationId, id, validatorPersonId, request.Status, DateTimeOffset.UtcNow, cancellationToken);
-            return record is null ? Conflict("Este check-in já foi validado ou não está mais disponível.") : Ok(record);
+            return record is null ? Conflict(SystemMessages.EsteCheckInJaFoiValidadoOuNaoEstaMaisDisponivel) : Ok(record);
         }
         catch (ArgumentException exception)
         {
@@ -153,7 +153,7 @@ public sealed class AttendanceController(OrganizationContext organizationContext
     {
         if (organizationContext.OrganizationId is null)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         var attendance = await attendanceUseCase.GetByIdAsync(organizationContext.OrganizationId.Value, id, cancellationToken);
@@ -167,7 +167,7 @@ public sealed class AttendanceController(OrganizationContext organizationContext
     {
         if (organizationContext.OrganizationId is null)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
@@ -194,7 +194,7 @@ public sealed class AttendanceController(OrganizationContext organizationContext
     {
         if (organizationContext.OrganizationId is null)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         var deleted = await attendanceUseCase.DeleteAsync(organizationContext.OrganizationId.Value, id, cancellationToken);

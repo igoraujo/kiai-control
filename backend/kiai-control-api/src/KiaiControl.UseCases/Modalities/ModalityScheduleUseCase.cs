@@ -14,17 +14,17 @@ public sealed class ModalityScheduleUseCase(IModalityScheduleRepository schedule
     {
         if (organizationId == Guid.Empty || modalityId == Guid.Empty)
         {
-            throw new ArgumentException("A organização e a modalidade são obrigatórias.");
+            throw new ArgumentException(SystemMessages.AOrganizacaoEAModalidadeSaoObrigatorias);
         }
 
         if (request.DayOfWeek is < 0 or > 6)
         {
-            throw new ArgumentException("Selecione um dia da semana válido.");
+            throw new ArgumentException(SystemMessages.SelecioneUmDiaDaSemanaValido);
         }
 
         if (request.EndsAt <= request.StartsAt)
         {
-            throw new ArgumentException("O horário de término deve ser posterior ao horário de início.");
+            throw new ArgumentException(SystemMessages.OHorarioDeTerminoDeveSerPosteriorAoHorarioDeInicio);
         }
 
         var created = await scheduleRepository.CreateAsync(new ModalitySchedule
@@ -48,7 +48,7 @@ public sealed class ModalityScheduleUseCase(IModalityScheduleRepository schedule
     {
         if (organizationId == Guid.Empty || modalityId == Guid.Empty)
         {
-            throw new ArgumentException("A organização e a modalidade são obrigatórias.");
+            throw new ArgumentException(SystemMessages.AOrganizacaoEAModalidadeSaoObrigatorias);
         }
 
         var schedules = await scheduleRepository.ListAsync(organizationId, modalityId, cancellationToken);
@@ -65,7 +65,7 @@ public sealed class ModalityScheduleUseCase(IModalityScheduleRepository schedule
     {
         if (organizationId == Guid.Empty || teacherId == Guid.Empty)
         {
-            throw new ArgumentException("A organização e o professor são obrigatórios.");
+            throw new ArgumentException(SystemMessages.AOrganizacaoEOProfessorSaoObrigatorios);
         }
 
         var schedules = await scheduleRepository.ListByTeacherAsync(organizationId, teacherId, cancellationToken);
@@ -80,7 +80,7 @@ public sealed class ModalityScheduleUseCase(IModalityScheduleRepository schedule
     {
         if (organizationId == Guid.Empty || modalityId == Guid.Empty || scheduleId == Guid.Empty)
         {
-            throw new ArgumentException("A organização, a modalidade e o horário são obrigatórios.");
+            throw new ArgumentException(SystemMessages.AOrganizacaoAModalidadeEOHorarioSaoObrigatorios);
         }
 
         return scheduleRepository.DeactivateAsync(organizationId, modalityId, scheduleId, cancellationToken);

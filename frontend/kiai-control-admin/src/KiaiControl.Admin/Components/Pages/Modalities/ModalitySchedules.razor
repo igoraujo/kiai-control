@@ -162,7 +162,7 @@
         }
         catch (HttpRequestException exception)
         {
-            _errorMessage = UserFriendlyError(exception, "carregar os dados da modalidade e dos horários");
+            _errorMessage = UserFriendlyError(exception, AdminSystemMessages.LoadModalityAndScheduleData);
         }
         finally
         {
@@ -176,7 +176,7 @@
             || !TimeOnly.TryParse(_endsAt, out var endsAt)
             || endsAt <= startsAt)
         {
-            Snackbar.Add("Informe horários válidos; o término deve ser posterior ao início.", Severity.Warning);
+            Snackbar.Add(AdminSystemMessages.ValidTimesWithEndAfterStartRequired, Severity.Warning);
             return;
         }
 
@@ -217,13 +217,13 @@
     {
         if (_startDate is null || _endDate is null || _endDate < _startDate)
         {
-            Snackbar.Add("Informe um período válido.", Severity.Warning);
+            Snackbar.Add(AdminSystemMessages.ValidPeriodRequired, Severity.Warning);
             return;
         }
 
         if ((_endDate.Value.Date - _startDate.Value.Date).TotalDays > 90)
         {
-            Snackbar.Add("O período de geração não pode exceder 90 dias.", Severity.Warning);
+            Snackbar.Add(AdminSystemMessages.GenerationPeriodCannotExceed90Days, Severity.Warning);
             return;
         }
 
@@ -238,9 +238,9 @@
             });
             var message = lessons.Count switch
             {
-                0 => "Nenhuma aula nova foi criada. As aulas existentes foram mantidas.",
-                1 => "Uma aula foi criada com sucesso.",
-                _ => $"{lessons.Count} aulas foram criadas com sucesso."
+                0 => AdminSystemMessages.NoNewLessonsCreatedExistingLessonsKept,
+                1 => AdminSystemMessages.LessonCreatedSuccessfully,
+                _ => string.Format(AdminSystemMessages.LessonsCreatedSuccessfully, lessons.Count)
             };
             Snackbar.Add(message, Severity.Success);
         }
@@ -251,7 +251,7 @@
         }
         catch (HttpRequestException exception)
         {
-            Snackbar.Add(UserFriendlyError(exception, "gerar as aulas"), Severity.Error);
+            Snackbar.Add(UserFriendlyError(exception, AdminSystemMessages.GenerateLessons), Severity.Error);
         }
         finally
         {
@@ -275,7 +275,7 @@
         }
         catch (HttpRequestException exception)
         {
-            Snackbar.Add(UserFriendlyError(exception, "salvar o horário"), Severity.Error);
+            Snackbar.Add(UserFriendlyError(exception, AdminSystemMessages.SaveSchedule), Severity.Error);
         }
         finally
         {
@@ -297,10 +297,10 @@
         return exception.StatusCode switch
         {
             System.Net.HttpStatusCode.BadRequest => CleanApiMessage(exception.Message)
-                ?? "Confira os dados informados e tente novamente.",
-            System.Net.HttpStatusCode.Conflict => "O horário já existe ou a unidade/professor está indisponível para esta modalidade.",
-            System.Net.HttpStatusCode.NotFound => "A modalidade, unidade, professor ou horário não foi encontrado ou está indisponível.",
-            _ => $"Não foi possível {operation}. Tente novamente. Se o problema persistir, entre em contato com o suporte."
+                ?? AdminSystemMessages.ReviewInformationAndTryAgain,
+            System.Net.HttpStatusCode.Conflict => AdminSystemMessages.ScheduleConflictOrUnavailableResources,
+            System.Net.HttpStatusCode.NotFound => AdminSystemMessages.ModalityBranchTeacherOrScheduleUnavailable,
+            _ => string.Format(AdminSystemMessages.OperationFailedTryAgainOrContactSupport, operation)
         };
     }
 

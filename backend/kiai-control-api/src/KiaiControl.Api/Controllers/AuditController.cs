@@ -23,7 +23,7 @@ public sealed class AuditController(OrganizationContext organizationContext, Aud
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try

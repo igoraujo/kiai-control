@@ -67,7 +67,7 @@ public sealed class BranchUseCase(IBranchRepository branchRepository)
         EnsureOrganization(organizationId);
         if (id == Guid.Empty)
         {
-            throw new ArgumentException("BranchId is required.");
+            throw new ArgumentException(SystemMessages.BranchIdIsRequired);
         }
 
         return branchRepository.DeleteAsync(organizationId, id, cancellationToken);
@@ -84,12 +84,12 @@ public sealed class BranchUseCase(IBranchRepository branchRepository)
         EnsureOrganization(organizationId);
         if (string.IsNullOrWhiteSpace(name) || name.Trim().Length > 160)
         {
-            throw new ArgumentException("Name is required and must not exceed 160 characters.");
+            throw new ArgumentException(SystemMessages.NameIsRequiredAndMustNotExceed160Characters);
         }
 
         if (addressLine?.Length > 255 || city?.Length > 100 || state?.Length > 50 || postalCode?.Length > 20)
         {
-            throw new ArgumentException("One or more branch fields exceed their maximum length.");
+            throw new ArgumentException(SystemMessages.OneOrMoreBranchFieldsExceedTheirMaximumLength);
         }
     }
 
@@ -97,7 +97,7 @@ public sealed class BranchUseCase(IBranchRepository branchRepository)
     {
         if (organizationId == Guid.Empty)
         {
-            throw new ArgumentException("OrganizationId is required.");
+            throw new ArgumentException(SystemMessages.OrganizationIdIsRequired);
         }
     }
 

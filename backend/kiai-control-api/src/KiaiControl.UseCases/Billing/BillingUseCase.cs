@@ -136,24 +136,24 @@ public sealed class BillingUseCase(IBillingRepository billingRepository)
     {
         if (organizationId == Guid.Empty || invoiceId == Guid.Empty)
         {
-            throw new ArgumentException("OrganizationId and InvoiceId are required.");
+            throw new ArgumentException(SystemMessages.OrganizationIdAndInvoiceIdAreRequired);
         }
 
         if (request.Amount <= 0)
         {
-            throw new ArgumentException("Payment amount must be greater than zero.");
+            throw new ArgumentException(SystemMessages.PaymentAmountMustBeGreaterThanZero);
         }
 
         var method = AllowedPaymentMethods.FirstOrDefault(allowed =>
             string.Equals(allowed, request.Method.Trim(), StringComparison.OrdinalIgnoreCase));
         if (method is null)
         {
-            throw new ArgumentException("Payment method is not supported.");
+            throw new ArgumentException(SystemMessages.PaymentMethodIsNotSupported);
         }
 
         if (request.PaidAt == default || request.ExternalReference?.Length > 120 || request.Notes?.Length > 255)
         {
-            throw new ArgumentException("PaidAt is required; external reference and notes exceed their allowed lengths.");
+            throw new ArgumentException(SystemMessages.PaidAtIsRequiredExternalReferenceAndNotesExceedTheirAllowedLengths);
         }
 
         var payment = await billingRepository.RegisterPaymentAsync(organizationId, invoiceId, new Core.Entities.Payment
@@ -186,7 +186,7 @@ public sealed class BillingUseCase(IBillingRepository billingRepository)
     {
         if (organizationId == Guid.Empty || invoiceId == Guid.Empty)
         {
-            throw new ArgumentException("OrganizationId and InvoiceId are required.");
+            throw new ArgumentException(SystemMessages.OrganizationIdAndInvoiceIdAreRequired);
         }
 
         var payments = await billingRepository.ListPaymentsByInvoiceAsync(organizationId, invoiceId, cancellationToken);
@@ -197,27 +197,27 @@ public sealed class BillingUseCase(IBillingRepository billingRepository)
     {
         if (organizationId == Guid.Empty)
         {
-            throw new ArgumentException("OrganizationId is required.");
+            throw new ArgumentException(SystemMessages.OrganizationIdIsRequired);
         }
 
         if (clientId == Guid.Empty)
         {
-            throw new ArgumentException("ClientId is required.");
+            throw new ArgumentException(SystemMessages.ClientIdIsRequired);
         }
 
         if (clientPlanSubscriptionId == Guid.Empty)
         {
-            throw new ArgumentException("ClientPlanSubscriptionId is required.");
+            throw new ArgumentException(SystemMessages.ClientPlanSubscriptionIdIsRequired);
         }
 
         if (amount < 0)
         {
-            throw new ArgumentException("Amount must be greater than or equal to zero.");
+            throw new ArgumentException(SystemMessages.AmountMustBeGreaterThanOrEqualToZero);
         }
 
         if (!AllowedInvoiceStatuses.Contains(status.Trim(), StringComparer.OrdinalIgnoreCase))
         {
-            throw new ArgumentException("Status is not a supported invoice status.");
+            throw new ArgumentException(SystemMessages.StatusIsNotASupportedInvoiceStatus);
         }
     }
 

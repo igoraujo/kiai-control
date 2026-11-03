@@ -219,7 +219,7 @@
         }
         catch (HttpRequestException exception)
         {
-            _errorMessage = $"Não foi possível carregar o histórico financeiro. {exception.Message}";
+            _errorMessage = string.Format(AdminSystemMessages.FailedToLoadFinancialHistory, exception.Message);
         }
         finally
         {

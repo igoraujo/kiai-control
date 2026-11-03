@@ -43,7 +43,7 @@ public sealed class ModalityUseCase(IModalityRepository modalityRepository)
     {
         if (organizationId == Guid.Empty)
         {
-            throw new ArgumentException("OrganizationId is required.");
+            throw new ArgumentException(SystemMessages.OrganizationIdIsRequired);
         }
 
         return await modalityRepository.ListActiveTypesAsync(organizationId, cancellationToken);
@@ -89,7 +89,7 @@ public sealed class ModalityUseCase(IModalityRepository modalityRepository)
     {
         if (organizationId == Guid.Empty || clientId == Guid.Empty)
         {
-            throw new ArgumentException("OrganizationId and ClientId are required.");
+            throw new ArgumentException(SystemMessages.OrganizationIdAndClientIdAreRequired);
         }
 
         var modalities = await modalityRepository.ListClientModalitiesAsync(organizationId, clientId, cancellationToken);
@@ -120,7 +120,7 @@ public sealed class ModalityUseCase(IModalityRepository modalityRepository)
     {
         if (organizationId == Guid.Empty || clientId == Guid.Empty || modalityId == Guid.Empty)
         {
-            throw new ArgumentException("OrganizationId, ClientId and ModalityId are required.");
+            throw new ArgumentException(SystemMessages.OrganizationIdClientIdAndModalityIdAreRequired);
         }
     }
 
@@ -128,22 +128,22 @@ public sealed class ModalityUseCase(IModalityRepository modalityRepository)
     {
         if (organizationId == Guid.Empty)
         {
-            throw new ArgumentException("OrganizationId is required.");
+            throw new ArgumentException(SystemMessages.OrganizationIdIsRequired);
         }
 
         if (string.IsNullOrWhiteSpace(name) || name.Trim().Length > 120)
         {
-            throw new ArgumentException("Name is required and must not exceed 120 characters.");
+            throw new ArgumentException(SystemMessages.NameIsRequiredAndMustNotExceed120Characters);
         }
 
         if (!AllowedTypes.Contains(type.Trim(), StringComparer.OrdinalIgnoreCase))
         {
-            throw new ArgumentException("Type must be martial_art, fitness or hybrid.");
+            throw new ArgumentException(SystemMessages.TypeMustBeMartialArtFitnessOrHybrid);
         }
 
         if (description?.Length > 5000)
         {
-            throw new ArgumentException("Description must not exceed 5000 characters.");
+            throw new ArgumentException(SystemMessages.DescriptionMustNotExceed5000Characters);
         }
     }
 

@@ -11,13 +11,13 @@ public static class PersonDataValidator
     {
         if (string.IsNullOrWhiteSpace(fullName))
         {
-            throw new ArgumentException("FullName is required.");
+            throw new ArgumentException(SystemMessages.FullNameIsRequired);
         }
 
         var value = fullName.Trim();
         if (value.Length > 180)
         {
-            throw new ArgumentException("FullName must contain between 1 and 180 characters.");
+            throw new ArgumentException(SystemMessages.FullNameMustContainBetween1And180Characters);
         }
 
         return value;
@@ -28,7 +28,7 @@ public static class PersonDataValidator
         var normalized = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
         if (normalized?.Length > maxLength)
         {
-            throw new ArgumentException($"{field} cannot exceed {maxLength} characters.");
+            throw new ArgumentException(string.Format(SystemMessages.CannotExceedCharacters, field, maxLength));
         }
 
         return normalized;
@@ -40,7 +40,7 @@ public static class PersonDataValidator
         if (normalized is not null && (!MailAddress.TryCreate(normalized, out var address) ||
                                        !string.Equals(address.Address, normalized, StringComparison.OrdinalIgnoreCase)))
         {
-            throw new ArgumentException("Email is not a valid email address.");
+            throw new ArgumentException(SystemMessages.EmailIsNotAValidEmailAddress);
         }
 
         return normalized?.ToLowerInvariant();
@@ -52,7 +52,7 @@ public static class PersonDataValidator
         if (normalized is not null && normalized.Any(character =>
                 !char.IsLetterOrDigit(character) && character is not ('.' or '/' or '-' or ' ')))
         {
-            throw new ArgumentException("Document contains unsupported characters.");
+            throw new ArgumentException(SystemMessages.DocumentContainsUnsupportedCharacters);
         }
 
         return normalized;
@@ -62,13 +62,13 @@ public static class PersonDataValidator
     {
         if (string.IsNullOrWhiteSpace(status))
         {
-            throw new ArgumentException("Status is required.");
+            throw new ArgumentException(SystemMessages.StatusIsRequired);
         }
 
         var normalized = status.Trim().ToLowerInvariant();
         if (!AllowedStatuses.Contains(normalized, StringComparer.Ordinal))
         {
-            throw new ArgumentException("Status must be one of: active, inactive, suspended, canceled, trial.");
+            throw new ArgumentException(SystemMessages.StatusMustBeOneOfActiveInactiveSuspendedCanceledTrial);
         }
 
         return normalized;
@@ -82,7 +82,7 @@ public static class PersonDataValidator
     {
         if (branchId is Guid id && await branchRepository.GetByIdAsync(organizationId, id, cancellationToken) is null)
         {
-            throw new ArgumentException("BranchId must identify a branch in this organization.");
+            throw new ArgumentException(SystemMessages.BranchIdMustIdentifyABranchInThisOrganization);
         }
     }
 }

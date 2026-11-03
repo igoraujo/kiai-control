@@ -13,12 +13,12 @@ public sealed class GraduationUseCase(IProgressionRepository repository)
     {
         if (organizationId == Guid.Empty || request.ModalityId == Guid.Empty)
         {
-            throw new ArgumentException("OrganizationId and ModalityId are required.");
+            throw new ArgumentException(SystemMessages.OrganizationIdAndModalityIdAreRequired);
         }
 
         if (string.IsNullOrWhiteSpace(request.Name) || request.Name.Trim().Length > 120 || request.Description?.Length > 5000)
         {
-            throw new ArgumentException("Name is required and must not exceed 120 characters; description must not exceed 5000 characters.");
+            throw new ArgumentException(SystemMessages.NameIsRequiredAndMustNotExceed120CharactersDescriptionMustNotExceed5000Characters);
         }
 
         var system = await repository.CreateGraduationSystemAsync(new GraduationSystem
@@ -46,7 +46,7 @@ public sealed class GraduationUseCase(IProgressionRepository repository)
         EnsureOrganization(organizationId);
         if (systemId == Guid.Empty)
         {
-            throw new ArgumentException("GraduationSystemId is required.");
+            throw new ArgumentException(SystemMessages.GraduationSystemIdIsRequired);
         }
 
         var belts = await repository.ListGraduationBeltsAsync(organizationId, systemId, cancellationToken);
@@ -64,7 +64,7 @@ public sealed class GraduationUseCase(IProgressionRepository repository)
             || request.DegreeCount is < 0 or > 99 || request.MinLessons < 0 || request.MinTrainingDays < 0
             || request.MinAttendancePercentage is < 0 or > 100)
         {
-            throw new ArgumentException("Os dados da faixa são inválidos. Informe o nome, até 99 graus e critérios não negativos.");
+            throw new ArgumentException(SystemMessages.OsDadosDaFaixaSaoInvalidosInformeONomeAte99GrausECriteriosNaoNegativos);
         }
 
         var belt = await repository.CreateGraduationBeltAsync(organizationId, systemId, new GraduationBelt
@@ -90,7 +90,7 @@ public sealed class GraduationUseCase(IProgressionRepository repository)
         ValidateBeltRequest(systemId, request);
         if (beltId == Guid.Empty)
         {
-            throw new ArgumentException("Faixa inválida.");
+            throw new ArgumentException(SystemMessages.FaixaInvalida);
         }
 
         return await repository.UpdateGraduationBeltAsync(organizationId, systemId, new GraduationBelt
@@ -114,7 +114,7 @@ public sealed class GraduationUseCase(IProgressionRepository repository)
         EnsureOrganization(organizationId);
         if (systemId == Guid.Empty || beltId == Guid.Empty)
         {
-            throw new ArgumentException("Sistema e faixa são obrigatórios.");
+            throw new ArgumentException(SystemMessages.SistemaEFaixaSaoObrigatorios);
         }
 
         return await repository.DeleteGraduationBeltAsync(organizationId, systemId, beltId, cancellationToken);
@@ -153,7 +153,7 @@ public sealed class GraduationUseCase(IProgressionRepository repository)
         ValidateDegreeRequest(systemId, beltId, request);
         if (degreeId == Guid.Empty)
         {
-            throw new ArgumentException("Grau inválido.");
+            throw new ArgumentException(SystemMessages.GrauInvalido);
         }
 
         return await repository.UpdateGraduationDegreeAsync(organizationId, systemId, beltId, new GraduationLevel
@@ -177,7 +177,7 @@ public sealed class GraduationUseCase(IProgressionRepository repository)
         EnsureOrganization(organizationId);
         if (systemId == Guid.Empty || beltId == Guid.Empty || degreeId == Guid.Empty)
         {
-            throw new ArgumentException("Sistema, faixa e grau são obrigatórios.");
+            throw new ArgumentException(SystemMessages.SistemaFaixaEGrauSaoObrigatorios);
         }
 
         return await repository.DeleteGraduationDegreeAsync(organizationId, systemId, beltId, degreeId, cancellationToken);
@@ -194,7 +194,7 @@ public sealed class GraduationUseCase(IProgressionRepository repository)
             || request.HierarchyOrder <= 0 || request.MinTrainingDays < 0 || request.MinLessons < 0
             || request.MinAge < 0 || request.MinAttendancePercentage is < 0 or > 100)
         {
-            throw new ArgumentException("Level fields are invalid; order must be positive and criteria non-negative.");
+            throw new ArgumentException(SystemMessages.LevelFieldsAreInvalidOrderMustBePositiveAndCriteriaNonNegative);
         }
 
         var level = await repository.CreateGraduationLevelAsync(organizationId, new GraduationLevel
@@ -219,7 +219,7 @@ public sealed class GraduationUseCase(IProgressionRepository repository)
         EnsureOrganization(organizationId);
         if (systemId == Guid.Empty)
         {
-            throw new ArgumentException("GraduationSystemId is required.");
+            throw new ArgumentException(SystemMessages.GraduationSystemIdIsRequired);
         }
 
         var levels = await repository.ListGraduationLevelsAsync(organizationId, systemId, cancellationToken);
@@ -235,7 +235,7 @@ public sealed class GraduationUseCase(IProgressionRepository repository)
         if (organizationId == Guid.Empty || clientId == Guid.Empty || request.ModalityId == Guid.Empty
             || request.LevelId == Guid.Empty || request.GrantedAt == default || request.Notes?.Length > 255)
         {
-            throw new ArgumentException("Graduation data is invalid.");
+            throw new ArgumentException(SystemMessages.GraduationDataIsInvalid);
         }
 
         var graduation = await repository.SetClientGraduationAsync(new ClientGraduation
@@ -270,7 +270,7 @@ public sealed class GraduationUseCase(IProgressionRepository repository)
         if (organizationId == Guid.Empty || clientId == Guid.Empty || request.ModalityId == Guid.Empty
             || request.ToLevelId == Guid.Empty || request.EventDate == default || request.Justification?.Length > 255)
         {
-            throw new ArgumentException("Promotion data is invalid.");
+            throw new ArgumentException(SystemMessages.PromotionDataIsInvalid);
         }
 
         var result = await repository.PromoteClientAsync(new GraduationEvent
@@ -294,7 +294,7 @@ public sealed class GraduationUseCase(IProgressionRepository repository)
     {
         if (organizationId == Guid.Empty || clientId == Guid.Empty || modalityId == Guid.Empty)
         {
-            throw new ArgumentException("OrganizationId, ClientId and ModalityId are required.");
+            throw new ArgumentException(SystemMessages.OrganizationIdClientIdAndModalityIdAreRequired);
         }
 
         var events = await repository.ListClientGraduationEventsAsync(organizationId, clientId, modalityId, cancellationToken);
@@ -309,7 +309,7 @@ public sealed class GraduationUseCase(IProgressionRepository repository)
         EnsureOrganization(organizationId);
         if (systemId == Guid.Empty)
         {
-            throw new ArgumentException("GraduationSystemId is required.");
+            throw new ArgumentException(SystemMessages.GraduationSystemIdIsRequired);
         }
 
         var clients = await repository.ListEligibleClientsAsync(organizationId, systemId, cancellationToken);
@@ -329,7 +329,7 @@ public sealed class GraduationUseCase(IProgressionRepository repository)
     {
         if (organizationId == Guid.Empty)
         {
-            throw new ArgumentException("OrganizationId is required.");
+            throw new ArgumentException(SystemMessages.OrganizationIdIsRequired);
         }
     }
 
@@ -341,7 +341,7 @@ public sealed class GraduationUseCase(IProgressionRepository repository)
             || request.DegreeCount is < 0 or > 99 || request.MinLessons < 0 || request.MinTrainingDays < 0
             || request.MinAttendancePercentage is < 0 or > 100)
         {
-            throw new ArgumentException("Os dados da faixa são inválidos. Informe o nome, até 99 graus e critérios não negativos.");
+            throw new ArgumentException(SystemMessages.OsDadosDaFaixaSaoInvalidosInformeONomeAte99GrausECriteriosNaoNegativos);
         }
     }
 
@@ -350,7 +350,7 @@ public sealed class GraduationUseCase(IProgressionRepository repository)
         if (systemId == Guid.Empty || beltId == Guid.Empty || request.MinLessons < 0
             || request.MinTrainingDays < 0 || request.MinAge < 0 || request.MinAttendancePercentage is < 0 or > 100)
         {
-            throw new ArgumentException("Os critérios de promoção do grau são inválidos.");
+            throw new ArgumentException(SystemMessages.OsCriteriosDePromocaoDoGrauSaoInvalidos);
         }
     }
 

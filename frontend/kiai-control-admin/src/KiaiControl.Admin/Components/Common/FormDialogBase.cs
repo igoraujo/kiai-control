@@ -42,7 +42,7 @@ public abstract class FormDialogBase : ComponentBase
         }
         catch (UnauthorizedAccessException)
         {
-            ErrorMessage = "Sessão expirada. Faça login novamente.";
+            ErrorMessage = AdminSystemMessages.SessionExpiredPleaseSignInAgain;
         }
         catch (ArgumentException exception)
         {

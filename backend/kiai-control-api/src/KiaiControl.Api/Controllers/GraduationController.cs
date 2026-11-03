@@ -24,7 +24,7 @@ public sealed class GraduationController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         var modalitiesTask = modalityUseCase.ListAsync(organizationId, 1, 200, cancellationToken);
@@ -46,13 +46,13 @@ public sealed class GraduationController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
         {
             var system = await graduationUseCase.CreateSystemAsync(organizationId, request, cancellationToken);
-            return system is null ? NotFound("A modalidade não foi encontrada, está inativa ou não é uma arte marcial nesta organização.")
+            return system is null ? NotFound(SystemMessages.AModalidadeNaoFoiEncontradaEstaInativaOuNaoEUmaArteMarcialNestaOrganizacao)
                 : StatusCode(StatusCodes.Status201Created, system);
         }
         catch (ArgumentException exception)
@@ -66,7 +66,7 @@ public sealed class GraduationController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         return Ok(await graduationUseCase.ListSystemsAsync(organizationId, cancellationToken));
@@ -80,13 +80,13 @@ public sealed class GraduationController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
         {
             var level = await graduationUseCase.CreateLevelAsync(organizationId, systemId, request, cancellationToken);
-            return level is null ? NotFound("The active graduation system was not found in this organization.")
+            return level is null ? NotFound(SystemMessages.TheActiveGraduationSystemWasNotFoundInThisOrganization)
                 : StatusCode(StatusCodes.Status201Created, level);
         }
         catch (ArgumentException exception)
@@ -100,7 +100,7 @@ public sealed class GraduationController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         return Ok(await graduationUseCase.ListLevelsAsync(organizationId, systemId, cancellationToken));
@@ -113,7 +113,7 @@ public sealed class GraduationController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
@@ -134,14 +134,14 @@ public sealed class GraduationController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
         {
             var belt = await graduationUseCase.CreateBeltAsync(organizationId, systemId, request, cancellationToken);
             return belt is null
-                ? Conflict("A faixa já existe ou o sistema de graduação não está disponível nesta organização.")
+                ? Conflict(SystemMessages.AFaixaJaExisteOuOSistemaDeGraduacaoNaoEstaDisponivelNestaOrganizacao)
                 : StatusCode(StatusCodes.Status201Created, belt);
         }
         catch (ArgumentException exception)
@@ -159,14 +159,14 @@ public sealed class GraduationController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
         {
             var updated = await graduationUseCase.UpdateBeltAsync(
                 organizationId, systemId, beltId, request, cancellationToken);
-            return updated ? NoContent() : Conflict("A faixa não existe, tem nome duplicado ou a quantidade de graus é menor que os graus já cadastrados.");
+            return updated ? NoContent() : Conflict(SystemMessages.AFaixaNaoExisteTemNomeDuplicadoOuAQuantidadeDeGrausEMenorQueOsGrausJaCadastrados);
         }
         catch (ArgumentException exception)
         {
@@ -182,13 +182,13 @@ public sealed class GraduationController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
         {
             var deleted = await graduationUseCase.DeleteBeltAsync(organizationId, systemId, beltId, cancellationToken);
-            return deleted ? NoContent() : Conflict("A faixa não existe ou já possui graduações registradas. Corrija ou remova primeiro os graus não utilizados.");
+            return deleted ? NoContent() : Conflict(SystemMessages.AFaixaNaoExisteOuJaPossuiGraduacoesRegistradasCorrijaOuRemovaPrimeiroOsGrausNaoUtilizados);
         }
         catch (ArgumentException exception)
         {
@@ -205,7 +205,7 @@ public sealed class GraduationController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
@@ -213,7 +213,7 @@ public sealed class GraduationController(
             var degree = await graduationUseCase.CreateDegreeAsync(
                 organizationId, systemId, beltId, request, cancellationToken);
             return degree is null
-                ? Conflict("A faixa não foi encontrada ou todos os graus configurados já foram cadastrados.")
+                ? Conflict(SystemMessages.AFaixaNaoFoiEncontradaOuTodosOsGrausConfiguradosJaForamCadastrados)
                 : StatusCode(StatusCodes.Status201Created, degree);
         }
         catch (ArgumentException exception)
@@ -232,14 +232,14 @@ public sealed class GraduationController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
         {
             var updated = await graduationUseCase.UpdateDegreeAsync(
                 organizationId, systemId, beltId, degreeId, request, cancellationToken);
-            return updated ? NoContent() : NotFound("O grau não foi encontrado nesta faixa e organização.");
+            return updated ? NoContent() : NotFound(SystemMessages.OGrauNaoFoiEncontradoNestaFaixaEOrganizacao);
         }
         catch (ArgumentException exception)
         {
@@ -256,14 +256,14 @@ public sealed class GraduationController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
         {
             var deleted = await graduationUseCase.DeleteDegreeAsync(
                 organizationId, systemId, beltId, degreeId, cancellationToken);
-            return deleted ? NoContent() : Conflict("Só é possível excluir o último grau da sequência, e ele não pode ter sido usado em graduações.");
+            return deleted ? NoContent() : Conflict(SystemMessages.SoEPossivelExcluirOUltimoGrauDaSequenciaEEleNaoPodeTerSidoUsadoEmGraduacoes);
         }
         catch (ArgumentException exception)
         {
@@ -279,13 +279,13 @@ public sealed class GraduationController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
         {
             var graduation = await graduationUseCase.SetInitialAsync(organizationId, clientId, request, cancellationToken);
-            return graduation is null ? Conflict("O aluno não está vinculado à modalidade, o nível não está disponível ou já existe uma graduação.")
+            return graduation is null ? Conflict(SystemMessages.OAlunoNaoEstaVinculadoAModalidadeONivelNaoEstaDisponivelOuJaExisteUmaGraduacao)
                 : StatusCode(StatusCodes.Status201Created, graduation);
         }
         catch (ArgumentException exception)
@@ -302,14 +302,14 @@ public sealed class GraduationController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
         {
             var graduationEvent = await graduationUseCase.PromoteAsync(organizationId, clientId, request, cancellationToken);
             return graduationEvent is null
-                ? Conflict("Promotion is invalid: level must advance the current rank and any manual evaluation must pass.")
+                ? Conflict(SystemMessages.PromotionIsInvalidLevelMustAdvanceTheCurrentRankAndAnyManualEvaluationMustPass)
                 : StatusCode(StatusCodes.Status201Created, graduationEvent);
         }
         catch (ArgumentException exception)
@@ -326,7 +326,7 @@ public sealed class GraduationController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
@@ -346,7 +346,7 @@ public sealed class GraduationController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try

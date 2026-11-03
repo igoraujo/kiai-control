@@ -86,12 +86,12 @@
     {
         if (_clientId is null || _startsAt is null || _dueDate is null)
         {
-            throw new ArgumentException("Selecione o aluno e informe as datas da meta.");
+            throw new ArgumentException(AdminSystemMessages.StudentAndFitnessGoalDatesRequired);
         }
 
         if (_dueDate.Value.Date < _startsAt.Value.Date)
         {
-            throw new ArgumentException("O prazo não pode ser anterior ao início.");
+            throw new ArgumentException(AdminSystemMessages.DueDateCannotPrecedeStartDate);
         }
 
         return Api.CreateFitnessGoalAsync(new CreateFitnessGoalRequest

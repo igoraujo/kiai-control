@@ -130,7 +130,7 @@ public sealed class AttendanceUseCase(IAttendanceRepository attendanceRepository
     {
         if (organizationId == Guid.Empty || lessonId == Guid.Empty)
         {
-            throw new ArgumentException("OrganizationId and LessonId are required.");
+            throw new ArgumentException(SystemMessages.OrganizationIdAndLessonIdAreRequired);
         }
 
         var records = await attendanceRepository.ListByLessonAsync(organizationId, lessonId, cancellationToken);
@@ -144,7 +144,7 @@ public sealed class AttendanceUseCase(IAttendanceRepository attendanceRepository
     {
         if (organizationId == Guid.Empty || lessonId == Guid.Empty)
         {
-            throw new ArgumentException("OrganizationId and LessonId are required.");
+            throw new ArgumentException(SystemMessages.OrganizationIdAndLessonIdAreRequired);
         }
 
         var clients = await attendanceRepository.ListEligibleClientsByLessonAsync(
@@ -165,7 +165,7 @@ public sealed class AttendanceUseCase(IAttendanceRepository attendanceRepository
     {
         if (organizationId == Guid.Empty || personId == Guid.Empty || lessonId == Guid.Empty)
         {
-            throw new ArgumentException("OrganizationId, PersonId and LessonId are required.");
+            throw new ArgumentException(SystemMessages.OrganizationIdPersonIdAndLessonIdAreRequired);
         }
 
         var record = await attendanceRepository.CreateCheckInAsync(organizationId, personId, lessonId, checkedInAt, cancellationToken);
@@ -180,7 +180,7 @@ public sealed class AttendanceUseCase(IAttendanceRepository attendanceRepository
     {
         if (organizationId == Guid.Empty)
         {
-            throw new ArgumentException("OrganizationId is required.");
+            throw new ArgumentException(SystemMessages.OrganizationIdIsRequired);
         }
 
         var records = await attendanceRepository.ListPendingByOrganizationAsync(organizationId, page, pageSize, cancellationToken);
@@ -197,7 +197,7 @@ public sealed class AttendanceUseCase(IAttendanceRepository attendanceRepository
     {
         if (organizationId == Guid.Empty || attendanceId == Guid.Empty)
         {
-            throw new ArgumentException("OrganizationId and AttendanceId are required.");
+            throw new ArgumentException(SystemMessages.OrganizationIdAndAttendanceIdAreRequired);
         }
 
         ValidateValidator(validatorPersonId);
@@ -205,7 +205,7 @@ public sealed class AttendanceUseCase(IAttendanceRepository attendanceRepository
         var finalStatus = status.Trim().ToLowerInvariant();
         if (finalStatus == "justified_absence")
         {
-            throw new ArgumentException("A check-in must be confirmed as present or late, or rejected as absent.");
+            throw new ArgumentException(SystemMessages.ACheckInMustBeConfirmedAsPresentOrLateOrRejectedAsAbsent);
         }
 
         var record = await attendanceRepository.ValidateCheckInAsync(
@@ -222,24 +222,24 @@ public sealed class AttendanceUseCase(IAttendanceRepository attendanceRepository
     {
         if (organizationId == Guid.Empty || lessonId == Guid.Empty)
         {
-            throw new ArgumentException("OrganizationId and LessonId are required.");
+            throw new ArgumentException(SystemMessages.OrganizationIdAndLessonIdAreRequired);
         }
 
         ValidateValidator(validatorPersonId);
 
         if (request.Entries.Count == 0)
         {
-            throw new ArgumentException("At least one attendance entry is required.");
+            throw new ArgumentException(SystemMessages.AtLeastOneAttendanceEntryIsRequired);
         }
 
         if (request.Entries.Any(entry => entry.ClientId == Guid.Empty))
         {
-            throw new ArgumentException("Every attendance entry must include a ClientId.");
+            throw new ArgumentException(SystemMessages.EveryAttendanceEntryMustIncludeAClientId);
         }
 
         if (request.Entries.Select(entry => entry.ClientId).Distinct().Count() != request.Entries.Count)
         {
-            throw new ArgumentException("A client can only appear once in an attendance call.");
+            throw new ArgumentException(SystemMessages.AClientCanOnlyAppearOnceInAnAttendanceCall);
         }
 
         foreach (var entry in request.Entries)
@@ -265,17 +265,17 @@ public sealed class AttendanceUseCase(IAttendanceRepository attendanceRepository
     {
         if (organizationId == Guid.Empty)
         {
-            throw new ArgumentException("OrganizationId is required.");
+            throw new ArgumentException(SystemMessages.OrganizationIdIsRequired);
         }
 
         if (clientId == Guid.Empty)
         {
-            throw new ArgumentException("ClientId is required.");
+            throw new ArgumentException(SystemMessages.ClientIdIsRequired);
         }
 
         if (lessonId == Guid.Empty)
         {
-            throw new ArgumentException("LessonId is required.");
+            throw new ArgumentException(SystemMessages.LessonIdIsRequired);
         }
 
         ValidateStatus(status);
@@ -285,7 +285,7 @@ public sealed class AttendanceUseCase(IAttendanceRepository attendanceRepository
     {
         if (!AllowedStatuses.Contains(status.Trim(), StringComparer.OrdinalIgnoreCase))
         {
-            throw new ArgumentException("Status must be present, absent, justified_absence or late.");
+            throw new ArgumentException(SystemMessages.StatusMustBePresentAbsentJustifiedAbsenceOrLate);
         }
     }
 
@@ -293,7 +293,7 @@ public sealed class AttendanceUseCase(IAttendanceRepository attendanceRepository
     {
         if (validatorPersonId == Guid.Empty)
         {
-            throw new UnauthorizedAccessException("A validator person context is required.");
+            throw new UnauthorizedAccessException(SystemMessages.AValidatorPersonContextIsRequired);
         }
     }
 

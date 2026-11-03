@@ -33,7 +33,7 @@ public sealed class BillingCatalogUseCase(IBillingCatalogRepository repository)
     {
         if (organizationId == Guid.Empty)
         {
-            throw new ArgumentException("OrganizationId is required.");
+            throw new ArgumentException(SystemMessages.OrganizationIdIsRequired);
         }
 
         var plans = await repository.ListPlansAsync(organizationId, page, pageSize, cancellationToken);
@@ -64,7 +64,7 @@ public sealed class BillingCatalogUseCase(IBillingCatalogRepository repository)
     {
         if (organizationId == Guid.Empty || id == Guid.Empty)
         {
-            throw new ArgumentException("OrganizationId and PlanId are required.");
+            throw new ArgumentException(SystemMessages.OrganizationIdAndPlanIdAreRequired);
         }
 
         return repository.DeactivatePlanAsync(organizationId, id, cancellationToken);
@@ -78,7 +78,7 @@ public sealed class BillingCatalogUseCase(IBillingCatalogRepository repository)
     {
         if (organizationId == Guid.Empty || clientId == Guid.Empty || request.PlanId == Guid.Empty || request.StartsAt == default)
         {
-            throw new ArgumentException("OrganizationId, ClientId, PlanId and StartsAt are required.");
+            throw new ArgumentException(SystemMessages.OrganizationIdClientIdPlanIdAndStartsAtAreRequired);
         }
 
         var subscription = await repository.CreateSubscriptionAsync(new ClientPlanSubscription
@@ -101,7 +101,7 @@ public sealed class BillingCatalogUseCase(IBillingCatalogRepository repository)
     {
         if (organizationId == Guid.Empty)
         {
-            throw new ArgumentException("OrganizationId is required.");
+            throw new ArgumentException(SystemMessages.OrganizationIdIsRequired);
         }
 
         var subscriptions = await repository.ListSubscriptionsAsync(organizationId, page, pageSize, cancellationToken, clientId);
@@ -116,7 +116,7 @@ public sealed class BillingCatalogUseCase(IBillingCatalogRepository repository)
     {
         if (organizationId == Guid.Empty || id == Guid.Empty || request.EndsAt == default)
         {
-            throw new ArgumentException("OrganizationId, SubscriptionId and EndsAt are required.");
+            throw new ArgumentException(SystemMessages.OrganizationIdSubscriptionIdAndEndsAtAreRequired);
         }
 
         var subscription = await repository.CancelSubscriptionAsync(organizationId, id, request.EndsAt, cancellationToken);
@@ -130,12 +130,12 @@ public sealed class BillingCatalogUseCase(IBillingCatalogRepository repository)
     {
         if (organizationId == Guid.Empty)
         {
-            throw new ArgumentException("OrganizationId is required.");
+            throw new ArgumentException(SystemMessages.OrganizationIdIsRequired);
         }
 
         if (request.ReferenceMonth == default || request.ReferenceMonth.Day != 1)
         {
-            throw new ArgumentException("ReferenceMonth must be the first day of a month.");
+            throw new ArgumentException(SystemMessages.ReferenceMonthMustBeTheFirstDayOfAMonth);
         }
 
         var invoices = await repository.GenerateInvoicesAsync(organizationId, request.ReferenceMonth, cancellationToken);
@@ -146,22 +146,22 @@ public sealed class BillingCatalogUseCase(IBillingCatalogRepository repository)
     {
         if (organizationId == Guid.Empty)
         {
-            throw new ArgumentException("OrganizationId is required.");
+            throw new ArgumentException(SystemMessages.OrganizationIdIsRequired);
         }
 
         if (string.IsNullOrWhiteSpace(name) || name.Trim().Length > 120)
         {
-            throw new ArgumentException("Name is required and must not exceed 120 characters.");
+            throw new ArgumentException(SystemMessages.NameIsRequiredAndMustNotExceed120Characters);
         }
 
         if (monthlyAmount < 0 || dueDay is < 1 or > 28)
         {
-            throw new ArgumentException("MonthlyAmount must be non-negative and DueDay must be between 1 and 28.");
+            throw new ArgumentException(SystemMessages.MonthlyAmountMustBeNonNegativeAndDueDayMustBeBetween1And28);
         }
 
         if (description?.Length > 255)
         {
-            throw new ArgumentException("Description must not exceed 255 characters.");
+            throw new ArgumentException(SystemMessages.DescriptionMustNotExceed255Characters);
         }
     }
 

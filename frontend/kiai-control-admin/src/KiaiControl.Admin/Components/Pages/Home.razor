@@ -1,4 +1,4 @@
-﻿@page "/"
+@page "/"
 @inject AdminSession Session
 @inject AdminApiClient Api
 @inject NavigationManager Navigation
@@ -238,7 +238,7 @@
         catch (HttpRequestException)
         {
             _isLoading = false;
-            _errorMessage = "Não foi possível carregar os relatórios. Verifique se a API está disponível.";
+            _errorMessage = AdminSystemMessages.FailedToLoadReportsCheckApiAvailability;
         }
     }
 
@@ -246,7 +246,7 @@
     {
         if (_fromDate is null || _toDate is null)
         {
-            _errorMessage = "Informe as datas inicial e final do período.";
+            _errorMessage = AdminSystemMessages.PeriodStartAndEndDatesRequired;
             return;
         }
 
@@ -254,7 +254,7 @@
         var to = DateOnly.FromDateTime(_toDate.Value);
         if (to < from || to.DayNumber - from.DayNumber > 366)
         {
-            _errorMessage = "O período deve ser válido e não pode ultrapassar 367 dias.";
+            _errorMessage = AdminSystemMessages.PeriodMustBeValidAndAtMost367Days;
             return;
         }
 
@@ -287,7 +287,7 @@
         }
         catch (HttpRequestException)
         {
-            _errorMessage = "Não foi possível carregar os relatórios. Verifique se a API está disponível.";
+            _errorMessage = AdminSystemMessages.FailedToLoadReportsCheckApiAvailability;
         }
         finally
         {
@@ -322,7 +322,7 @@
         }
         catch (HttpRequestException)
         {
-            _errorMessage = "Não foi possível carregar o relatório de desempenho dos alunos.";
+            _errorMessage = AdminSystemMessages.FailedToLoadStudentPerformanceReport;
         }
         finally
         {

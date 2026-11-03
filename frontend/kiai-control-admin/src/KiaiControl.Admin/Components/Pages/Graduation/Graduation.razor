@@ -377,7 +377,7 @@
         }
         catch (HttpRequestException exception)
         {
-            _errorMessage = $"Não foi possível carregar os dados de graduação: {exception.Message}";
+            _errorMessage = string.Format(AdminSystemMessages.FailedToLoadGraduationData, exception.Message);
         }
         finally
         {
@@ -419,7 +419,7 @@
         }
         catch (HttpRequestException exception)
         {
-            _errorMessage = $"Não foi possível carregar níveis e elegibilidade: {exception.Message}";
+            _errorMessage = string.Format(AdminSystemMessages.FailedToLoadLevelsAndEligibility, exception.Message);
         }
         finally
         {
@@ -454,7 +454,7 @@
         }
         catch (HttpRequestException exception)
         {
-            _errorMessage = $"Não foi possível criar o sistema: {exception.Message}";
+            _errorMessage = string.Format(AdminSystemMessages.FailedToCreateGraduationSystem, exception.Message);
         }
         finally
         {
@@ -498,7 +498,7 @@
         }
         catch (HttpRequestException exception)
         {
-            _errorMessage = $"Não foi possível cadastrar a faixa: {exception.Message}";
+            _errorMessage = string.Format(AdminSystemMessages.FailedToCreateBelt, exception.Message);
         }
         finally
         {
@@ -540,7 +540,7 @@
         }
         catch (HttpRequestException exception)
         {
-            _errorMessage = $"Não foi possível adicionar o grau: {exception.Message}";
+            _errorMessage = string.Format(AdminSystemMessages.FailedToAddDegree, exception.Message);
         }
         finally
         {
@@ -562,7 +562,7 @@
         if (result is { Canceled: false })
         {
             await SelectSystemAsync(_selectedSystemId);
-            Snackbar.Add("Faixa atualizada.", Severity.Success);
+            Snackbar.Add(AdminSystemMessages.BeltUpdated, Severity.Success);
         }
     }
 
@@ -582,7 +582,7 @@
         {
             await Api.DeleteGraduationBeltAsync(_selectedSystemId.Value, belt.Id);
             await SelectSystemAsync(_selectedSystemId);
-            Snackbar.Add("Faixa excluída.", Severity.Success);
+            Snackbar.Add(AdminSystemMessages.BeltDeleted, Severity.Success);
         });
     }
 
@@ -600,7 +600,7 @@
         if (result is { Canceled: false })
         {
             await SelectSystemAsync(_selectedSystemId);
-            Snackbar.Add("Critérios do grau atualizados.", Severity.Success);
+            Snackbar.Add(AdminSystemMessages.DegreeCriteriaUpdated, Severity.Success);
         }
     }
 
@@ -620,7 +620,7 @@
         {
             await Api.DeleteGraduationDegreeAsync(_selectedSystemId.Value, degree.BeltId, degree.Id);
             await SelectSystemAsync(_selectedSystemId);
-            Snackbar.Add("Grau excluído.", Severity.Success);
+            Snackbar.Add(AdminSystemMessages.DegreeDeleted, Severity.Success);
         });
     }
 
@@ -651,7 +651,7 @@
     {
         if (SelectedSystem is null || _initialClientId is null || _initialLevelId is null || _initialGrantedAt is null)
         {
-            _errorMessage = "Selecione o aluno, o nível e a data da graduação.";
+            _errorMessage = AdminSystemMessages.StudentLevelAndGraduationDateRequired;
             return;
         }
 
@@ -675,7 +675,7 @@
         }
         catch (HttpRequestException exception)
         {
-            _errorMessage = $"Não foi possível registrar a graduação inicial: {exception.Message}";
+            _errorMessage = string.Format(AdminSystemMessages.FailedToRecordInitialGraduation, exception.Message);
         }
         finally
         {
@@ -693,7 +693,7 @@
         var nextLevel = _levels.FirstOrDefault(level => level.Id == client.NextLevelId);
         if (nextLevel is null)
         {
-            _errorMessage = "O próximo nível não foi encontrado. Atualize os níveis do sistema e tente novamente.";
+            _errorMessage = AdminSystemMessages.NextLevelNotFoundRefreshSystemLevels;
             return;
         }
 

@@ -25,7 +25,7 @@ public sealed class FitnessController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         var clientsTask = clientUseCase.ListAsync(organizationId, 1, 200, cancellationToken);
@@ -45,13 +45,13 @@ public sealed class FitnessController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
         {
             var goal = await fitnessUseCase.CreateAsync(organizationId, request, cancellationToken);
-            return goal is null ? NotFound("The client or modality is unavailable in this organization.")
+            return goal is null ? NotFound(SystemMessages.TheClientOrModalityIsUnavailableInThisOrganization)
                 : StatusCode(StatusCodes.Status201Created, goal);
         }
         catch (ArgumentException exception)
@@ -69,7 +69,7 @@ public sealed class FitnessController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         return Ok(await fitnessUseCase.ListAsync(organizationId, clientId, page, pageSize, cancellationToken));
@@ -83,14 +83,14 @@ public sealed class FitnessController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         var actorPersonId = Guid.TryParse(User.FindFirstValue("person_id"), out var personId) ? personId : (Guid?)null;
         try
         {
             var progress = await fitnessUseCase.RecordProgressAsync(organizationId, goalId, actorPersonId, request, cancellationToken);
-            return progress is null ? NotFound("The active fitness goal was not found in this organization.")
+            return progress is null ? NotFound(SystemMessages.TheActiveFitnessGoalWasNotFoundInThisOrganization)
                 : StatusCode(StatusCodes.Status201Created, progress);
         }
         catch (ArgumentException exception)
@@ -108,7 +108,7 @@ public sealed class FitnessController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
@@ -127,7 +127,7 @@ public sealed class FitnessController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         var canceled = await fitnessUseCase.CancelAsync(organizationId, goalId, cancellationToken);
@@ -139,7 +139,7 @@ public sealed class FitnessController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try

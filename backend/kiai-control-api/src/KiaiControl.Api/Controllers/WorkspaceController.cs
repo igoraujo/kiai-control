@@ -19,7 +19,7 @@ public sealed class WorkspaceController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         var activeTypes = await modalityUseCase.ListActiveTypesAsync(organizationId, cancellationToken);

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using KiaiControl.Admin.Components.Common;
 using KiaiControl.Contracts.Auth;
 using KiaiControl.Contracts.Audit;
 using KiaiControl.Contracts.Attendance;
@@ -36,7 +37,7 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
 
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<SessionTokenResponse>()
-            ?? throw new HttpRequestException("The API returned an empty session response.");
+            ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptySessionResponse);
     }
 
     public async Task<bool> ValidateRestoredSessionAsync()
@@ -68,7 +69,7 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
         using var response = await SendAuthorizedAsync(HttpMethod.Get,
             $"api/v1/reports/dashboard?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}");
         return await response.Content.ReadFromJsonAsync<DashboardReportResponse>()
-            ?? throw new HttpRequestException("The API returned an empty dashboard response.");
+            ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyDashboardResponse);
     }
 
     public Task<IReadOnlyList<ModalityResponse>> ListReportModalitiesAsync() =>
@@ -78,7 +79,7 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
     {
         using var response = await SendAuthorizedAsync(HttpMethod.Get, "api/v1/workspace/capabilities");
         return await response.Content.ReadFromJsonAsync<WorkspaceCapabilitiesResponse>()
-            ?? throw new HttpRequestException("The API returned empty workspace capabilities.");
+            ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyWorkspaceCapabilities);
     }
 
     public Task<IReadOnlyList<AttendanceReportRow>> GetAttendanceReportAsync(
@@ -93,7 +94,7 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
         using var response = await SendAuthorizedAsync(HttpMethod.Get,
             $"api/v1/reports/financial?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}");
         return await response.Content.ReadFromJsonAsync<FinancialReportResponse>()
-            ?? throw new HttpRequestException("The API returned an empty financial report response.");
+            ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyFinancialReportResponse);
     }
 
     public Task<IReadOnlyList<ClientPerformanceReportRow>> GetClientPerformanceReportAsync(
@@ -119,7 +120,7 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
     {
         using var response = await SendAuthorizedAsync(HttpMethod.Get, "api/v1/graduation/options");
         return await response.Content.ReadFromJsonAsync<GraduationOptionsResponse>()
-            ?? throw new HttpRequestException("The API returned empty graduation options.");
+            ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyGraduationOptions);
     }
 
     public Task<GraduationSystemResponse> CreateGraduationSystemAsync(CreateGraduationSystemRequest request) =>
@@ -189,7 +190,7 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
     {
         using var response = await SendAuthorizedAsync(HttpMethod.Get, "api/v1/fitness-goals/options");
         return await response.Content.ReadFromJsonAsync<FitnessOptionsResponse>()
-            ?? throw new HttpRequestException("The API returned empty fitness options.");
+            ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyFitnessOptions);
     }
 
     public Task<IReadOnlyList<FitnessGoalResponse>> ListFitnessGoalsAsync(
@@ -222,7 +223,7 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
     {
         using var response = await SendAuthorizedAsync(HttpMethod.Get, "api/v1/rankings/options");
         return await response.Content.ReadFromJsonAsync<RankingOptionsResponse>()
-            ?? throw new HttpRequestException("The API returned empty ranking options.");
+            ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyRankingOptions);
     }
 
     public Task<IReadOnlyList<RankingCycleResponse>> ListRankingCyclesAsync(int page = 1, int pageSize = 50) =>
@@ -244,7 +245,7 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
     {
         using var response = await SendAuthorizedAsync(HttpMethod.Post, $"api/v1/ranking-cycles/{cycleId}/recalculate");
         return await response.Content.ReadFromJsonAsync<List<RankingEntryResponse>>()
-            ?? throw new HttpRequestException("The API returned an empty ranking response.");
+            ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyRankingResponse);
     }
 
     public Task<IReadOnlyList<MedalResponse>> ListMedalsAsync() =>
@@ -269,7 +270,7 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
     {
         using var response = await SendAuthorizedAsync(HttpMethod.Get, "api/v1/notifications/options");
         return await response.Content.ReadFromJsonAsync<NotificationOptionsResponse>()
-            ?? throw new HttpRequestException("The API returned empty notification options.");
+            ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyNotificationOptions);
     }
 
     public Task<NotificationResponse> CreateNotificationAsync(CreateNotificationRequest request) =>
@@ -342,7 +343,7 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
     {
         using var response = await SendAuthorizedAsync(HttpMethod.Patch, $"api/v1/billing/subscriptions/{subscriptionId}/cancel", request);
         return await response.Content.ReadFromJsonAsync<ClientPlanSubscriptionResponse>()
-            ?? throw new HttpRequestException("A API retornou uma resposta vazia.");
+            ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyResponse);
     }
 
     public Task<IReadOnlyList<BillingResponse>> ListInvoicesAsync(int page = 1, int pageSize = 100) =>
@@ -361,7 +362,7 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
     {
         using var response = await SendAuthorizedAsync(HttpMethod.Post, $"api/v1/billing/{invoiceId}/payments", request);
         return await response.Content.ReadFromJsonAsync<PaymentResponse>()
-            ?? throw new HttpRequestException("A API retornou uma resposta vazia.");
+            ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyResponse);
     }
 
     public Task<IReadOnlyList<PaymentResponse>> ListPaymentsAsync(int page = 1, int pageSize = 100) =>
@@ -445,14 +446,14 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
     {
         using var response = await SendAuthorizedAsync(HttpMethod.Patch, $"api/v1/lessons/{lessonId}/cancel", request);
         return await response.Content.ReadFromJsonAsync<LessonResponse>()
-            ?? throw new HttpRequestException("A API retornou uma resposta vazia.");
+            ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyResponse);
     }
 
     public async Task<LessonResponse> RescheduleLessonAsync(Guid lessonId, RescheduleLessonRequest request)
     {
         using var response = await SendAuthorizedAsync(HttpMethod.Patch, $"api/v1/lessons/{lessonId}/reschedule", request);
         return await response.Content.ReadFromJsonAsync<LessonResponse>()
-            ?? throw new HttpRequestException("A API retornou uma resposta vazia.");
+            ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyResponse);
     }
 
     public async Task<IReadOnlyList<AttendanceRecordResponse>> GetLessonAttendanceAsync(Guid lessonId)
@@ -482,7 +483,7 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
     {
         using var response = await SendAuthorizedAsync(HttpMethod.Patch, $"api/v1/attendance/{attendanceId}/validate", new ValidateCheckInRequest { Status = status });
         return await response.Content.ReadFromJsonAsync<AttendanceRecordResponse>()
-            ?? throw new HttpRequestException("A API retornou uma resposta vazia.");
+            ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyResponse);
     }
 
     public async Task<AttendanceRecordResponse> CheckInAsync(Guid lessonId)
@@ -492,7 +493,7 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
             "api/v1/attendance/check-in",
             new CheckInRequest { LessonId = lessonId });
         return await response.Content.ReadFromJsonAsync<AttendanceRecordResponse>()
-            ?? throw new HttpRequestException("A API retornou uma resposta vazia.");
+            ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyResponse);
     }
 
     public async Task<IReadOnlyList<T>> ListAsync<T>(
@@ -511,7 +512,7 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
     {
         using var response = await SendAuthorizedAsync(HttpMethod.Get, requestUri);
         return await response.Content.ReadFromJsonAsync<List<T>>()
-            ?? throw new HttpRequestException("The API returned an empty list response.");
+            ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyListResponse);
     }
 
     private static string ModalityQuery(Guid? modalityId) =>
@@ -521,21 +522,21 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
     {
         using var response = await SendAuthorizedAsync(HttpMethod.Get, $"api/v1/{resource}");
         return await response.Content.ReadFromJsonAsync<T>()
-            ?? throw new HttpRequestException("A API retornou uma resposta vazia.");
+            ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyResponse);
     }
 
     public async Task<TResponse> CreateAsync<TRequest, TResponse>(string resource, TRequest body)
     {
         using var response = await SendAuthorizedAsync(HttpMethod.Post, $"api/v1/{resource}", body);
         return await response.Content.ReadFromJsonAsync<TResponse>()
-            ?? throw new HttpRequestException("A API retornou uma resposta vazia.");
+            ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyResponse);
     }
 
     public async Task<TResponse> UpdateAsync<TRequest, TResponse>(string resource, Guid id, TRequest body)
     {
         using var response = await SendAuthorizedAsync(HttpMethod.Put, $"api/v1/{resource}/{id}", body);
         return await response.Content.ReadFromJsonAsync<TResponse>()
-            ?? throw new HttpRequestException("A API retornou uma resposta vazia.");
+            ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyResponse);
     }
 
     public async Task PutAsync<TRequest>(string resource, TRequest body)
@@ -636,7 +637,7 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
             var detail = (await response.Content.ReadAsStringAsync()).Trim().Trim('"');
             var status = response.StatusCode;
             response.Dispose();
-            throw new HttpRequestException(string.IsNullOrWhiteSpace(detail) ? $"Erro {(int)status} ao chamar a API." : detail, null, status);
+            throw new HttpRequestException(string.IsNullOrWhiteSpace(detail) ? string.Format(AdminSystemMessages.ApiRequestFailed, (int)status) : detail, null, status);
         }
 
         return response;
@@ -686,7 +687,7 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
             }
 
             var refreshed = await response.Content.ReadFromJsonAsync<SessionTokenResponse>()
-                ?? throw new HttpRequestException("A API retornou uma sessão vazia ao renovar os tokens.");
+                ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptySessionDuringRefresh);
             await session.SetAsync(refreshed);
             return true;
         }

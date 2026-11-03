@@ -35,7 +35,7 @@ public sealed class AccessControlController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
@@ -68,7 +68,7 @@ public sealed class AccessControlController(
                 request.RoleCode,
                 User.IsInRole("owner"),
                 cancellationToken);
-            return assigned ? NoContent() : NotFound("Person or role was not found in this organization.");
+            return assigned ? NoContent() : NotFound(SystemMessages.PersonOrRoleWasNotFoundInThisOrganization);
         }
         catch (UnauthorizedAccessException)
         {
@@ -85,7 +85,7 @@ public sealed class AccessControlController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
@@ -115,7 +115,7 @@ public sealed class AccessControlController(
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
-            return BadRequest("Organization context is required.");
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
         try
@@ -149,7 +149,7 @@ public sealed class AccessControlController(
         {
             var granted = await accessControlUseCase.GrantRolePermissionAsync(
                 organizationId, roleCode, request.PermissionCode, actorUserId, cancellationToken);
-            return granted ? NoContent() : NotFound("Role or permission code was not found.");
+            return granted ? NoContent() : NotFound(SystemMessages.RoleOrPermissionCodeWasNotFound);
         }
         catch (ArgumentException exception)
         {
