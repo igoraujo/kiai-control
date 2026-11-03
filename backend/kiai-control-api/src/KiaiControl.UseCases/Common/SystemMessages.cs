@@ -21,6 +21,10 @@ public static class SystemMessages
     public const string CouldNotUpdatePassword = "Could not update password.";
     public const string CurrentPasswordAndNewPasswordAreRequired = "CurrentPassword and NewPassword are required.";
     public const string CurrentPasswordIsInvalid = "Current password is invalid.";
+    public const string AccountEmailIsInvalid = "O e-mail da conta é inválido.";
+    public const string AccountTemporaryPasswordMustHaveAtLeast12Characters = "A senha temporária deve ter pelo menos 12 caracteres.";
+    public const string OrganizationIdPersonIdAndActorUserIdAreRequired = "OrganizationId, PersonId and ActorUserId are required.";
+    public const string PersonAlreadyHasAnAccountOrEmailIsAlreadyInUse = "A pessoa selecionada já possui uma conta ou o e-mail informado está vinculado a outra conta. Se necessário, informe outro e-mail de acesso.";
     public const string DescriptionMustNotExceed255Characters = "Description must not exceed 255 characters.";
     public const string DescriptionMustNotExceed5000Characters = "Description must not exceed 5000 characters.";
     public const string DocumentContainsUnsupportedCharacters = "Document contains unsupported characters.";
@@ -59,8 +63,8 @@ public static class SystemMessages
     public const string OHorarioDeTerminoDeveSerPosteriorAoHorarioDeInicio = "O horário de término deve ser posterior ao horário de início.";
     public const string OneOrMoreBranchFieldsExceedTheirMaximumLength = "One or more branch fields exceed their maximum length.";
     public const string OneOrMoreOrganizationFieldsExceedTheirMaximumLength = "One or more organization fields exceed their maximum length.";
-    public const string OnlyAnOwnerCanGrantOwnerOrAdminRoles = "Only an owner can grant owner or admin roles.";
-    public const string OnlyAnOwnerCanRevokeOwnerOrAdminRoles = "Only an owner can revoke owner or admin roles.";
+    public const string OnlyAnOwnerCanGrantOwnerOrAdminRoles = "Somente o proprietário pode conceder os perfis de proprietário ou administrador.";
+    public const string OnlyAnOwnerCanRevokeOwnerOrAdminRoles = "Somente o proprietário pode remover os perfis de proprietário ou administrador.";
     public const string OrganizationIdAndActorUserIdAreRequired = "OrganizationId and ActorUserId are required.";
     public const string OrganizationIdAndAttendanceIdAreRequired = "OrganizationId and AttendanceId are required.";
     public const string OrganizationIdAndClientIdAreRequired = "OrganizationId and ClientId are required.";

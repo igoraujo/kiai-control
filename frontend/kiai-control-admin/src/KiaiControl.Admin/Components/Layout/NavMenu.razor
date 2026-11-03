@@ -11,11 +11,20 @@
         <MudAvatar Size="Size.Medium" Color="Color.Secondary" Variant="Variant.Filled">KC</MudAvatar>
         <div>
             <MudText Typo="Typo.subtitle1" Class="menu-title">Kiai Control</MudText>
-            <MudText Typo="Typo.caption" Class="menu-subtitle">Academia Central</MudText>
+            <MudText Typo="Typo.caption" Class="menu-subtitle">@(IsPlatformOwner ? "Administração da plataforma" : "Academia Central")</MudText>
         </div>
     </div>
 
     <MudDivider Class="menu-divider" />
+
+    @if (IsPlatformOwner)
+    {
+        <section class="menu-section">
+            <MudNavLink Href="/platform/organizations" Icon="@Icons.Material.Filled.Business">
+                Organizações
+            </MudNavLink>
+        </section>
+    }
 
     @if (HasPermission(PermissionCodes.ReportsRead))
     {
@@ -171,7 +180,7 @@
                 {
                     <MudNavLink Href="/audit" Icon="@Icons.Material.Filled.ManageSearch">Auditoria</MudNavLink>
                 }
-                @if (HasPermission(PermissionCodes.AccessPermissionsManage))
+                @if (HasPermission(PermissionCodes.AccessManage))
                 {
                     <MudNavLink Href="/access" Icon="@Icons.Material.Filled.AdminPanelSettings">Acesso e permissões</MudNavLink>
                 }
@@ -194,6 +203,9 @@
     private bool HasPermission(string permission) =>
         Session.Current?.User.Permissions.Contains(permission, StringComparer.OrdinalIgnoreCase) == true;
 
+    private bool IsPlatformOwner =>
+        Session.Current?.User.Roles.Contains("platform_owner", StringComparer.OrdinalIgnoreCase) == true;
+
     private bool HasSharedManagementLinks =>
         HasPermission(PermissionCodes.ClientsManage)
         || HasPermission(PermissionCodes.TeachersManage)
@@ -212,7 +224,7 @@
     private bool HasAdministrationLinks =>
         HasPermission(PermissionCodes.NotificationsRead)
         || CanReadAudit
-        || HasPermission(PermissionCodes.AccessPermissionsManage);
+        || HasPermission(PermissionCodes.AccessManage);
 
     private bool CanReadAudit =>
         HasPermission(PermissionCodes.AuditRead)
@@ -236,6 +248,11 @@
     protected override async Task OnInitializedAsync()
     {
         if (Session.Current is null)
+        {
+            return;
+        }
+
+        if (IsPlatformOwner)
         {
             return;
         }

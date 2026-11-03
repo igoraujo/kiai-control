@@ -2,6 +2,12 @@ namespace KiaiControl.Api.Common;
 
 public static class SystemMessages
 {
+    public const string ChangeTemporaryPasswordBeforeProceeding = "Troque sua senha temporária para continuar.";
+    public const string InitialPlatformOwnerNameMustNotExceed180Characters = "O nome do dono da plataforma não pode exceder 180 caracteres.";
+    public const string InitialPlatformOwnerPasswordMustHaveAtLeast12Characters = "A senha inicial do dono da plataforma deve ter pelo menos 12 caracteres.";
+    public const string PlatformOwnerConfigurationMustBeComplete = "Configure e-mail, nome e senha do dono da plataforma em conjunto.";
+    public const string PlatformOwnerEmailAlreadyBelongsToAnotherAccount = "O e-mail configurado para o dono da plataforma já pertence a outra conta.";
+    public const string PlatformOwnerWasAlreadyProvisionedWithAnotherEmail = "O dono da plataforma já foi provisionado com outro e-mail; altere a conta por um procedimento administrativo seguro.";
     public const string AAulaOAlunoOuAMatriculaAtivaNaoEstaDisponivelNestaOrganizacao = "A aula, o aluno ou a matrícula ativa não está disponível nesta organização.";
     public const string ABranchWithThisNameAlreadyExistsInTheOrganization = "A branch with this name already exists in the organization.";
     public const string AConnectionStringRedisDeveSerConfiguradaQuandoOProviderDeCacheForRedis = "A connection string Redis deve ser configurada quando o provider de cache for Redis.";

@@ -2,11 +2,66 @@ using Dapper;
 using KiaiControl.Core.Entities;
 using KiaiControl.Core.Interfaces;
 using KiaiControl.Repositories.Queries.Auth;
+using Npgsql;
 
 namespace KiaiControl.Repositories.Implementations;
 
 public sealed class SqlAccessControlRepository(IDbConnectionFactory dbConnectionFactory) : IAccessControlRepository
 {
+    public async Task<IReadOnlyList<UserAccountCandidate>> ListPeopleWithoutAccountsAsync(
+        Guid organizationId,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
+        var candidates = await connection.QueryAsync<UserAccountCandidate>(
+            AccessControlQueries.ListPeopleWithoutAccounts,
+            new { OrganizationId = organizationId });
+        return candidates.ToList();
+    }
+
+    public async Task<bool> CreateUserAccountAsync(
+        Guid organizationId,
+        Guid personId,
+        string email,
+        string passwordHash,
+        string roleCode,
+        Guid grantedByUserId,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
+        using var transaction = connection.BeginTransaction();
+        try
+        {
+            var createdPersonId = await connection.QuerySingleOrDefaultAsync<Guid?>(
+                AccessControlQueries.CreateUserAccount,
+                new
+                {
+                    OrganizationId = organizationId,
+                    PersonId = personId,
+                    Email = email,
+                    PasswordHash = passwordHash,
+                    RoleCode = roleCode,
+                    GrantedByUserId = grantedByUserId,
+                    UserId = Guid.NewGuid()
+                },
+                transaction);
+
+            if (createdPersonId is null)
+            {
+                transaction.Rollback();
+                return false;
+            }
+
+            transaction.Commit();
+            return true;
+        }
+        catch (PostgresException exception) when (exception.SqlState == PostgresErrorCodes.UniqueViolation)
+        {
+            transaction.Rollback();
+            return false;
+        }
+    }
+
     public async Task<IReadOnlyList<Role>> ListRolesAsync(CancellationToken cancellationToken = default)
     {
         using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);

@@ -11,6 +11,7 @@ using KiaiControl.Contracts.Graduation;
 using KiaiControl.Contracts.Lessons;
 using KiaiControl.Contracts.Modalities;
 using KiaiControl.Contracts.Notifications;
+using KiaiControl.Contracts.Organizations;
 using KiaiControl.Contracts.Ranking;
 using KiaiControl.Contracts.Reports;
 using KiaiControl.Contracts.Teachers;
@@ -38,6 +39,28 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<SessionTokenResponse>()
             ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptySessionResponse);
+    }
+
+    public async Task ChangePasswordAsync(string currentPassword, string newPassword)
+    {
+        using var response = await SendAuthorizedAsync(HttpMethod.Post, "api/v1/auth/change-password", new ChangePasswordRequest
+        {
+            CurrentPassword = currentPassword,
+            NewPassword = newPassword
+        });
+    }
+
+    public async Task<IReadOnlyList<OrganizationResponse>> ListPlatformOrganizationsAsync()
+    {
+        using var response = await SendAuthorizedAsync(HttpMethod.Get, "api/v1/platform/organizations");
+        return await response.Content.ReadFromJsonAsync<List<OrganizationResponse>>() ?? [];
+    }
+
+    public async Task<OrganizationRegistrationResponse> RegisterPlatformOrganizationAsync(RegisterOrganizationRequest request)
+    {
+        using var response = await SendAuthorizedAsync(HttpMethod.Post, "api/v1/platform/organizations", request);
+        return await response.Content.ReadFromJsonAsync<OrganizationRegistrationResponse>()
+            ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyResponse);
     }
 
     public async Task<bool> ValidateRestoredSessionAsync()
@@ -375,6 +398,22 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
     {
         using var response = await SendAuthorizedAsync(HttpMethod.Get, "api/v1/access/roles");
         return await response.Content.ReadFromJsonAsync<List<RoleResponse>>() ?? [];
+    }
+
+    public async Task<IReadOnlyList<UserAccountCandidateResponse>> ListPeopleWithoutAccountsAsync()
+    {
+        using var response = await SendAuthorizedAsync(HttpMethod.Get, "api/v1/access/people/without-account");
+        return await response.Content.ReadFromJsonAsync<List<UserAccountCandidateResponse>>() ?? [];
+    }
+
+    public async Task<UserAccountResponse> CreateUserAccountAsync(Guid personId, CreateUserAccountRequest request)
+    {
+        using var response = await SendAuthorizedAsync(
+            HttpMethod.Post,
+            $"api/v1/access/people/{personId}/account",
+            request);
+        return await response.Content.ReadFromJsonAsync<UserAccountResponse>()
+            ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyResponse);
     }
 
     public async Task<IReadOnlyList<PermissionResponse>> ListAccessPermissionsAsync()

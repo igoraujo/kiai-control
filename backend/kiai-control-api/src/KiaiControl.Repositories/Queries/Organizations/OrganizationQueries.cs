@@ -18,8 +18,10 @@ public static class OrganizationQueries
             from inserted_organization
             returning id, organization_id
         ), inserted_account as (
-            insert into user_accounts (id, person_id, email, password_hash, is_active, created_at)
-            select @OwnerUserId, id, @OwnerEmail, @OwnerPasswordHash, true, @CreatedAt
+            insert into user_accounts (
+                id, person_id, email, password_hash, is_active, must_change_password, created_at
+            )
+            select @OwnerUserId, id, @OwnerEmail, @OwnerPasswordHash, true, true, @CreatedAt
             from inserted_person
             returning id, person_id
         ), assigned_owner_role as (
@@ -60,6 +62,24 @@ public static class OrganizationQueries
             updated_at as UpdatedAt
         from organizations
         where id = @OrganizationId and deleted_at is null;
+        ";
+
+    public const string List = @"
+        select
+            id,
+            name,
+            trade_name as TradeName,
+            document,
+            email,
+            phone,
+            status::text as Status,
+            created_at as CreatedAt,
+            updated_at as UpdatedAt
+        from organizations
+        where deleted_at is null
+          and id <> 'da6ad84c-d663-47a8-b3ae-f3abcf7f1020'
+        order by created_at desc
+        limit 500;
         ";
 
     public const string Update = @"

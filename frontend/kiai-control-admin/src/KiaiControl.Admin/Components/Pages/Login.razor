@@ -1,5 +1,6 @@
 @page "/login"
 @layout Layout.LoginLayout
+@using KiaiControl.Contracts.Auth
 @inject AdminSession Session
 @inject AdminApiClient Api
 @inject NavigationManager Navigation
@@ -44,6 +45,22 @@
     {
         if (Session.Current is not null)
         {
+            NavigateAfterLogin(Session.Current);
+        }
+    }
+
+    private void NavigateAfterLogin(SessionTokenResponse session)
+    {
+        if (session.User.MustChangePassword)
+        {
+            Navigation.NavigateTo("/change-password");
+        }
+        else if (session.User.Roles.Contains("platform_owner", StringComparer.OrdinalIgnoreCase))
+        {
+            Navigation.NavigateTo("/platform/organizations");
+        }
+        else
+        {
             Navigation.NavigateTo("/");
         }
     }
@@ -57,7 +74,7 @@
         {
             var session = await Api.LoginAsync(_form.Email, _form.Password);
             await Session.SetAsync(session);
-            Navigation.NavigateTo("/");
+            NavigateAfterLogin(session);
         }
         catch (UnauthorizedAccessException)
         {

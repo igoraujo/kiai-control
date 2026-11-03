@@ -54,6 +54,8 @@ public sealed class AuthUserProfileResponse
     public IReadOnlyList<string> Roles { get; init; } = [];
 
     public IReadOnlyList<string> Permissions { get; init; } = [];
+
+    public bool MustChangePassword { get; init; }
 }
 
 public sealed class SessionTokenResponse

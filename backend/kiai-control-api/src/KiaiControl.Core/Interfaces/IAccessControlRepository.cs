@@ -4,6 +4,19 @@ namespace KiaiControl.Core.Interfaces;
 
 public interface IAccessControlRepository
 {
+    Task<IReadOnlyList<UserAccountCandidate>> ListPeopleWithoutAccountsAsync(
+        Guid organizationId,
+        CancellationToken cancellationToken = default);
+
+    Task<bool> CreateUserAccountAsync(
+        Guid organizationId,
+        Guid personId,
+        string email,
+        string passwordHash,
+        string roleCode,
+        Guid grantedByUserId,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<Role>> ListRolesAsync(CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<Permission>> ListPermissionsAsync(CancellationToken cancellationToken = default);

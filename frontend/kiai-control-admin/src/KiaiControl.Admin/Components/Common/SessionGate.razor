@@ -1,6 +1,7 @@
 @inject AdminSession Session
 @inject AdminApiClient Api
 @inject ILogger<SessionGate> Logger
+@inject NavigationManager Navigation
 
 @if (_isInitialized)
 {
@@ -28,16 +29,26 @@ else
         await Session.InitializeAsync();
         if (Session.Current is not null)
         {
-            try
+            if (Session.Current.User.MustChangePassword)
             {
-                if (!await Api.ValidateRestoredSessionAsync())
+                if (!Navigation.Uri.EndsWith("/change-password", StringComparison.OrdinalIgnoreCase))
                 {
-                    await Session.ClearAsync();
+                    Navigation.NavigateTo("/change-password", replace: true);
                 }
             }
-            catch (HttpRequestException exception)
+            else
             {
-                Logger.LogWarning(exception, "Could not validate the restored admin session because the API is unavailable.");
+                try
+                {
+                    if (!await Api.ValidateRestoredSessionAsync())
+                    {
+                        await Session.ClearAsync();
+                    }
+                }
+                catch (HttpRequestException exception)
+                {
+                    Logger.LogWarning(exception, "Could not validate the restored admin session because the API is unavailable.");
+                }
             }
         }
 

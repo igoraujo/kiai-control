@@ -39,7 +39,7 @@ public sealed class AccessControlPageTests
 
         var page = context.Render<AccessControl>();
 
-        Assert.Contains("Seu perfil não pode administrar permissões de roles.", page.Markup);
+        Assert.Contains("Seu perfil não pode administrar contas de acesso.", page.Markup);
         Assert.Empty(handler.Requests);
     }
 
@@ -48,7 +48,7 @@ public sealed class AccessControlPageTests
     {
         await using var context = new BunitContext();
         context.Services.AddMudServices();
-        var session = CreateSession(PermissionCodes.AccessPermissionsManage);
+        var session = CreateSession(PermissionCodes.AccessManage, PermissionCodes.AccessPermissionsManage);
         var handler = new RecordingHttpMessageHandler(request =>
         {
             var path = request.RequestUri!.AbsolutePath;
@@ -57,7 +57,12 @@ public sealed class AccessControlPageTests
                 return JsonResponse(new[] { new RoleResponse { Code = "owner", Name = "Proprietário" } });
             }
 
-            if (path.EndsWith("/permissions", StringComparison.Ordinal))
+            if (path.EndsWith("/people/without-account", StringComparison.Ordinal))
+            {
+                return JsonResponse(Array.Empty<UserAccountCandidateResponse>());
+            }
+
+            if (path.EndsWith("/access/permissions", StringComparison.Ordinal))
             {
                 return JsonResponse(new[] { new PermissionResponse { Code = PermissionCodes.BillingManage, Name = "Gerenciar financeiro" } });
             }
@@ -73,7 +78,7 @@ public sealed class AccessControlPageTests
             Assert.Contains("Gerenciar financeiro", page.Markup);
             Assert.Contains("As permissões do owner são fixas.", page.Markup);
         });
-        Assert.Equal(3, handler.Requests.Count);
+        Assert.Equal(4, handler.Requests.Count);
     }
 
     [Fact]
@@ -81,7 +86,7 @@ public sealed class AccessControlPageTests
     {
         await using var context = new BunitContext();
         context.Services.AddMudServices();
-        var session = CreateSession(PermissionCodes.AccessPermissionsManage);
+        var session = CreateSession(PermissionCodes.AccessManage, PermissionCodes.AccessPermissionsManage);
         var responseSource = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
         var requestNumber = 0;
         var handler = new RecordingHttpMessageHandler(_ =>
@@ -95,7 +100,7 @@ public sealed class AccessControlPageTests
         Assert.Contains("mud-progress-linear", page.Markup);
         responseSource.SetResult(new HttpResponseMessage(HttpStatusCode.OK)
         {
-            Content = JsonContent.Create(Array.Empty<RoleResponse>())
+            Content = JsonContent.Create(new[] { new RoleResponse { Code = "owner", Name = "Proprietário" } })
         });
         page.WaitForAssertion(() => Assert.Contains("Nenhuma permissão cadastrada.", page.Markup));
     }
@@ -105,7 +110,7 @@ public sealed class AccessControlPageTests
     {
         await using var context = new BunitContext();
         context.Services.AddMudServices();
-        var session = CreateSession(PermissionCodes.AccessPermissionsManage);
+        var session = CreateSession(PermissionCodes.AccessManage, PermissionCodes.AccessPermissionsManage);
         var handler = new RecordingHttpMessageHandler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.Forbidden)
         {
             Content = new StringContent("Acesso negado")
@@ -117,7 +122,7 @@ public sealed class AccessControlPageTests
         page.WaitForAssertion(() => Assert.Contains("Acesso negado", page.Markup));
     }
 
-    private static AdminSession CreateSession(string permission)
+    private static AdminSession CreateSession(params string[] permissions)
     {
         var session = new AdminSession();
         session.SetAsync(new SessionTokenResponse
@@ -132,7 +137,7 @@ public sealed class AccessControlPageTests
                 OrganizationId = Guid.NewGuid(),
                 Email = "admin@example.test",
                 Roles = ["owner"],
-                Permissions = [permission]
+                Permissions = permissions
             }
         }).GetAwaiter().GetResult();
         return session;

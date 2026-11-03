@@ -22,6 +22,52 @@ public sealed class AccessControlController(
         return Ok(await accessControlUseCase.ListRolesAsync(cancellationToken));
     }
 
+    [HttpGet("people/without-account")]
+    public async Task<ActionResult<IReadOnlyList<UserAccountCandidateResponse>>> ListPeopleWithoutAccountsAsync(
+        CancellationToken cancellationToken)
+    {
+        if (organizationContext.OrganizationId is not Guid organizationId)
+        {
+            return BadRequest(SystemMessages.OrganizationContextIsRequired);
+        }
+
+        return Ok(await accessControlUseCase.ListPeopleWithoutAccountsAsync(organizationId, cancellationToken));
+    }
+
+    [HttpPost("people/{personId:guid}/account")]
+    public async Task<ActionResult<UserAccountResponse>> CreateUserAccountAsync(
+        Guid personId,
+        [FromBody] CreateUserAccountRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (organizationContext.OrganizationId is not Guid organizationId || !TryGetUserId(out var actorUserId))
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            var account = await accessControlUseCase.CreateUserAccountAsync(
+                organizationId,
+                personId,
+                actorUserId,
+                request,
+                User.IsInRole("owner"),
+                cancellationToken);
+            return account is null
+                ? Conflict(KiaiControl.UseCases.Common.SystemMessages.PersonAlreadyHasAnAccountOrEmailIsAlreadyInUse)
+                : StatusCode(StatusCodes.Status201Created, account);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(exception.Message);
+        }
+    }
+
     [HttpGet("permissions")]
     [Authorize(Roles = "owner")]
     [Authorize(Policy = PermissionCodes.AccessPermissionsManage)]

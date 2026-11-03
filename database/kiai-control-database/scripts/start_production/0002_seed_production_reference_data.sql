@@ -1,7 +1,7 @@
 -- Dados globais do sistema: perfis, permissões e concessões padrão.
 -- Idempotente: pode ser executado novamente sem duplicar registros.
--- Não cria organização ou usuário/senha padrão. Crie o primeiro proprietário
--- pelo fluxo de cadastro da organização ou por um procedimento seguro de onboarding.
+-- Não cria organização ou usuário/senha padrão. O dono global é provisionado
+-- pela configuração segura da API; ele cadastra as organizações pelo painel.
 
 begin;
 

@@ -135,7 +135,8 @@ public sealed class AuthUseCase(
             OrganizationId = user.OrganizationId,
             Email = user.Email,
             Roles = user.Roles,
-            Permissions = user.Permissions
+            Permissions = user.Permissions,
+            MustChangePassword = user.MustChangePassword
         };
     }
 
@@ -254,7 +255,8 @@ public sealed class AuthUseCase(
                 OrganizationId = user.OrganizationId,
                 Email = user.Email,
                 Roles = user.Roles,
-                Permissions = user.Permissions
+                Permissions = user.Permissions,
+                MustChangePassword = user.MustChangePassword
             }
         };
 

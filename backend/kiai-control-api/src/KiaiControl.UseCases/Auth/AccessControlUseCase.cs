@@ -1,9 +1,10 @@
+using System.Net.Mail;
 using KiaiControl.Contracts.Auth;
 using KiaiControl.Core.Interfaces;
 
 namespace KiaiControl.UseCases.Auth;
 
-public sealed class AccessControlUseCase(IAccessControlRepository repository)
+public sealed class AccessControlUseCase(IAccessControlRepository repository, IPasswordHasher passwordHasher)
 {
     private static readonly HashSet<string> RoleCodes = new(StringComparer.Ordinal)
     {
@@ -20,6 +21,77 @@ public sealed class AccessControlUseCase(IAccessControlRepository repository)
             Name = role.Name,
             Description = role.Description
         }).ToList();
+    }
+
+    public async Task<IReadOnlyList<UserAccountCandidateResponse>> ListPeopleWithoutAccountsAsync(
+        Guid organizationId,
+        CancellationToken cancellationToken)
+    {
+        if (organizationId == Guid.Empty)
+        {
+            throw new ArgumentException(SystemMessages.OrganizationIdIsRequired);
+        }
+
+        var candidates = await repository.ListPeopleWithoutAccountsAsync(organizationId, cancellationToken);
+        return candidates.Select(person => new UserAccountCandidateResponse
+        {
+            PersonId = person.PersonId,
+            FullName = person.FullName,
+            Email = person.Email
+        }).ToList();
+    }
+
+    public async Task<UserAccountResponse?> CreateUserAccountAsync(
+        Guid organizationId,
+        Guid personId,
+        Guid actorUserId,
+        CreateUserAccountRequest request,
+        bool actorIsOwner,
+        CancellationToken cancellationToken)
+    {
+        if (organizationId == Guid.Empty || personId == Guid.Empty || actorUserId == Guid.Empty)
+        {
+            throw new ArgumentException(SystemMessages.OrganizationIdPersonIdAndActorUserIdAreRequired);
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Email) || request.Email.Trim().Length > 160)
+        {
+            throw new ArgumentException(SystemMessages.AccountEmailIsInvalid);
+        }
+
+        try
+        {
+            _ = new MailAddress(request.Email.Trim());
+        }
+        catch (FormatException)
+        {
+            throw new ArgumentException(SystemMessages.AccountEmailIsInvalid);
+        }
+
+        if (string.IsNullOrWhiteSpace(request.TemporaryPassword) || request.TemporaryPassword.Length < 12)
+        {
+            throw new ArgumentException(SystemMessages.AccountTemporaryPasswordMustHaveAtLeast12Characters);
+        }
+
+        var roleCode = NormalizeRoleCode(request.RoleCode);
+        if (!actorIsOwner && roleCode is "owner" or "admin")
+        {
+            throw new UnauthorizedAccessException(SystemMessages.OnlyAnOwnerCanGrantOwnerOrAdminRoles);
+        }
+
+        var email = request.Email.Trim().ToLowerInvariant();
+        var created = await repository.CreateUserAccountAsync(
+            organizationId,
+            personId,
+            email,
+            passwordHasher.Hash(request.TemporaryPassword),
+            roleCode,
+            actorUserId,
+            cancellationToken);
+
+        return created
+            ? new UserAccountResponse { PersonId = personId, Email = email, RoleCode = roleCode }
+            : null;
     }
 
     public async Task<IReadOnlyList<PermissionResponse>> ListPermissionsAsync(CancellationToken cancellationToken)

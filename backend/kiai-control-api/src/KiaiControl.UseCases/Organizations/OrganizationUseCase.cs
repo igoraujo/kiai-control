@@ -55,6 +55,12 @@ public sealed class OrganizationUseCase(IOrganizationRepository organizationRepo
         return organization is null ? null : ToResponse(organization);
     }
 
+    public async Task<IReadOnlyList<OrganizationResponse>> ListAsync(CancellationToken cancellationToken)
+    {
+        var organizations = await organizationRepository.ListAsync(cancellationToken);
+        return organizations.Select(ToResponse).ToList();
+    }
+
     public async Task<OrganizationResponse?> UpdateAsync(
         Guid organizationId,
         UpdateOrganizationRequest request,

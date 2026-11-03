@@ -2,6 +2,7 @@ using System.Text;
 using System.Threading.RateLimiting;
 using KiaiControl.Contracts.Auth;
 using KiaiControl.Api.Configuration;
+using KiaiControl.Api.Services;
 using KiaiControl.Core.Common;
 using KiaiControl.Repositories.DependencyInjection;
 using KiaiControl.Services.DependencyInjection;
@@ -29,6 +30,7 @@ public static class ServiceCollectionExtensions
 
         services.Configure<CacheOptions>(configuration.GetSection(CacheOptions.SectionName));
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
+        services.Configure<PlatformOwnerOptions>(configuration.GetSection(PlatformOwnerOptions.SectionName));
         services.AddHttpContextAccessor();
         services.AddProblemDetails();
         services.AddControllers();
@@ -58,6 +60,7 @@ public static class ServiceCollectionExtensions
                 }));
         });
         services.AddScoped<OrganizationContext>();
+        services.AddScoped<PlatformOwnerBootstrapper>();
 
         jwtOptions.Validate();
         var signingKey = jwtOptions.ResolveSigningKey(environment.IsDevelopment());

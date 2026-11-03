@@ -13,5 +13,7 @@ public interface IOrganizationRepository
 
     Task<Organization?> GetByIdAsync(Guid organizationId, CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<Organization>> ListAsync(CancellationToken cancellationToken = default);
+
     Task<Organization?> UpdateAsync(Organization organization, CancellationToken cancellationToken = default);
 }

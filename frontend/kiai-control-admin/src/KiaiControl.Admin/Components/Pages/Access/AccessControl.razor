@@ -20,10 +20,10 @@
         <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">@_errorMessage</MudAlert>
     }
 
-    @if (!_hasPermission)
+    @if (!_canManageAccounts)
     {
         <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">
-            Seu perfil não pode administrar permissões de roles.
+            Seu perfil não pode administrar contas de acesso.
         </MudAlert>
     }
     else if (_isLoading)
@@ -32,57 +32,132 @@
     }
     else
     {
-        <MudStack Row="true" Spacing="3" AlignItems="AlignItems.Center">
-            <MudSelect T="string" Value="@_selectedRoleCode" ValueChanged="SelectRoleAsync"
-                       Label="Role" Variant="Variant.Outlined" Dense="true" Style="max-width: 320px">
-                @foreach (var role in _roles)
+        <MudPaper Class="pa-4" Outlined="true">
+            <MudStack Spacing="3">
+                <MudText Typo="Typo.h6">Criar acesso para uma pessoa</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    A pessoa receberá uma senha temporária e deverá alterá-la no primeiro acesso.
+                </MudText>
+                <MudGrid>
+                    <MudItem xs="12" md="6">
+                        <MudSelect T="Guid?" Value="_selectedPersonId" ValueChanged="SelectPerson"
+                                   Label="Pessoa" Variant="Variant.Outlined"
+                                   Dense="true" Disabled="@(_peopleWithoutAccounts.Count == 0)">
+                            @foreach (var person in _peopleWithoutAccounts)
+                            {
+                                <MudSelectItem T="Guid?" Value="@((Guid?)person.PersonId)">
+                                    @person.FullName@(string.IsNullOrWhiteSpace(person.Email) ? "" : $" — {person.Email}")
+                                </MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField T="string" @bind-Value="_accountEmail" Label="E-mail de acesso"
+                                      Variant="Variant.Outlined" InputType="InputType.Email" />
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            O e-mail de acesso deve ser exclusivo e não pode estar vinculado a outra conta na plataforma.
+                        </MudText>
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudSelect T="string" @bind-Value="_accountRoleCode" Label="Perfil de acesso"
+                                   Variant="Variant.Outlined" Dense="true">
+                            @foreach (var role in AssignableRoles)
+                            {
+                                <MudSelectItem Value="@role.Code">@role.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField T="string" @bind-Value="_temporaryPassword" Label="Senha temporária"
+                                      Variant="Variant.Outlined" InputType="InputType.Password"
+                                      autocomplete="new-password" />
+                    </MudItem>
+                </MudGrid>
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateAccountAsync"
+                               Disabled="@(_isSaving || _selectedPersonId is null || string.IsNullOrWhiteSpace(_accountEmail) || string.IsNullOrWhiteSpace(_accountRoleCode) || string.IsNullOrWhiteSpace(_temporaryPassword))">
+                        Criar acesso
+                    </MudButton>
+                    @if (_peopleWithoutAccounts.Count == 0)
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">Todas as pessoas cadastradas já possuem acesso.</MudText>
+                    }
+                </MudStack>
+            </MudStack>
+        </MudPaper>
+
+        @if (_canManagePermissions)
+        {
+            <MudDivider />
+            <MudText Typo="Typo.h6">Permissões por perfil</MudText>
+            <MudStack Row="true" Spacing="3" AlignItems="AlignItems.Center">
+                <MudSelect T="string" Value="@_selectedRoleCode" ValueChanged="SelectRoleAsync"
+                           Label="Perfil" Variant="Variant.Outlined" Dense="true" Style="max-width: 320px">
+                    @foreach (var role in _roles)
+                    {
+                        <MudSelectItem Value="@role.Code">@role.Name (@role.Code)</MudSelectItem>
+                    }
+                </MudSelect>
+                @if (_selectedRoleCode == "owner")
                 {
-                    <MudSelectItem Value="@role.Code">@role.Name (@role.Code)</MudSelectItem>
+                    <MudText Color="Color.Secondary">As permissões do owner são fixas.</MudText>
                 }
-            </MudSelect>
-            @if (_selectedRoleCode == "owner")
-            {
-                <MudText Color="Color.Secondary">As permissões do owner são fixas.</MudText>
-            }
-        </MudStack>
+            </MudStack>
 
-        <MudDivider />
+            <MudTable Items="@FilteredPermissions" Dense="true" Hover="true" Elevation="0">
+                <HeaderContent>
+                    <MudTh>Permissão</MudTh>
+                    <MudTh>Código</MudTh>
+                    <MudTh>Concedida</MudTh>
+                </HeaderContent>
+                <RowTemplate Context="permission">
+                    <MudTd DataLabel="Permissão">@permission.Name</MudTd>
+                    <MudTd DataLabel="Código">@permission.Code</MudTd>
+                    <MudTd DataLabel="Concedida">
+                        <MudCheckBox T="bool"
+                                     Value="@IsGranted(permission.Code)"
+                                     ValueChanged="@(value => SetPermissionAsync(permission.Code, value))"
+                                     Disabled="@(_isSaving || _selectedRoleCode == "owner")"
+                                     Color="Color.Primary" />
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudText>Nenhuma permissão cadastrada.</MudText>
+                </NoRecordsContent>
+            </MudTable>
+        }
 
-        <MudTable Items="@FilteredPermissions" Dense="true" Hover="true" Elevation="0">
-            <HeaderContent>
-                <MudTh>Permissão</MudTh>
-                <MudTh>Código</MudTh>
-                <MudTh>Concedida</MudTh>
-            </HeaderContent>
-            <RowTemplate Context="permission">
-                <MudTd DataLabel="Permissão">@permission.Name</MudTd>
-                <MudTd DataLabel="Código">@permission.Code</MudTd>
-                <MudTd DataLabel="Concedida">
-                    <MudCheckBox T="bool"
-                                 Value="@IsGranted(permission.Code)"
-                                 ValueChanged="@(value => SetPermissionAsync(permission.Code, value))"
-                                 Disabled="@(_isSaving || _selectedRoleCode == "owner")"
-                                 Color="Color.Primary" />
-                </MudTd>
-            </RowTemplate>
-            <NoRecordsContent>
-                <MudText>Nenhuma permissão cadastrada.</MudText>
-            </NoRecordsContent>
-        </MudTable>
     }
 </MudStack>
 
 @code {
     private IReadOnlyList<RoleResponse> _roles = [];
     private IReadOnlyList<PermissionResponse> _permissions = [];
+    private IReadOnlyList<UserAccountCandidateResponse> _peopleWithoutAccounts = [];
     private HashSet<string> _grantedPermissions = new(StringComparer.OrdinalIgnoreCase);
     private string? _selectedRoleCode;
+    private string? _accountRoleCode;
+    private Guid? _selectedPersonId;
+    private string _accountEmail = string.Empty;
+    private string _temporaryPassword = string.Empty;
     private string? _errorMessage;
     private bool _isLoading = true;
     private bool _isSaving;
-    private bool _hasPermission;
+    private bool _canManageAccounts;
+    private bool _canManagePermissions;
 
     private IEnumerable<PermissionResponse> FilteredPermissions => _permissions;
+    private IEnumerable<RoleResponse> AssignableRoles => _roles.Where(role =>
+        role.Code != "platform_owner"
+        && (Session.Current?.User.Roles.Contains("owner", StringComparer.OrdinalIgnoreCase) == true
+            || role.Code is not ("owner" or "admin")));
+
+    private void SelectPerson(Guid? personId)
+    {
+        _selectedPersonId = personId;
+        var selectedPerson = _peopleWithoutAccounts.FirstOrDefault(person => person.PersonId == personId);
+        _accountEmail = selectedPerson?.Email ?? string.Empty;
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -92,10 +167,13 @@
             return;
         }
 
-        _hasPermission = Session.Current.User.Permissions.Contains(
+        _canManageAccounts = Session.Current.User.Permissions.Contains(
+            PermissionCodes.AccessManage,
+            StringComparer.OrdinalIgnoreCase);
+        _canManagePermissions = Session.Current.User.Permissions.Contains(
             PermissionCodes.AccessPermissionsManage,
             StringComparer.OrdinalIgnoreCase);
-        if (_hasPermission)
+        if (_canManageAccounts)
         {
             await LoadAsync();
         }
@@ -112,14 +190,26 @@
         try
         {
             _roles = await Api.ListAccessRolesAsync();
-            _permissions = await Api.ListAccessPermissionsAsync();
-            _selectedRoleCode ??= _roles.FirstOrDefault(role => role.Code == "admin")?.Code
-                ?? _roles.FirstOrDefault()?.Code;
-            if (_selectedRoleCode is not null)
+            _peopleWithoutAccounts = await Api.ListPeopleWithoutAccountsAsync();
+            if (_selectedPersonId is null
+                || _peopleWithoutAccounts.All(person => person.PersonId != _selectedPersonId))
             {
-                await LoadSelectedRolePermissionsAsync();
+                SelectPerson(_peopleWithoutAccounts.FirstOrDefault()?.PersonId);
+            }
+
+            _accountRoleCode ??= AssignableRoles.FirstOrDefault()?.Code;
+            if (_canManagePermissions)
+            {
+                _permissions = await Api.ListAccessPermissionsAsync();
+                _selectedRoleCode ??= _roles.FirstOrDefault(role => role.Code == "admin")?.Code
+                    ?? _roles.FirstOrDefault()?.Code;
+                if (_selectedRoleCode is not null)
+                {
+                    await LoadSelectedRolePermissionsAsync();
+                }
             }
         }
+
         catch (UnauthorizedAccessException)
         {
             await Session.ClearAsync();
@@ -132,6 +222,46 @@
         finally
         {
             _isLoading = false;
+        }
+    }
+
+    private async Task CreateAccountAsync()
+    {
+        if (_selectedPersonId is not Guid personId || _isSaving)
+        {
+            return;
+        }
+
+        _isSaving = true;
+        _errorMessage = null;
+        try
+        {
+            var account = await Api.CreateUserAccountAsync(personId, new CreateUserAccountRequest
+            {
+                Email = _accountEmail,
+                TemporaryPassword = _temporaryPassword,
+                RoleCode = _accountRoleCode ?? string.Empty
+            });
+            _peopleWithoutAccounts = _peopleWithoutAccounts
+                .Where(person => person.PersonId != account.PersonId)
+                .ToArray();
+            _selectedPersonId = _peopleWithoutAccounts.FirstOrDefault()?.PersonId;
+            _accountEmail = string.Empty;
+            _temporaryPassword = string.Empty;
+            Snackbar.Add($"Acesso criado para {account.Email}. A senha temporária deve ser entregue com segurança.", Severity.Success);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await Session.ClearAsync();
+            Navigation.NavigateTo("/login");
+        }
+        catch (HttpRequestException exception)
+        {
+            _errorMessage = exception.Message;
+        }
+        finally
+        {
+            _isSaving = false;
         }
     }
 
