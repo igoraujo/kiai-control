@@ -45,6 +45,12 @@ public sealed class ClientUseCase(IClientRepository clientRepository, IBranchRep
         return client is null ? null : Map(client);
     }
 
+    public async Task<ClientResponse?> GetByPersonIdAsync(Guid organizationId, Guid personId, CancellationToken cancellationToken)
+    {
+        var client = await clientRepository.GetByPersonIdAsync(organizationId, personId, cancellationToken);
+        return client is null ? null : Map(client);
+    }
+
     public async Task<ClientResponse?> UpdateAsync(Guid organizationId, Guid id, UpdateClientRequest request, CancellationToken cancellationToken)
     {
         await PersonDataValidator.ValidateBranchAsync(branchRepository, organizationId, request.BranchId, cancellationToken);

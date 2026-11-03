@@ -48,6 +48,14 @@ public sealed class SqlClientRepository(IDbConnectionFactory dbConnectionFactory
         return await connection.QuerySingleOrDefaultAsync<Client>(ClientQueries.GetById, new { OrganizationId = organizationId, Id = id });
     }
 
+    public async Task<Client?> GetByPersonIdAsync(Guid organizationId, Guid personId, CancellationToken cancellationToken = default)
+    {
+        using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
+        return await connection.QuerySingleOrDefaultAsync<Client>(
+            ClientQueries.GetByPersonId,
+            new { OrganizationId = organizationId, PersonId = personId });
+    }
+
     public async Task<Client?> UpdateAsync(Client client, CancellationToken cancellationToken = default)
     {
         client.UpdatedAt = DateTimeOffset.UtcNow;

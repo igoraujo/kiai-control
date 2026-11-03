@@ -72,6 +72,15 @@ public sealed class InMemoryClientRepository : IClientRepository
         return Task.FromResult(client);
     }
 
+    public Task<Client?> GetByPersonIdAsync(Guid organizationId, Guid personId, CancellationToken cancellationToken = default)
+    {
+        var client = _clients.FirstOrDefault(item =>
+            item.OrganizationId == organizationId
+            && item.PersonId == personId
+            && item.DeletedAt is null);
+        return Task.FromResult(client);
+    }
+
     public Task<Client?> UpdateAsync(Client client, CancellationToken cancellationToken = default)
     {
         var index = _clients.FindIndex(item => item.OrganizationId == client.OrganizationId && item.Id == client.Id && item.DeletedAt is null);

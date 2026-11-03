@@ -46,12 +46,17 @@ public sealed class SqlClientRepositoryTests(PostgreSqlFixture fixture)
             Status = "active"
         });
         var retrieved = await repository.GetByIdAsync(organizationId, created.Id);
+        var retrievedByPersonId = await repository.GetByPersonIdAsync(organizationId, created.PersonId);
+        var crossTenantLookup = await repository.GetByPersonIdAsync(Guid.NewGuid(), created.PersonId);
 
         Assert.NotNull(retrieved);
+        Assert.NotNull(retrievedByPersonId);
+        Assert.Null(crossTenantLookup);
         Assert.Equal(expectedBirthDate, created.BirthDate);
         Assert.Equal(expectedJoinedAt, created.JoinedAt);
         Assert.Equal(expectedBirthDate, retrieved.BirthDate);
         Assert.Equal(expectedJoinedAt, retrieved.JoinedAt);
+        Assert.Equal(created.Id, retrievedByPersonId.Id);
     }
 
     [Fact]

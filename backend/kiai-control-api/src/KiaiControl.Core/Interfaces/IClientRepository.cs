@@ -14,6 +14,8 @@ public interface IClientRepository
 
     Task<Client?> GetByIdAsync(Guid organizationId, Guid id, CancellationToken cancellationToken = default);
 
+    Task<Client?> GetByPersonIdAsync(Guid organizationId, Guid personId, CancellationToken cancellationToken = default);
+
     Task<Client?> UpdateAsync(Client client, CancellationToken cancellationToken = default);
 
     Task<bool> DeleteAsync(Guid organizationId, Guid id, CancellationToken cancellationToken = default);
