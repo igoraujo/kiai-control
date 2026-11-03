@@ -425,6 +425,10 @@ public sealed class AdminCriticalFlowsTests
 internal sealed class E2EEnvironment : IAsyncDisposable
 {
     private const string OwnerPasswordValue = "Owner!E2E123456";
+    private const string OwnerPasswordAfterFirstLogin = "Owner!Final123456";
+    private const string PlatformOwnerEmailValue = "platform-owner@example.test";
+    private const string PlatformOwnerPasswordValue = "Platform!Temp12345";
+    private const string PlatformOwnerPasswordAfterFirstLogin = "Platform!Final12345";
     private const string ClientPassword = "Client!E2E123456";
     private readonly PostgreSqlContainer _database = new PostgreSqlBuilder("postgres:17-alpine")
         .WithDatabase("kiai_e2e")
@@ -469,33 +473,31 @@ internal sealed class E2EEnvironment : IAsyncDisposable
         var configuration = new DirectoryInfo(AppContext.BaseDirectory).Parent?.Name ?? "Debug";
         _apiPort = GetAvailablePort();
         _adminPort = GetAvailablePort();
+        var apiEnvironment = new Dictionary<string, string>
+        {
+            ["ASPNETCORE_ENVIRONMENT"] = "Development",
+            ["ASPNETCORE_URLS"] = ApiUrl,
+            ["TZ"] = "UTC",
+            ["ConnectionStrings__PostgreSql"] = ConnectionString,
+            ["Cache__Provider"] = "Memory"
+        };
+        if (!seedAdmin)
+        {
+            apiEnvironment["PlatformOwner__Email"] = PlatformOwnerEmailValue;
+            apiEnvironment["PlatformOwner__FullName"] = "E2E Platform Owner";
+            apiEnvironment["PlatformOwner__Password"] = PlatformOwnerPasswordValue;
+        }
+
         _apiProcess = StartApplication(
             Path.Combine(root, "backend", "kiai-control-api", "src", "KiaiControl.Api", "bin", configuration, "net10.0", "KiaiControl.Api.dll"),
             Path.Combine(root, "backend", "kiai-control-api", "src", "KiaiControl.Api"),
             _apiOutput,
-            new Dictionary<string, string>
-            {
-                ["ASPNETCORE_ENVIRONMENT"] = "Development",
-                ["ASPNETCORE_URLS"] = ApiUrl,
-                ["TZ"] = "UTC",
-                ["ConnectionStrings__PostgreSql"] = ConnectionString,
-                ["Cache__Provider"] = "Memory"
-            });
+            apiEnvironment);
         await WaitForHttpAsync($"{ApiUrl}/health/live", _apiProcess, _apiOutput);
 
         if (!seedAdmin)
         {
-            using var httpClient = new HttpClient();
-            var registrationResponse = await httpClient.PostAsJsonAsync($"{ApiUrl}/api/v1/organizations", new
-            {
-                name = $"E2E Academy {Guid.NewGuid():N}",
-                ownerFullName = "E2E Owner",
-                ownerEmail = OwnerEmail,
-                ownerPassword = OwnerPassword
-            });
-            registrationResponse.EnsureSuccessStatusCode();
-            using var registration = JsonDocument.Parse(await registrationResponse.Content.ReadAsStringAsync());
-            _organizationId = registration.RootElement.GetProperty("organization").GetProperty("id").GetGuid();
+            await RegisterOrganizationAsPlatformOwnerAsync();
         }
 
         await SetOrganizationTimezoneAsync();
@@ -513,6 +515,68 @@ internal sealed class E2EEnvironment : IAsyncDisposable
         await WaitForHttpAsync(AdminUrl, _adminProcess, _adminOutput);
     }
 
+    private async Task RegisterOrganizationAsPlatformOwnerAsync()
+    {
+        using var httpClient = new HttpClient { BaseAddress = new Uri($"{ApiUrl}/api/v1/") };
+        await SignInAndChangePasswordAsync(
+            httpClient,
+            PlatformOwnerEmailValue,
+            PlatformOwnerPasswordValue,
+            PlatformOwnerPasswordAfterFirstLogin);
+        await SignInAndChangePasswordAsync(
+            httpClient,
+            PlatformOwnerEmailValue,
+            PlatformOwnerPasswordAfterFirstLogin,
+            PlatformOwnerPasswordAfterFirstLogin);
+
+        using var registrationResponse = await httpClient.PostAsJsonAsync("platform/organizations", new
+        {
+            name = $"E2E Academy {Guid.NewGuid():N}",
+            ownerFullName = "E2E Owner",
+            ownerEmail = OwnerEmail,
+            ownerPassword = OwnerPasswordValue
+        });
+        registrationResponse.EnsureSuccessStatusCode();
+        using var registration = JsonDocument.Parse(await registrationResponse.Content.ReadAsStringAsync());
+        _organizationId = registration.RootElement.GetProperty("organization").GetProperty("id").GetGuid();
+
+        await SignInAndChangePasswordAsync(
+            httpClient,
+            OwnerEmail,
+            OwnerPasswordValue,
+            OwnerPasswordAfterFirstLogin);
+        OwnerPassword = OwnerPasswordAfterFirstLogin;
+    }
+
+    private static async Task SignInAndChangePasswordAsync(
+        HttpClient httpClient,
+        string email,
+        string currentPassword,
+        string newPassword)
+    {
+        httpClient.DefaultRequestHeaders.Authorization = null;
+        using var loginResponse = await httpClient.PostAsJsonAsync("auth/login", new
+        {
+            email,
+            password = currentPassword
+        });
+        loginResponse.EnsureSuccessStatusCode();
+        using var login = JsonDocument.Parse(await loginResponse.Content.ReadAsStringAsync());
+
+        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer",
+            login.RootElement.GetProperty("accessToken").GetString());
+        if (!string.Equals(currentPassword, newPassword, StringComparison.Ordinal))
+        {
+            using var changePasswordResponse = await httpClient.PostAsJsonAsync("auth/change-password", new
+            {
+                currentPassword,
+                newPassword
+            });
+            changePasswordResponse.EnsureSuccessStatusCode();
+        }
+    }
+
     public async Task VerifyFreshDatabaseBootstrapAsync()
     {
         await using var connection = new NpgsqlConnection(ConnectionString);
@@ -520,7 +584,10 @@ internal sealed class E2EEnvironment : IAsyncDisposable
         await using var command = new NpgsqlCommand(
             """
             select
-                (select count(*) from schema_migrations) = 9
+                exists (
+                    select 1 from schema_migrations
+                    where migration_name = '010_platform_owner_and_temporary_passwords.sql'
+                )
                 and (select count(*) from organizations where id = @OrganizationId and email = 'admin@kiai.local') = 1
                 and (select count(*) from user_accounts where email = 'admin@kiai.local' and is_active) = 1
                 and to_regclass('public.modality_schedules') is not null
