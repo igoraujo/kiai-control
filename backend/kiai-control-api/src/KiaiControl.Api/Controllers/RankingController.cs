@@ -8,16 +8,11 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace KiaiControl.Api.Controllers;
-
 [ApiController]
 [Authorize(Roles = "owner,admin,teacher")]
 [Authorize(Policy = PermissionCodes.RankingManage)]
 [Route("api/v1")]
-public sealed class RankingController(
-    OrganizationContext organizationContext,
-    RankingUseCase rankingUseCase,
-    ClientUseCase clientUseCase,
-    ModalityUseCase modalityUseCase) : ControllerBase
+public sealed class RankingController(OrganizationContext organizationContext, RankingUseCase rankingUseCase, ClientUseCase clientUseCase, ModalityUseCase modalityUseCase) : ControllerBase
 {
     [HttpGet("rankings/options")]
     public async Task<ActionResult<RankingOptionsResponse>> OptionsAsync(CancellationToken cancellationToken)
@@ -27,21 +22,15 @@ public sealed class RankingController(
             return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
-        var clientsTask = clientUseCase.ListAsync(organizationId, 1, 200, cancellationToken);
-        var modalitiesTask = modalityUseCase.ListAsync(organizationId, 1, 200, cancellationToken);
+        var clientsTask = clientUseCase.ListAllOptionsAsync(organizationId, cancellationToken);
+        var modalitiesTask = modalityUseCase.ListAllOptionsAsync(organizationId, cancellationToken);
         await Task.WhenAll(clientsTask, modalitiesTask);
-        return Ok(new RankingOptionsResponse
-        {
-            Clients = (await clientsTask).Where(client => client.Status == "active").ToList(),
-            Modalities = (await modalitiesTask).Where(modality => modality.IsActive).ToList()
-        });
+        return Ok(new RankingOptionsResponse { Clients = (await clientsTask).Where(client => client.Status == "active").ToList(), Modalities = (await modalitiesTask).Where(modality => modality.IsActive).ToList() });
     }
 
     [HttpPost("ranking-cycles")]
     [Authorize(Roles = "owner,admin")]
-    public async Task<ActionResult<RankingCycleResponse>> CreateCycleAsync(
-        [FromBody] CreateRankingCycleRequest request,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<RankingCycleResponse>> CreateCycleAsync([FromBody] CreateRankingCycleRequest request, CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
@@ -51,8 +40,7 @@ public sealed class RankingController(
         try
         {
             var cycle = await rankingUseCase.CreateCycleAsync(organizationId, request, cancellationToken);
-            return cycle is null ? Conflict(SystemMessages.TheModalityOrClassGroupIsUnavailableInThisOrganization)
-                : StatusCode(StatusCodes.Status201Created, cycle);
+            return cycle is null ? Conflict(SystemMessages.TheModalityOrClassGroupIsUnavailableInThisOrganization) : StatusCode(StatusCodes.Status201Created, cycle);
         }
         catch (ArgumentException exception)
         {
@@ -61,10 +49,7 @@ public sealed class RankingController(
     }
 
     [HttpGet("rankings/history")]
-    public async Task<ActionResult<IReadOnlyList<RankingCycleResponse>>> ListCyclesAsync(
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 50,
-        CancellationToken cancellationToken = default)
+    public async Task<ActionResult<IReadOnlyList<RankingCycleResponse>>> ListCyclesAsync([FromQuery] int page = 1, [FromQuery] int pageSize = 50, CancellationToken cancellationToken = default)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
@@ -88,10 +73,7 @@ public sealed class RankingController(
     }
 
     [HttpGet("rankings/current")]
-    public async Task<ActionResult<IReadOnlyList<RankingEntryResponse>>> GetCurrentAsync(
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 50,
-        CancellationToken cancellationToken = default)
+    public async Task<ActionResult<IReadOnlyList<RankingEntryResponse>>> GetCurrentAsync([FromQuery] int page = 1, [FromQuery] int pageSize = 50, CancellationToken cancellationToken = default)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
@@ -102,11 +84,7 @@ public sealed class RankingController(
     }
 
     [HttpGet("ranking-cycles/{cycleId:guid}/entries")]
-    public async Task<ActionResult<IReadOnlyList<RankingEntryResponse>>> GetByCycleAsync(
-        Guid cycleId,
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 50,
-        CancellationToken cancellationToken = default)
+    public async Task<ActionResult<IReadOnlyList<RankingEntryResponse>>> GetByCycleAsync(Guid cycleId, [FromQuery] int page = 1, [FromQuery] int pageSize = 50, CancellationToken cancellationToken = default)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
@@ -149,10 +127,7 @@ public sealed class RankingController(
 
     [HttpPost("medals/{medalId:guid}/awards")]
     [Authorize(Roles = "owner,admin,teacher")]
-    public async Task<ActionResult<PersonMedalResponse>> AwardMedalAsync(
-        Guid medalId,
-        [FromBody] AwardMedalRequest request,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<PersonMedalResponse>> AwardMedalAsync(Guid medalId, [FromBody] AwardMedalRequest request, CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
@@ -162,8 +137,7 @@ public sealed class RankingController(
         try
         {
             var award = await rankingUseCase.AwardMedalAsync(organizationId, medalId, request, cancellationToken);
-            return award is null ? NotFound(SystemMessages.TheMedalOrRecipientIsUnavailableInThisOrganization)
-                : StatusCode(StatusCodes.Status201Created, award);
+            return award is null ? NotFound(SystemMessages.TheMedalOrRecipientIsUnavailableInThisOrganization) : StatusCode(StatusCodes.Status201Created, award);
         }
         catch (ArgumentException exception)
         {

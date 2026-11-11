@@ -15,15 +15,17 @@
         }
     </MudStack>
 
-    @if (ErrorMessage is not null)
+    <WorkspaceAreaSelector Path="/lessons" Value="@SelectedArea" />
+
+    @if ((ErrorMessage ?? _loadError) is { } error)
     {
-        <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">@ErrorMessage</MudAlert>
+        <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">@error <MudButton OnClick="LoadAsync" Size="Size.Small">Tentar novamente</MudButton></MudAlert>
     }
 
     <MudStack Row="true" Spacing="2" Class="lesson-filters">
-        <MudDatePicker @bind-Date="_from" Label="De" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" Margin="Margin.Dense" />
-        <MudDatePicker @bind-Date="_to" Label="Até" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" Margin="Margin.Dense" />
-        <MudSelect T="string" @bind-Value="_statusFilter" Label="Situação" Variant="Variant.Outlined" Margin="Margin.Dense">
+        <MudDatePicker Date="_from" DateChanged="FromChangedAsync" Label="De" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" Margin="Margin.Dense" />
+        <MudDatePicker Date="_to" DateChanged="ToChangedAsync" Label="Até" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" Margin="Margin.Dense" />
+        <MudSelect T="string" Value="_statusFilter" ValueChanged="StatusChangedAsync" Label="Situação" Variant="Variant.Outlined" Margin="Margin.Dense">
             <MudSelectItem Value="@string.Empty">Todas</MudSelectItem>
             <MudSelectItem Value="@("scheduled")">Agendada</MudSelectItem>
             <MudSelectItem Value="@("completed")">Concluída</MudSelectItem>
@@ -32,7 +34,7 @@
         </MudSelect>
     </MudStack>
 
-    <MudTable Items="FilteredLessons" Loading="IsLoading" Hover="true" Dense="true">
+    <MudTable @ref="Table" ServerData="LoadServerData" RowsPerPage="25" Hover="true" Dense="true">
         <HeaderContent>
             <MudTh>Data</MudTh>
             <MudTh>Horário</MudTh>
@@ -41,11 +43,11 @@
             <MudTh Style="text-align:right">Ações</MudTh>
         </HeaderContent>
         <RowTemplate>
-            <MudTd>@context.StartsAt.ToLocalTime().ToString("dd/MM/yyyy")</MudTd>
-            <MudTd>@context.StartsAt.ToLocalTime().ToString("HH:mm") - @context.EndsAt.ToLocalTime().ToString("HH:mm")</MudTd>
-            <MudTd>@LessonName(context)</MudTd>
-            <MudTd><MudChip T="string" Size="Size.Small" Color="LessonStatusColor(context.Status)">@LessonStatusLabel(context.Status)</MudChip></MudTd>
-            <MudTd Style="text-align:right">
+            <MudTd DataLabel="Data">@context.StartsAt.ToLocalTime().ToString("dd/MM/yyyy")</MudTd>
+            <MudTd DataLabel="Horário">@context.StartsAt.ToLocalTime().ToString("HH:mm") - @context.EndsAt.ToLocalTime().ToString("HH:mm")</MudTd>
+            <MudTd DataLabel="Modalidade">@LessonName(context)</MudTd>
+            <MudTd DataLabel="Situação"><MudChip T="string" Size="Size.Small" Color="LessonStatusColor(context.Status)">@LessonStatusLabel(context.Status)</MudChip></MudTd>
+            <MudTd DataLabel="Ações" Style="text-align:right">
                 <MudIconButton Icon="@Icons.Material.Filled.FactCheck" Size="Size.Small" Color="Color.Primary" aria-label="Abrir chamada" OnClick="() => OpenAttendance(context)" />
                 @if (CanManageLessons && context.Status is "scheduled" or "rescheduled")
                 {
@@ -54,7 +56,13 @@
                 }
             </MudTd>
         </RowTemplate>
-        <NoRecordsContent><MudText>Nenhuma aula no período selecionado.</MudText></NoRecordsContent>
+        <NoRecordsContent>
+            @if (_loadError is null)
+            {
+                <MudText>Nenhuma aula no período selecionado.</MudText>
+            }
+        </NoRecordsContent>
+        <PagerContent><MudTablePager PageSizeOptions="new int[]{10,25,50,100}" RowsPerPageString="Aulas por página" /></PagerContent>
     </MudTable>
 </MudStack>
 
@@ -62,6 +70,7 @@
     private DateTime? _from = DateTime.Today;
     private DateTime? _to = DateTime.Today.AddDays(13);
     private string _statusFilter = string.Empty;
+    private string? _loadError;
     private bool CanManageModalities => Session.Current?.User.Permissions.Contains(
         "modalities.manage", StringComparer.OrdinalIgnoreCase) == true;
     private bool CanManageLessons => Session.Current?.User.Roles.Any(role =>
@@ -70,6 +79,36 @@
         || role.Equals("teacher", StringComparison.OrdinalIgnoreCase)) == true;
 
     protected override string Resource => "lessons";
+    private async Task FromChangedAsync(DateTime? d){_from=d;await LoadAsync();}
+    private async Task ToChangedAsync(DateTime? d){_to=d;await LoadAsync();}
+    private async Task StatusChangedAsync(string s){_statusFilter=s;await LoadAsync();}
+    protected override async Task<TableData<LessonResponse>> LoadServerData(TableState state,CancellationToken ct)
+    {
+        _loadError = null;
+        try {
+            var from=_from is null?"":new DateTimeOffset(_from.Value).ToString("O");
+            var to=_to is null?"":new DateTimeOffset(_to.Value.AddDays(1)).ToString("O");
+            var r=await Api.GetAsync<PagedResponse<LessonResponse>>($"catalog/lessons?page={state.Page+1}&pageSize={state.PageSize}&from={Uri.EscapeDataString(from)}&to={Uri.EscapeDataString(to)}&status={Uri.EscapeDataString(_statusFilter)}&area={SelectedArea}");
+            return new(){Items=r.Items,TotalItems=r.Total};
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await Session.ClearAsync();
+            Navigation.NavigateTo("/login");
+        }
+        catch (HttpRequestException e)
+        {
+            _loadError = e.StatusCode switch
+            {
+                System.Net.HttpStatusCode.BadRequest => e.Message,
+                System.Net.HttpStatusCode.Forbidden => AdminSystemMessages.ResourceAccessPermissionDenied,
+                _ => "Não foi possível carregar as aulas. Tente novamente."
+            };
+            await InvokeAsync(StateHasChanged);
+        }
+        return new(){Items=[],TotalItems=0};
+    }
+
 
     private IEnumerable<LessonResponse> FilteredLessons => Items.Where(lesson =>
     {

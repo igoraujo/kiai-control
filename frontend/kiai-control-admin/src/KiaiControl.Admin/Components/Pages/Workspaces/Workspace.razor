@@ -1,0 +1,35 @@
+@page "/fight"
+@page "/gym"
+@inject AdminSession Session
+@inject NavigationManager Navigation
+@inject AdminApiClient Api
+<PageTitle>@(_fight?"Fight":"Gym") | Kiai Control</PageTitle>
+<MudStack Spacing="4">
+    <section class="workspace-hero @(_fight?"fight":"gym")">
+        <div class="workspace-hero-copy">
+<span class="eyebrow"><AcademyName /> · @(_fight?"Artes marciais":"Musculação e condicionamento")</span>
+<h1>@(_fight?"Kiai Fight":"Kiai Gym")</h1>
+<p>@(_fight?"Acompanhe cada conquista no tatame.":"Transforme consistência em evolução.")</p>
+<span class="workspace-hero-note">@(_fight?"Faixas, graus e a jornada de cada aluno.":"Metas, progresso e acompanhamento individual.")</span>
+</div>
+        <div class="workspace-hero-symbol" aria-hidden="true">
+<MudIcon Icon="@(_fight?Icons.Material.Filled.SportsMartialArts:Icons.Material.Filled.FitnessCenter)" />
+</div>
+    </section>
+    <div class="page-heading">
+<div>
+<MudText Typo="Typo.h5">@(_fight?"Gestão do tatame":"Gestão do treinamento")</MudText>
+<MudText Color="Color.Secondary">Escolha uma tarefa para começar.</MudText>
+</div>
+<MudChip T="string" Variant="Variant.Outlined">@(_fight?"Módulo Fight":"Módulo Gym")</MudChip>
+</div>
+    <div class="workspace-grid">
+        @if(_fight&&Session.Capabilities?.HasGraduation==true&&Can(PermissionCodes.GraduationManage)){<WorkspaceCard Href="/graduation" Area="fight" Icon="@Icons.Material.Filled.MilitaryTech" Title="Faixas e graduações" Description="Configure critérios e registre as próximas conquistas." />}
+        @if(!_fight&&Can(PermissionCodes.FitnessManage)){<WorkspaceCard Href="@AreaLink("/fitness")" Area="gym" Icon="@Icons.Material.Filled.TrendingUp" Title="Metas e progresso" Description="Defina objetivos e acompanhe a evolução de cada aluno." />}
+        @if(Can(PermissionCodes.LessonsManage)){<WorkspaceCard Href="@AreaLink("/lessons")" Area="@(_fight?"fight":"gym")" Icon="@Icons.Material.Filled.CalendarMonth" Title="Aulas e presença" Description="Consulte as sessões e registre a frequência desta área." />}
+        @if(Can(PermissionCodes.ClientsManage)){<WorkspaceCard Href="@AreaLink("/clients")" Icon="@Icons.Material.Filled.Groups" Title="Jornada dos alunos" Description="Alunos e modalidades desta área, com um único cadastro por pessoa." />}
+        @if(Can(PermissionCodes.RankingManage)){<WorkspaceCard Href="/rankings" Icon="@Icons.Material.Filled.EmojiEvents" Title="Rankings e conquistas" Description="Reconheça a dedicação e celebre a consistência." />}
+        @if(Can(PermissionCodes.ModalitiesManage)){<WorkspaceCard Href="@AreaLink("/modalities")" Icon="@Icons.Material.Filled.Schedule" Title="Modalidades e horários" Description="Organize as atividades e a agenda semanal desta área." />}
+    </div>
+    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">Alunos, professores, modalidades e aulas são filtrados pela área escolhida. Alunos com atividades nas duas áreas aparecem em ambas; a visão Geral reúne todos, sem duplicar cadastros. O financeiro permanece geral.</MudAlert>
+</MudStack>

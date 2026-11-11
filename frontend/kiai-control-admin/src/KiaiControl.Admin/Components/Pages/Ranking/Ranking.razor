@@ -85,7 +85,7 @@
                     <MudTd>@context.StreakCount</MudTd>
                 </RowTemplate>
                 <NoRecordsContent><MudText>Nenhum resultado atual. Recalcule um ciclo aberto para publicar a classificação.</MudText></NoRecordsContent>
-            </MudTable>
+            </MudTable><PageControls Page="_rankingPage" HasNext="@(_currentRanking.Count==PageSize)" Busy="_isLoading" Changed="RankingPageAsync" />
         </MudPaper>
 
         <MudPaper Class="pa-4" Elevation="0">
@@ -127,7 +127,7 @@
                         <NoRecordsContent>
                             <MudText>Este ciclo ainda não tem resultados. Recalcule-o se estiver aberto.</MudText>
                         </NoRecordsContent>
-                    </MudTable>
+                    </MudTable><PageControls Page="_entriesPage" HasNext="@(_cycleEntries.Count==PageSize)" Busy="_isLoading" Changed="EntriesPageAsync" />
                 }
                 else
                 {
@@ -227,7 +227,10 @@
 </MudStack>
 
 @code {
+    private async Task RankingPageAsync(int p){_rankingPage=p;await LoadAsync();}
+    private async Task EntriesPageAsync(int p){_entriesPage=p;await LoadAsync();}
     private const int PageSize = 50;
+    private int _rankingPage=1,_entriesPage=1;
     private IReadOnlyList<ClientResponse> _clients = [];
     private IReadOnlyList<ModalityResponse> _modalities = [];
     private IReadOnlyList<RankingCycleResponse> _cycles = [];
@@ -283,9 +286,9 @@
         try
         {
             var optionsTask = Api.GetRankingOptionsAsync();
-            var cyclesTask = Api.ListRankingCyclesAsync(pageSize: PageSize);
+            var cyclesTask = AdminApiClient.AllPagesAsync(page=>Api.ListRankingCyclesAsync(page,200));
             var medalsTask = Api.ListMedalsAsync();
-            var currentTask = Api.ListCurrentRankingAsync(pageSize: PageSize);
+            var currentTask = Api.ListCurrentRankingAsync(page:_rankingPage,pageSize:PageSize);
             await Task.WhenAll(optionsTask, cyclesTask, medalsTask, currentTask);
             var options = await optionsTask;
             _clients = options.Clients;
@@ -300,7 +303,7 @@
 
             if (_selectedCycleId is not null)
             {
-                _cycleEntries = await Api.ListRankingEntriesAsync(_selectedCycleId.Value, pageSize: PageSize);
+                _cycleEntries = await Api.ListRankingEntriesAsync(_selectedCycleId.Value,page:_entriesPage,pageSize:PageSize);
             }
             if (_awardClientId is not null)
             {
@@ -358,7 +361,7 @@
         _isRefreshing = true;
         try
         {
-            _cycleEntries = await Api.ListRankingEntriesAsync(cycleId.Value, pageSize: PageSize);
+            _cycleEntries = await Api.ListRankingEntriesAsync(cycleId.Value,page:_entriesPage,pageSize:PageSize);
         }
         catch (UnauthorizedAccessException)
         {
@@ -385,7 +388,7 @@
         await RunOperationAsync(async () =>
         {
             _cycleEntries = await Api.RecalculateRankingAsync(_selectedCycle.Id);
-            _currentRanking = await Api.ListCurrentRankingAsync(pageSize: PageSize);
+            _currentRanking = await Api.ListCurrentRankingAsync(page:_rankingPage,pageSize:PageSize);
             Snackbar.Add(AdminSystemMessages.RankingRecalculated, Severity.Success);
         });
     }
@@ -395,7 +398,7 @@
         _isRefreshing = true;
         try
         {
-            _currentRanking = await Api.ListCurrentRankingAsync(pageSize: PageSize);
+            _currentRanking = await Api.ListCurrentRankingAsync(page:_rankingPage,pageSize:PageSize);
         }
         catch (UnauthorizedAccessException)
         {

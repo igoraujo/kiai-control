@@ -20,8 +20,22 @@ public sealed class TeachersController(
     OrganizationContext organizationContext,
     TeacherUseCase teacherUseCase,
     ModalityScheduleUseCase modalityScheduleUseCase,
-    LessonUseCase lessonUseCase) : ControllerBase
+    LessonUseCase lessonUseCase, KiaiControl.UseCases.Administration.AdministrationUseCase administration) : ControllerBase
 {
+    [HttpGet("people")]
+    public async Task<IActionResult> ExistingPeople(CancellationToken ct)
+    {
+        if(organizationContext.OrganizationId is not Guid org)return Unauthorized();
+        return Ok(await administration.ProfileCandidatesAsync(org,"teacher",User.IsInRole("owner"),ct));
+    }
+    [HttpPost("people/{personId:guid}/profile")]
+    public async Task<IActionResult> LinkProfile(Guid personId,CancellationToken ct)
+    {
+        if(organizationContext.OrganizationId is not Guid org || !Guid.TryParse(User.FindFirst("sub")?.Value,out var actor))return Unauthorized();
+        if(!await administration.AddProfileAsync(org,personId,"teacher",actor,ct))return NotFound();
+        return Ok(await teacherUseCase.GetByPersonIdAsync(org,personId,ct));
+    }
+
     [AllowAnonymous]
     [HttpGet("status")]
     public ActionResult<ContextStatusResponse> GetStatus()

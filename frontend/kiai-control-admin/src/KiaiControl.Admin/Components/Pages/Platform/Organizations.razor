@@ -56,7 +56,8 @@
                 </MudItem>
                 <MudItem xs="12" md="6">
                     <MudTextField T="string" @bind-Value="_form.OwnerPassword" Label="Senha temporária"
-                                  InputType="InputType.Password" Variant="Variant.Outlined" Required="true" />
+                                  InputType="InputType.Password" Variant="Variant.Outlined" Required="true"
+                                  Immediate="true" HelperText="@PasswordPolicy.Requirements" />
                 </MudItem>
             </MudGrid>
             <MudText Typo="Typo.caption" Color="Color.Secondary">
@@ -109,7 +110,7 @@
         !string.IsNullOrWhiteSpace(_form.Name)
         && !string.IsNullOrWhiteSpace(_form.OwnerFullName)
         && !string.IsNullOrWhiteSpace(_form.OwnerEmail)
-        && _form.OwnerPassword.Length >= 12;
+        && PasswordPolicy.IsValid(_form.OwnerPassword);
 
     protected override async Task OnInitializedAsync()
     {

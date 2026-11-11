@@ -19,3 +19,13 @@ dotnet test frontend/kiai-control-admin/tests/KiaiControl.Admin.E2ETests/KiaiCon
 ```
 
 O plano de evolucao e os criterios de aceite estao em [PROJECT_IMPLEMENTATION_PLAN.md](../../../PROJECT_IMPLEMENTATION_PLAN.md).
+
+## Cobertura da conclusão do painel
+
+A suíte contém 34 testes de unidade/componentes e 13 cenários E2E. Os cenários adicionais validam diretório/equipe, reaproveitamento de pessoas pelos formulários, bloqueio de conta, consulta sem gravação, módulos Gym/Fight e responsividade, portal pessoal com senha temporária e check-in, privacidade financeira/metas, escopo do professor, perfil financeiro e recuperação de senha com revogação de sessões. A página de aulas também é validada com API, Admin e navegador em `America/Sao_Paulo`, cobrindo filtros com offset `-03:00` e exibição do horário local.
+
+Três jornadas verificam as visões Geral/Fight/Gym para owner, admin e recepção: filtros na API, paginação e totais, vínculos duplos/híbridos, alunos sem modalidade, seleção pela área, troca de visão sem sair da tela, persistência após reload e opções de metas/graduação. A recepção não ganha acesso a módulos fora de suas permissões. Capturas `students-gym-mobile.png` e `students-general-desktop.png` ficam em `kiai-admin-preview` no diretório temporário do sistema.
+
+As jornadas usam senhas válidas de seis caracteres no bootstrap, cadastro de academia, criação de acesso, primeiro acesso, troca e recuperação. Também verificam a mensagem de validação antes de aceitar senhas incompletas e a troca em Minha conta.
+
+Os testes de navegador usam credenciais e dados exclusivamente descartáveis; a recuperação recebe um token de fixture, sem enviar e-mail real. O backend soma 81 testes unitários, 23 de integração e dois arquiteturais; o app possui 26 testes, sendo nove de modelos e 17 da política de senha. A integração inclui buscas parametrizadas com caracteres especiais e tentativas de SQL injection; a arquitetura verifica que as classes de queries expõem constantes SQL. As capturas Gym/Fight ficam no diretório temporário `kiai-admin-preview`. A evidência mais recente está em `PROJECT_IMPLEMENTATION_PLAN.md`.

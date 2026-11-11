@@ -20,6 +20,8 @@
         </MudButton>
     </MudStack>
 
+    <WorkspaceAreaSelector Path="/fitness" Value="@_area" />
+
     @if (_errorMessage is not null)
     {
         <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">
@@ -101,6 +103,11 @@
 </MudStack>
 
 @code {
+    [SupplyParameterFromQuery] public Guid? ClientId {get;set;}
+    [SupplyParameterFromQuery(Name = "area")] public string? AreaQuery { get; set; }
+    private string _area = AcademyArea.General;
+    private Guid? _lastClientQuery;
+    private bool _parametersInitialized;
     private const int _pageSize = 50;
     private IReadOnlyList<ClientResponse> _clients = [];
     private IReadOnlyList<ModalityResponse> _modalities = [];
@@ -111,7 +118,7 @@
     private bool _isSaving;
     private string? _errorMessage;
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
         if (Session.Current is null)
         {
@@ -125,6 +132,23 @@
             return;
         }
 
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Session.Current is null || !AdminNavigation.CanUse(Session.Current.User, PermissionCodes.FitnessManage))
+            return;
+        string area;
+        try { area = AcademyArea.Normalize(AreaQuery); }
+        catch (ArgumentException) { area = AcademyArea.General; }
+        if (_parametersInitialized && area == _area && _lastClientQuery == ClientId)
+            return;
+        _area = area;
+        _lastClientQuery = ClientId;
+        _selectedClientId = ClientId;
+        _page = 1;
+        _parametersInitialized = true;
+        Session.SelectArea(area);
         await LoadAsync();
     }
 
@@ -134,8 +158,8 @@
         _errorMessage = null;
         try
         {
-            var optionsTask = Api.GetFitnessOptionsAsync();
-            var goalsTask = Api.ListFitnessGoalsAsync(_page, _pageSize, _selectedClientId);
+            var optionsTask = Api.GetFitnessOptionsAsync(_area);
+            var goalsTask = Api.ListFitnessGoalsAsync(_page, _pageSize, _selectedClientId, _area);
             await Task.WhenAll(optionsTask, goalsTask);
             var options = await optionsTask;
             _clients = options.Clients;
@@ -264,7 +288,7 @@
             : _modalities.FirstOrDefault(modality => modality.Id == modalityId)?.Name ?? "Modalidade não disponível";
 
     private static double Progress(FitnessGoalResponse goal) =>
-        goal.TargetValue <= 0 ? 0 : (double)Math.Clamp(goal.CurrentValue / goal.TargetValue * 100, 0, 100);
+        FitnessProgress.Percentage(goal);
 
     private static string GoalTypeLabel(string type) => type switch
     {

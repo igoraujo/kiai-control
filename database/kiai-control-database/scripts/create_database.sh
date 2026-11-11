@@ -35,11 +35,11 @@ check_db_exists_docker() {
 }
 
 public_table_count_local() {
-  PGPASSWORD="${PGPASSWORD}" psql -h "${PGHOST}" -p "${PGPORT}" -U "${PGUSER}" -d "${DB_NAME}" -tAc "SELECT count(*) FROM pg_tables WHERE schemaname = 'public'"
+  PGPASSWORD="${PGPASSWORD}" psql -h "${PGHOST}" -p "${PGPORT}" -U "${PGUSER}" -d "${DB_NAME}" -tAc "SELECT count(1) FROM pg_tables WHERE schemaname = 'public'"
 }
 
 public_table_count_docker() {
-  docker exec -i "${PG_CONTAINER_NAME}" psql -U "${PGUSER}" -d "${DB_NAME}" -tAc "SELECT count(*) FROM pg_tables WHERE schemaname = 'public'"
+  docker exec -i "${PG_CONTAINER_NAME}" psql -U "${PGUSER}" -d "${DB_NAME}" -tAc "SELECT count(1) FROM pg_tables WHERE schemaname = 'public'"
 }
 
 create_db_local() {

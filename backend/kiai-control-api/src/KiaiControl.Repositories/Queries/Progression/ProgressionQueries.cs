@@ -416,57 +416,186 @@ public static class ProgressionQueries
 
     public const string CreateFitnessGoal = @"
         insert into fitness_goals (
-            id, organization_id, client_id, modality_id, title, description, goal_type,
-            target_value, unit, starts_at, due_date, status, created_at
+            id,
+            organization_id,
+            client_id,
+            modality_id,
+            title,
+            description,
+            goal_type,
+            target_value,
+            direction,
+            initial_value,
+            current_value,
+            unit,
+            starts_at,
+            due_date,
+            status,
+            created_at
         )
-        select @Id, c.organization_id, c.id, @ModalityId, @Title, @Description, @GoalType::goal_type,
-               @TargetValue, @Unit, @StartsAt, @DueDate, 'active', @CreatedAt
+        select
+            @Id,
+            c.organization_id,
+            c.id,
+            @ModalityId,
+            @Title,
+            @Description,
+            @GoalType::goal_type,
+            @TargetValue,
+            @Direction,
+            @InitialValue,
+            @InitialValue,
+            @Unit,
+            @StartsAt,
+            @DueDate,
+            case
+                when @Direction = 'increase'
+                    and @InitialValue >= @TargetValue then 'achieved'::goal_status
+                else 'active'::goal_status
+            end,
+            @CreatedAt
         from clients c
-        where c.id = @ClientId and c.organization_id = @OrganizationId and c.current_status = 'active'
-          and (@ModalityId is null or exists (
-              select 1 from modalities m where m.id = @ModalityId and m.organization_id = @OrganizationId and m.is_active = true
-          ))
-        returning id, organization_id as OrganizationId, client_id as ClientId, modality_id as ModalityId,
-                  title, description, goal_type::text as GoalType, target_value as TargetValue,
-                  current_value as CurrentValue, unit, starts_at as StartsAt, due_date as DueDate,
-                  status::text as Status, created_at as CreatedAt, updated_at as UpdatedAt;
+        where c.id = @ClientId
+            and c.organization_id = @OrganizationId
+            and c.current_status = 'active'
+            and (@ModalityId is null
+                or exists (
+                    select 1
+                    from modalities m
+                    where m.id = @ModalityId
+                        and m.organization_id = @OrganizationId
+                        and m.is_active = true
+                ))
+        returning
+            id,
+            organization_id as OrganizationId,
+            client_id as ClientId,
+            modality_id as ModalityId,
+            title,
+            description,
+            goal_type::text as GoalType,
+            target_value as TargetValue,
+            current_value as CurrentValue,
+            direction,
+            initial_value as InitialValue,
+            unit,
+            starts_at as StartsAt,
+            due_date as DueDate,
+            status::text as Status,
+            created_at as CreatedAt,
+            updated_at as UpdatedAt;
         ";
 
     public const string ListFitnessGoals = @"
-        select id, organization_id as OrganizationId, client_id as ClientId, modality_id as ModalityId,
-               title, description, goal_type::text as GoalType, target_value as TargetValue,
-               current_value as CurrentValue, unit, starts_at as StartsAt, due_date as DueDate,
-               status::text as Status, created_at as CreatedAt, updated_at as UpdatedAt
+        select
+            id,
+            organization_id as OrganizationId,
+            client_id as ClientId,
+            modality_id as ModalityId,
+            title,
+            description,
+            goal_type::text as GoalType,
+            target_value as TargetValue,
+            current_value as CurrentValue,
+            direction,
+            initial_value as InitialValue,
+            unit,
+            starts_at as StartsAt,
+            due_date as DueDate,
+            status::text as Status,
+            created_at as CreatedAt,
+            updated_at as UpdatedAt
         from fitness_goals
-        where organization_id = @OrganizationId and (@ClientId is null or client_id = @ClientId)
-        order by due_date, created_at desc
+        where organization_id = @OrganizationId
+            and (@ClientId is null
+                or client_id = @ClientId)
+            and (@Area = 'shared'
+                or (modality_id is not null
+                    and exists (
+                        select 1
+                        from modalities area_modality
+                        where area_modality.id = fitness_goals.modality_id
+                            and area_modality.organization_id = fitness_goals.organization_id
+                            and (@Area = 'shared'
+                                or area_modality.type = 'hybrid'
+                                or (@Area = 'fight'
+                                    and area_modality.type = 'martial_art')
+                                or (@Area = 'gym'
+                                    and area_modality.type = 'fitness'))
+                    ))
+                or (modality_id is null
+                    and (@Area = 'shared'
+                        or exists (
+                            select 1
+                            from clients area_client
+                            join person_modalities assignment on assignment.person_id = area_client.person_id
+                            join modalities area_modality on area_modality.id = assignment.modality_id
+                                and area_modality.organization_id = area_client.organization_id
+                            where area_client.id = fitness_goals.client_id
+                                and area_client.organization_id = fitness_goals.organization_id
+                                and (@Area = 'shared'
+                                    or area_modality.type = 'hybrid'
+                                    or (@Area = 'fight'
+                                        and area_modality.type = 'martial_art')
+                                    or (@Area = 'gym'
+                                        and area_modality.type = 'fitness'))
+                        ))))
+        order by
+            due_date,
+            created_at desc
         offset @Offset rows fetch next @PageSize rows only;
         ";
 
     public const string RecordFitnessProgress = @"
-        with target as (
-            select id, organization_id, target_value
-            from fitness_goals
-            where id = @FitnessGoalId and organization_id = @OrganizationId and status = 'active'
-            for update
-        ), inserted as (
-            insert into fitness_progress_records (id, fitness_goal_id, recorded_value, notes, recorded_at, created_by_teacher_id)
-            select @Id, target.id, @RecordedValue, @Notes, @RecordedAt,
-                   (select teacher.id
+        with
+            target as (
+                select
+                    id,
+                    organization_id,
+                    target_value,
+                    direction
+                from fitness_goals
+                where id = @FitnessGoalId
+                    and organization_id = @OrganizationId
+                    and status = 'active'
+                for update
+            ),
+            inserted as
+            (insert into fitness_progress_records (id, fitness_goal_id, recorded_value, notes, recorded_at, created_by_teacher_id) select
+                @Id,
+                target.id,
+                @RecordedValue,
+                @Notes,
+                @RecordedAt, (
+                    select teacher.id
                     from teachers teacher
                     where teacher.organization_id = target.organization_id
-                      and teacher.person_id = @CreatedByPersonId)
+                        and teacher.person_id = @CreatedByPersonId
+                )
             from target
-            returning id, fitness_goal_id as FitnessGoalId, recorded_value as RecordedValue,
-                      notes, recorded_at as RecordedAt, created_by_teacher_id as CreatedByTeacherId
-        ), updated as (
-            update fitness_goals goal
-            set current_value = @RecordedValue,
-                status = case when @RecordedValue >= target.target_value then 'achieved'::goal_status else 'active'::goal_status end,
+                returning
+                id,
+                fitness_goal_id as FitnessGoalId,
+                recorded_value as RecordedValue,
+                notes,
+                recorded_at as RecordedAt,
+                created_by_teacher_id as CreatedByTeacherId),
+            updated as
+            (update fitness_goals goal
+            set
+                current_value = @RecordedValue,
+                status = case
+                    when (target.direction = 'increase'
+                        and @RecordedValue >= target.target_value)
+                        or (target.direction = 'decrease'
+                            and @RecordedValue <= target.target_value) then 'achieved'::goal_status
+                    else 'active'::goal_status
+                end,
                 updated_at = now()
-            from target where goal.id = target.id
-        )
-        select * from inserted;
+            from target
+            where goal.id = target.id)
+        select *
+        from inserted;
         ";
 
     public const string ListFitnessProgressRecords = @"

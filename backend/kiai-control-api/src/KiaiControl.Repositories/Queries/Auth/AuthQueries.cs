@@ -10,6 +10,7 @@ public static class AuthQueries
             ua.email as Email,
             ua.password_hash as PasswordHash,
             ua.is_active as IsActive,
+            ua.session_version as SessionVersion,
             ua.must_change_password as MustChangePassword,
             array_cat(coalesce((
                 select array_agg(distinct r.code::text)
@@ -46,6 +47,7 @@ public static class AuthQueries
             ua.email as Email,
             ua.password_hash as PasswordHash,
             ua.is_active as IsActive,
+            ua.session_version as SessionVersion,
             ua.must_change_password as MustChangePassword,
             array_cat(coalesce((
                 select array_agg(distinct r.code::text)
@@ -143,6 +145,7 @@ public static class AuthQueries
         update user_accounts
         set
             password_hash = @PasswordHash,
+            session_version = session_version + 1,
             updated_at = @UpdatedAt,
             must_change_password = false
         where id = @UserId;

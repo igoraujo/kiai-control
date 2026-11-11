@@ -13,7 +13,7 @@
             <MudAvatar Color="Color.Secondary" Variant="Variant.Filled" Size="Size.Large">KC</MudAvatar>
             <div>
                 <MudText Typo="Typo.h5">Kiai Control</MudText>
-                <MudText Typo="Typo.body2" Color="Color.Secondary">Painel administrativo</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Acesso à academia</MudText>
             </div>
         </div>
         <MudText Typo="Typo.h4" Class="login-title">Acesse sua academia</MudText>
@@ -33,6 +33,7 @@
                 </MudButton>
             </MudStack>
         </EditForm>
+        <MudLink Href="/forgot-password">Esqueci minha senha</MudLink>
     </section>
 </main>
 
@@ -51,18 +52,7 @@
 
     private void NavigateAfterLogin(SessionTokenResponse session)
     {
-        if (session.User.MustChangePassword)
-        {
-            Navigation.NavigateTo("/change-password");
-        }
-        else if (session.User.Roles.Contains("platform_owner", StringComparer.OrdinalIgnoreCase))
-        {
-            Navigation.NavigateTo("/platform/organizations");
-        }
-        else
-        {
-            Navigation.NavigateTo("/");
-        }
+        Navigation.NavigateTo(AdminNavigation.Home(session.User));
     }
 
     private async Task SignInAsync()

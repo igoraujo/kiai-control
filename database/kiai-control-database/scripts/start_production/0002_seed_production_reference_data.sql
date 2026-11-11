@@ -19,6 +19,10 @@ set name = excluded.name,
 
 insert into permissions (id, code, name, description)
 values
+    (gen_random_uuid(), 'clients.read', 'Consultar alunos', 'Visualizar o cadastro e a jornada dos alunos.'),
+    (gen_random_uuid(), 'teachers.read', 'Consultar professores', 'Visualizar o cadastro de professores.'),
+    (gen_random_uuid(), 'branches.read', 'Consultar unidades', 'Visualizar as unidades da academia.'),
+    (gen_random_uuid(), 'modalities.read', 'Consultar modalidades', 'Visualizar modalidades oferecidas.'),
     (gen_random_uuid(), 'access.manage', 'Gerenciar acessos', 'Consultar perfis e gerenciar atribuições de perfis às pessoas.'),
     (gen_random_uuid(), 'access.permissions.manage', 'Gerenciar permissões', 'Conceder ou revogar permissões dos perfis.'),
     (gen_random_uuid(), 'audit.read', 'Consultar auditoria', 'Consultar eventos de auditoria da organização.'),

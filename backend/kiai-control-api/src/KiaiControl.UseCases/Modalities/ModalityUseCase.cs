@@ -3,18 +3,12 @@ using KiaiControl.Core.Entities;
 using KiaiControl.Core.Interfaces;
 
 namespace KiaiControl.UseCases.Modalities;
-
 public sealed class ModalityUseCase(IModalityRepository modalityRepository)
 {
     private static readonly string[] AllowedTypes = ["martial_art", "fitness", "hybrid"];
-
-    public async Task<ModalityResponse> CreateAsync(
-        Guid organizationId,
-        CreateModalityRequest request,
-        CancellationToken cancellationToken)
+    public async Task<ModalityResponse> CreateAsync(Guid organizationId, CreateModalityRequest request, CancellationToken cancellationToken)
     {
         Validate(organizationId, request.Name, request.Type, request.Description);
-
         var modality = new Modality
         {
             OrganizationId = organizationId,
@@ -23,23 +17,17 @@ public sealed class ModalityUseCase(IModalityRepository modalityRepository)
             Description = NormalizeDescription(request.Description),
             IsActive = true
         };
-
         return ToResponse(await modalityRepository.CreateAsync(modality, cancellationToken));
     }
 
-    public async Task<IReadOnlyList<ModalityResponse>> ListAsync(
-        Guid organizationId,
-        int page,
-        int pageSize,
-        CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<ModalityResponse>> ListAsync(Guid organizationId, int page, int pageSize, CancellationToken cancellationToken)
     {
         var modalities = await modalityRepository.ListByOrganizationAsync(organizationId, page, pageSize, cancellationToken);
         return modalities.Select(ToResponse).ToList();
     }
 
-    public async Task<IReadOnlyList<string>> ListActiveTypesAsync(
-        Guid organizationId,
-        CancellationToken cancellationToken)
+    public Task<IReadOnlyList<ModalityResponse>> ListAllOptionsAsync(Guid org, CancellationToken ct) => KiaiControl.UseCases.Common.PagedOptions.ReadAllAsync(page => ListAsync(org, page, 200, ct));
+    public async Task<IReadOnlyList<string>> ListActiveTypesAsync(Guid organizationId, CancellationToken cancellationToken)
     {
         if (organizationId == Guid.Empty)
         {
@@ -55,14 +43,9 @@ public sealed class ModalityUseCase(IModalityRepository modalityRepository)
         return modality is null ? null : ToResponse(modality);
     }
 
-    public async Task<ModalityResponse?> UpdateAsync(
-        Guid organizationId,
-        Guid id,
-        UpdateModalityRequest request,
-        CancellationToken cancellationToken)
+    public async Task<ModalityResponse?> UpdateAsync(Guid organizationId, Guid id, UpdateModalityRequest request, CancellationToken cancellationToken)
     {
         Validate(organizationId, request.Name, request.Type, request.Description);
-
         var modality = new Modality
         {
             Id = id,
@@ -72,7 +55,6 @@ public sealed class ModalityUseCase(IModalityRepository modalityRepository)
             Description = NormalizeDescription(request.Description),
             IsActive = request.IsActive
         };
-
         var updated = await modalityRepository.UpdateAsync(modality, cancellationToken);
         return updated is null ? null : ToResponse(updated);
     }
@@ -82,10 +64,7 @@ public sealed class ModalityUseCase(IModalityRepository modalityRepository)
         return modalityRepository.DeactivateAsync(organizationId, id, cancellationToken);
     }
 
-    public async Task<IReadOnlyList<ModalityResponse>> ListClientModalitiesAsync(
-        Guid organizationId,
-        Guid clientId,
-        CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<ModalityResponse>> ListClientModalitiesAsync(Guid organizationId, Guid clientId, CancellationToken cancellationToken)
     {
         if (organizationId == Guid.Empty || clientId == Guid.Empty)
         {
@@ -96,21 +75,13 @@ public sealed class ModalityUseCase(IModalityRepository modalityRepository)
         return modalities.Select(ToResponse).ToList();
     }
 
-    public Task<bool> LinkClientAsync(
-        Guid organizationId,
-        Guid clientId,
-        Guid modalityId,
-        CancellationToken cancellationToken)
+    public Task<bool> LinkClientAsync(Guid organizationId, Guid clientId, Guid modalityId, CancellationToken cancellationToken)
     {
         ValidateLinkIds(organizationId, clientId, modalityId);
         return modalityRepository.LinkClientAsync(organizationId, clientId, modalityId, cancellationToken);
     }
 
-    public Task<bool> UnlinkClientAsync(
-        Guid organizationId,
-        Guid clientId,
-        Guid modalityId,
-        CancellationToken cancellationToken)
+    public Task<bool> UnlinkClientAsync(Guid organizationId, Guid clientId, Guid modalityId, CancellationToken cancellationToken)
     {
         ValidateLinkIds(organizationId, clientId, modalityId);
         return modalityRepository.UnlinkClientAsync(organizationId, clientId, modalityId, cancellationToken);
@@ -157,7 +128,7 @@ public sealed class ModalityUseCase(IModalityRepository modalityRepository)
         return string.IsNullOrWhiteSpace(description) ? null : description.Trim();
     }
 
-    private static ModalityResponse ToResponse(Modality modality)
+    internal static ModalityResponse ToResponse(Modality modality)
     {
         return new ModalityResponse
         {

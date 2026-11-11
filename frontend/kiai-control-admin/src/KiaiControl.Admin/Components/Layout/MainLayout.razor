@@ -1,4 +1,5 @@
 ﻿@inherits LayoutComponentBase
+@implements IDisposable
 @inject AdminSession Session
 @inject AdminApiClient Api
 @inject NavigationManager Navigation
@@ -9,20 +10,20 @@
 <MudDialogProvider />
 <MudSnackbarProvider />
 
-<div class="dashboard-shell">
+<div class="dashboard-shell area-@Session.Area">
     <MudLayout>
         <MudAppBar Elevation="0" Dense="true" Class="dashboard-appbar">
-            <MudIconButton Icon="@Icons.Material.Filled.MenuOpen" Color="Color.Inherit" Edge="Edge.Start" OnClick="ToggleDrawer" Class="drawer-toggle" />
+            <MudIconButton Icon="@Icons.Material.Filled.MenuOpen" Color="Color.Inherit" Edge="Edge.Start" OnClick="ToggleDrawer" Class="drawer-toggle" aria-label="Menu de navegação" />
 
             <div class="brand-lockup">
                 <MudText Typo="Typo.subtitle1" Class="brand-title">Kiai Control</MudText>
-                <MudText Typo="Typo.caption" Class="brand-subtitle">Painel administrativo</MudText>
+                <MudText Typo="Typo.caption" Class="brand-subtitle">@(AdminNavigation.HasRole(Session.Current?.User,"platform_owner")?"Administração da plataforma":Session.OrganizationName)</MudText>
             </div>
 
             <MudSpacer />
 
             <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
-                <MudChip T="string" Color="Color.Secondary" Variant="Variant.Filled" Size="Size.Small" Class="status-chip">MVP</MudChip>
+                <span class="workspace-badge">@(Session.Area=="fight"?"FIGHT":Session.Area=="gym"?"GYM":"GERAL")</span>
                 @if (Session.Current is not null)
                 {
                     <MudText Typo="Typo.body2" Class="signed-in-email">@Session.Current.User.Email</MudText>
@@ -45,6 +46,9 @@
 
         <MudMainContent>
             <MudContainer MaxWidth="MaxWidth.False" Class="admin-content">
+                @if(Session.Area!="shared"){
+                    <div class="workspace-context"><strong>@(Session.Area=="fight"?"Fight · artes marciais":"Gym · treinamento")</strong><span>Alunos, professores, modalidades e aulas filtrados por área. Financeiro geral.</span><MudButton Size="Size.Small" OnClick="SelectShared">Visão geral</MudButton></div>
+                }
                 @Body
             </MudContainer>
         </MudMainContent>
@@ -59,6 +63,10 @@
 
 @code {
     private bool _drawerOpen = true;
+    protected override void OnInitialized() { Session.WorkspaceChanged += WorkspaceChanged; }
+    private void WorkspaceChanged() => _ = InvokeAsync(StateHasChanged);
+    public void Dispose() => Session.WorkspaceChanged -= WorkspaceChanged;
+
 
     private readonly MudTheme _theme = new()
     {
@@ -88,6 +96,13 @@
             DrawerWidthLeft = "260px"
         }
     };
+
+    private void SelectShared()
+    {
+        Session.SelectArea("shared");
+        var path = new Uri(Navigation.Uri).AbsolutePath;
+        Navigation.NavigateTo(path is "/clients" or "/teachers" or "/modalities" or "/lessons" or "/fitness" ? path : AdminNavigation.Home(Session.Current?.User));
+    }
 
     private void ToggleDrawer()
     {

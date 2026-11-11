@@ -102,6 +102,7 @@ create unique index if not exists uq_persons_org_email on persons (organization_
 create unique index if not exists uq_persons_org_document on persons (organization_id, document)
     where document is not null and deleted_at is null;
 create index if not exists ix_persons_org_full_name on persons (organization_id, full_name);
+create index if not exists ix_persons_org_name_search on persons (organization_id, lower(full_name));
 create index if not exists ix_persons_org_status on persons (organization_id, status);
 create index if not exists ix_persons_branch_id on persons (branch_id);
 
@@ -110,6 +111,7 @@ create table if not exists user_accounts (
     person_id uuid not null unique references persons(id),
     email varchar(160) not null unique,
     password_hash varchar(255) not null,
+    session_version integer not null default 0,
     is_active boolean not null default true,
     is_platform_owner boolean not null default false,
     must_change_password boolean not null default false,
@@ -461,6 +463,8 @@ create table if not exists fitness_goals (
     title varchar(160) not null,
     description text,
     goal_type goal_type not null,
+    direction varchar(12) not null default 'increase',
+    initial_value numeric(12,2) not null default 0,
     target_value numeric(12,2) not null check (target_value > 0),
     current_value numeric(12,2) not null default 0,
     unit varchar(30),
@@ -469,6 +473,7 @@ create table if not exists fitness_goals (
     status goal_status not null default 'active',
     created_at timestamptz not null default now(),
     updated_at timestamptz,
+    constraint ck_fitness_goal_direction check (direction in ('increase','decrease') and initial_value >= 0 and (direction <> 'decrease' or initial_value > target_value)),
     constraint ck_fitness_goals_valid_period check (due_date >= starts_at)
 );
 create index if not exists ix_fitness_goals_org_client_status on fitness_goals (organization_id, client_id, status);

@@ -1,0 +1,36 @@
+@page "/student"
+@inject AdminApiClient Api
+@inject AdminSession Session
+<PageTitle>Minha área | Kiai Control</PageTitle>
+<MudStack Spacing="4">
+    <section class="workspace-hero student">
+<div class="workspace-hero-copy">
+<span class="eyebrow"><AcademyName /> · área do aluno</span>
+<h1>Olá, @(_profile?.PreferredName??_profile?.FullName??"aluno")</h1>
+<p>Seu próximo passo começa aqui.</p>
+<span class="workspace-hero-note">Aulas, conquistas e sua evolução em um só lugar.</span>
+</div>
+<div class="workspace-hero-symbol" aria-hidden="true">
+<MudIcon Icon="@Icons.Material.Filled.SelfImprovement" />
+</div>
+</section>
+    @if(_error is not null){<MudAlert Severity="Severity.Error">@_error</MudAlert>}
+    <MudTabs Rounded="true" Border="true" Elevation="0">
+        <MudTabPanel Text="Minhas aulas" Icon="@Icons.Material.Filled.CalendarMonth">
+<StudentLessons />
+</MudTabPanel>
+        <MudTabPanel Text="Minha evolução" Icon="@Icons.Material.Filled.EmojiEvents">
+<ClientProgressPanel />
+</MudTabPanel>
+        <MudTabPanel Text="Gym · metas" Icon="@Icons.Material.Filled.FitnessCenter">
+<ClientGoalsPanel />
+</MudTabPanel>
+        <MudTabPanel Text="Meu financeiro" Icon="@Icons.Material.Filled.AccountBalanceWallet">
+<StudentFinance />
+</MudTabPanel>
+    </MudTabs>
+    <div class="workspace-grid">
+<WorkspaceCard Href="/notifications" Title="Meus comunicados" Description="Avisos e novidades da academia." Icon="@Icons.Material.Filled.Notifications" />
+<WorkspaceCard Href="/account" Title="Minha conta" Description="Meu acesso e alteração de senha." Icon="@Icons.Material.Filled.AccountCircle" />
+</div>
+</MudStack>

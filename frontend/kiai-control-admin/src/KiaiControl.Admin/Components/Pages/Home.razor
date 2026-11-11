@@ -219,6 +219,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        Session.SelectArea(AcademyArea.General);
         if (Session.Current is null)
         {
             Navigation.NavigateTo("/login");

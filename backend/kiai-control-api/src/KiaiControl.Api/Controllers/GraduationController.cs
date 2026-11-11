@@ -8,41 +8,31 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace KiaiControl.Api.Controllers;
-
 [ApiController]
 [Authorize(Roles = "owner,admin,teacher")]
 [Authorize(Policy = PermissionCodes.GraduationManage)]
 [Route("api/v1")]
-public sealed class GraduationController(
-    OrganizationContext organizationContext,
-    GraduationUseCase graduationUseCase,
-    ModalityUseCase modalityUseCase,
-    ClientUseCase clientUseCase) : ControllerBase
+public sealed class GraduationController(OrganizationContext organizationContext, GraduationUseCase graduationUseCase, ModalityUseCase modalityUseCase, ClientUseCase clientUseCase) : ControllerBase
 {
     [HttpGet("graduation/options")]
-    public async Task<ActionResult<GraduationOptionsResponse>> OptionsAsync(CancellationToken cancellationToken)
+    public async Task<ActionResult<GraduationOptionsResponse>> OptionsAsync(CancellationToken cancellationToken, string? area = null)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
             return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
-        var modalitiesTask = modalityUseCase.ListAsync(organizationId, 1, 200, cancellationToken);
-        var clientsTask = clientUseCase.ListAsync(organizationId, 1, 200, cancellationToken);
+        string selectedArea;
+        try { selectedArea = KiaiControl.Contracts.Common.AcademyArea.Normalize(area); }
+        catch (ArgumentException e) { return BadRequest(e.Message); }
+        var modalitiesTask = modalityUseCase.ListAllOptionsAsync(organizationId, cancellationToken);
+        var clientsTask = clientUseCase.ListAllOptionsAsync(organizationId, cancellationToken);
         await Task.WhenAll(modalitiesTask, clientsTask);
-        return Ok(new GraduationOptionsResponse
-        {
-            Modalities = (await modalitiesTask)
-                .Where(modality => modality.IsActive && modality.Type == "martial_art")
-                .ToList(),
-            Clients = (await clientsTask).Where(client => client.Status == "active").ToList()
-        });
+        return Ok(new GraduationOptionsResponse { Modalities = (await modalitiesTask).Where(modality => modality.IsActive && modality.Type == "martial_art").ToList(), Clients = (await clientsTask).Where(client => client.Status == "active" && (selectedArea == "shared" || client.Areas.Contains(selectedArea))).ToList() });
     }
 
     [HttpPost("graduation-systems")]
-    public async Task<ActionResult<GraduationSystemResponse>> CreateSystemAsync(
-        [FromBody] CreateGraduationSystemRequest request,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<GraduationSystemResponse>> CreateSystemAsync([FromBody] CreateGraduationSystemRequest request, CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
@@ -52,8 +42,7 @@ public sealed class GraduationController(
         try
         {
             var system = await graduationUseCase.CreateSystemAsync(organizationId, request, cancellationToken);
-            return system is null ? NotFound(SystemMessages.AModalidadeNaoFoiEncontradaEstaInativaOuNaoEUmaArteMarcialNestaOrganizacao)
-                : StatusCode(StatusCodes.Status201Created, system);
+            return system is null ? NotFound(SystemMessages.AModalidadeNaoFoiEncontradaEstaInativaOuNaoEUmaArteMarcialNestaOrganizacao) : StatusCode(StatusCodes.Status201Created, system);
         }
         catch (ArgumentException exception)
         {
@@ -73,10 +62,7 @@ public sealed class GraduationController(
     }
 
     [HttpPost("graduation-systems/{systemId:guid}/levels")]
-    public async Task<ActionResult<GraduationLevelResponse>> CreateLevelAsync(
-        Guid systemId,
-        [FromBody] CreateGraduationLevelRequest request,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<GraduationLevelResponse>> CreateLevelAsync(Guid systemId, [FromBody] CreateGraduationLevelRequest request, CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
@@ -86,8 +72,7 @@ public sealed class GraduationController(
         try
         {
             var level = await graduationUseCase.CreateLevelAsync(organizationId, systemId, request, cancellationToken);
-            return level is null ? NotFound(SystemMessages.TheActiveGraduationSystemWasNotFoundInThisOrganization)
-                : StatusCode(StatusCodes.Status201Created, level);
+            return level is null ? NotFound(SystemMessages.TheActiveGraduationSystemWasNotFoundInThisOrganization) : StatusCode(StatusCodes.Status201Created, level);
         }
         catch (ArgumentException exception)
         {
@@ -107,9 +92,7 @@ public sealed class GraduationController(
     }
 
     [HttpGet("graduation-systems/{systemId:guid}/belts")]
-    public async Task<ActionResult<IReadOnlyList<GraduationBeltResponse>>> ListBeltsAsync(
-        Guid systemId,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<IReadOnlyList<GraduationBeltResponse>>> ListBeltsAsync(Guid systemId, CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
@@ -127,10 +110,7 @@ public sealed class GraduationController(
     }
 
     [HttpPost("graduation-systems/{systemId:guid}/belts")]
-    public async Task<ActionResult<GraduationBeltResponse>> CreateBeltAsync(
-        Guid systemId,
-        [FromBody] CreateGraduationBeltRequest request,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<GraduationBeltResponse>> CreateBeltAsync(Guid systemId, [FromBody] CreateGraduationBeltRequest request, CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
@@ -140,9 +120,7 @@ public sealed class GraduationController(
         try
         {
             var belt = await graduationUseCase.CreateBeltAsync(organizationId, systemId, request, cancellationToken);
-            return belt is null
-                ? Conflict(SystemMessages.AFaixaJaExisteOuOSistemaDeGraduacaoNaoEstaDisponivelNestaOrganizacao)
-                : StatusCode(StatusCodes.Status201Created, belt);
+            return belt is null ? Conflict(SystemMessages.AFaixaJaExisteOuOSistemaDeGraduacaoNaoEstaDisponivelNestaOrganizacao) : StatusCode(StatusCodes.Status201Created, belt);
         }
         catch (ArgumentException exception)
         {
@@ -151,11 +129,7 @@ public sealed class GraduationController(
     }
 
     [HttpPut("graduation-systems/{systemId:guid}/belts/{beltId:guid}")]
-    public async Task<IActionResult> UpdateBeltAsync(
-        Guid systemId,
-        Guid beltId,
-        [FromBody] CreateGraduationBeltRequest request,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> UpdateBeltAsync(Guid systemId, Guid beltId, [FromBody] CreateGraduationBeltRequest request, CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
@@ -164,8 +138,7 @@ public sealed class GraduationController(
 
         try
         {
-            var updated = await graduationUseCase.UpdateBeltAsync(
-                organizationId, systemId, beltId, request, cancellationToken);
+            var updated = await graduationUseCase.UpdateBeltAsync(organizationId, systemId, beltId, request, cancellationToken);
             return updated ? NoContent() : Conflict(SystemMessages.AFaixaNaoExisteTemNomeDuplicadoOuAQuantidadeDeGrausEMenorQueOsGrausJaCadastrados);
         }
         catch (ArgumentException exception)
@@ -175,10 +148,7 @@ public sealed class GraduationController(
     }
 
     [HttpDelete("graduation-systems/{systemId:guid}/belts/{beltId:guid}")]
-    public async Task<IActionResult> DeleteBeltAsync(
-        Guid systemId,
-        Guid beltId,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> DeleteBeltAsync(Guid systemId, Guid beltId, CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
@@ -197,11 +167,7 @@ public sealed class GraduationController(
     }
 
     [HttpPost("graduation-systems/{systemId:guid}/belts/{beltId:guid}/degrees")]
-    public async Task<ActionResult<GraduationLevelResponse>> CreateDegreeAsync(
-        Guid systemId,
-        Guid beltId,
-        [FromBody] CreateGraduationDegreeRequest request,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<GraduationLevelResponse>> CreateDegreeAsync(Guid systemId, Guid beltId, [FromBody] CreateGraduationDegreeRequest request, CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
@@ -210,11 +176,8 @@ public sealed class GraduationController(
 
         try
         {
-            var degree = await graduationUseCase.CreateDegreeAsync(
-                organizationId, systemId, beltId, request, cancellationToken);
-            return degree is null
-                ? Conflict(SystemMessages.AFaixaNaoFoiEncontradaOuTodosOsGrausConfiguradosJaForamCadastrados)
-                : StatusCode(StatusCodes.Status201Created, degree);
+            var degree = await graduationUseCase.CreateDegreeAsync(organizationId, systemId, beltId, request, cancellationToken);
+            return degree is null ? Conflict(SystemMessages.AFaixaNaoFoiEncontradaOuTodosOsGrausConfiguradosJaForamCadastrados) : StatusCode(StatusCodes.Status201Created, degree);
         }
         catch (ArgumentException exception)
         {
@@ -223,12 +186,7 @@ public sealed class GraduationController(
     }
 
     [HttpPut("graduation-systems/{systemId:guid}/belts/{beltId:guid}/degrees/{degreeId:guid}")]
-    public async Task<IActionResult> UpdateDegreeAsync(
-        Guid systemId,
-        Guid beltId,
-        Guid degreeId,
-        [FromBody] CreateGraduationDegreeRequest request,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> UpdateDegreeAsync(Guid systemId, Guid beltId, Guid degreeId, [FromBody] CreateGraduationDegreeRequest request, CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
@@ -237,8 +195,7 @@ public sealed class GraduationController(
 
         try
         {
-            var updated = await graduationUseCase.UpdateDegreeAsync(
-                organizationId, systemId, beltId, degreeId, request, cancellationToken);
+            var updated = await graduationUseCase.UpdateDegreeAsync(organizationId, systemId, beltId, degreeId, request, cancellationToken);
             return updated ? NoContent() : NotFound(SystemMessages.OGrauNaoFoiEncontradoNestaFaixaEOrganizacao);
         }
         catch (ArgumentException exception)
@@ -248,11 +205,7 @@ public sealed class GraduationController(
     }
 
     [HttpDelete("graduation-systems/{systemId:guid}/belts/{beltId:guid}/degrees/{degreeId:guid}")]
-    public async Task<IActionResult> DeleteDegreeAsync(
-        Guid systemId,
-        Guid beltId,
-        Guid degreeId,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> DeleteDegreeAsync(Guid systemId, Guid beltId, Guid degreeId, CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
@@ -261,8 +214,7 @@ public sealed class GraduationController(
 
         try
         {
-            var deleted = await graduationUseCase.DeleteDegreeAsync(
-                organizationId, systemId, beltId, degreeId, cancellationToken);
+            var deleted = await graduationUseCase.DeleteDegreeAsync(organizationId, systemId, beltId, degreeId, cancellationToken);
             return deleted ? NoContent() : Conflict(SystemMessages.SoEPossivelExcluirOUltimoGrauDaSequenciaEEleNaoPodeTerSidoUsadoEmGraduacoes);
         }
         catch (ArgumentException exception)
@@ -272,10 +224,7 @@ public sealed class GraduationController(
     }
 
     [HttpPost("clients/{clientId:guid}/graduations")]
-    public async Task<ActionResult<ClientGraduationResponse>> SetInitialAsync(
-        Guid clientId,
-        [FromBody] SetClientGraduationRequest request,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<ClientGraduationResponse>> SetInitialAsync(Guid clientId, [FromBody] SetClientGraduationRequest request, CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
@@ -285,8 +234,7 @@ public sealed class GraduationController(
         try
         {
             var graduation = await graduationUseCase.SetInitialAsync(organizationId, clientId, request, cancellationToken);
-            return graduation is null ? Conflict(SystemMessages.OAlunoNaoEstaVinculadoAModalidadeONivelNaoEstaDisponivelOuJaExisteUmaGraduacao)
-                : StatusCode(StatusCodes.Status201Created, graduation);
+            return graduation is null ? Conflict(SystemMessages.OAlunoNaoEstaVinculadoAModalidadeONivelNaoEstaDisponivelOuJaExisteUmaGraduacao) : StatusCode(StatusCodes.Status201Created, graduation);
         }
         catch (ArgumentException exception)
         {
@@ -295,10 +243,7 @@ public sealed class GraduationController(
     }
 
     [HttpPost("clients/{clientId:guid}/graduation-events")]
-    public async Task<ActionResult<GraduationEventResponse>> PromoteAsync(
-        Guid clientId,
-        [FromBody] PromoteClientRequest request,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<GraduationEventResponse>> PromoteAsync(Guid clientId, [FromBody] PromoteClientRequest request, CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
@@ -308,9 +253,7 @@ public sealed class GraduationController(
         try
         {
             var graduationEvent = await graduationUseCase.PromoteAsync(organizationId, clientId, request, cancellationToken);
-            return graduationEvent is null
-                ? Conflict(SystemMessages.PromotionIsInvalidLevelMustAdvanceTheCurrentRankAndAnyManualEvaluationMustPass)
-                : StatusCode(StatusCodes.Status201Created, graduationEvent);
+            return graduationEvent is null ? Conflict(SystemMessages.PromotionIsInvalidLevelMustAdvanceTheCurrentRankAndAnyManualEvaluationMustPass) : StatusCode(StatusCodes.Status201Created, graduationEvent);
         }
         catch (ArgumentException exception)
         {
@@ -319,10 +262,7 @@ public sealed class GraduationController(
     }
 
     [HttpGet("clients/{clientId:guid}/graduation-events")]
-    public async Task<ActionResult<IReadOnlyList<GraduationEventResponse>>> ListEventsAsync(
-        Guid clientId,
-        [FromQuery] Guid modalityId,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<IReadOnlyList<GraduationEventResponse>>> ListEventsAsync(Guid clientId, [FromQuery] Guid modalityId, CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
@@ -340,9 +280,7 @@ public sealed class GraduationController(
     }
 
     [HttpGet("graduation/eligible-clients")]
-    public async Task<ActionResult<IReadOnlyList<EligibleClientResponse>>> ListEligibleAsync(
-        [FromQuery] Guid systemId,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<IReadOnlyList<EligibleClientResponse>>> ListEligibleAsync([FromQuery] Guid systemId, CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {

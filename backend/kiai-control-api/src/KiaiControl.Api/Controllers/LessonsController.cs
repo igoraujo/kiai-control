@@ -10,15 +10,11 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace KiaiControl.Api.Controllers;
-
 [ApiController]
 [Authorize]
 [Authorize(Policy = PermissionCodes.LessonsManage)]
 [Route("api/v1/lessons")]
-public sealed class LessonsController(
-    OrganizationContext organizationContext,
-    LessonUseCase lessonUseCase,
-    AttendanceUseCase attendanceUseCase) : ControllerBase
+public sealed class LessonsController(OrganizationContext organizationContext, LessonUseCase lessonUseCase, AttendanceUseCase attendanceUseCase, KiaiControl.UseCases.Teachers.TeacherUseCase teachers) : ControllerBase
 {
     [AllowAnonymous]
     [HttpGet("status")]
@@ -28,10 +24,8 @@ public sealed class LessonsController(
     }
 
     [HttpPost]
-    [Authorize(Roles = "owner,admin,teacher")]
-    public async Task<ActionResult<LessonResponse>> CreateAsync(
-        [FromBody] CreateLessonRequest request,
-        CancellationToken cancellationToken)
+    [Authorize(Roles = "owner,admin")]
+    public async Task<ActionResult<LessonResponse>> CreateAsync([FromBody] CreateLessonRequest request, CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
@@ -41,9 +35,7 @@ public sealed class LessonsController(
         try
         {
             var created = await lessonUseCase.CreateAsync(organizationId, request, cancellationToken);
-            return created is null
-                ? Conflict(SystemMessages.TheModalityIsUnavailableInThisOrganization)
-                : CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+            return created is null ? Conflict(SystemMessages.TheModalityIsUnavailableInThisOrganization) : CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
         }
         catch (ArgumentException exception)
         {
@@ -52,10 +44,8 @@ public sealed class LessonsController(
     }
 
     [HttpPost("generate-from-modality")]
-    [Authorize(Roles = "owner,admin,teacher")]
-    public async Task<ActionResult<IReadOnlyList<LessonResponse>>> GenerateFromModalityAsync(
-        [FromBody] GenerateModalityLessonsRequest request,
-        CancellationToken cancellationToken)
+    [Authorize(Roles = "owner,admin")]
+    public async Task<ActionResult<IReadOnlyList<LessonResponse>>> GenerateFromModalityAsync([FromBody] GenerateModalityLessonsRequest request, CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
@@ -65,9 +55,7 @@ public sealed class LessonsController(
         try
         {
             var created = await lessonUseCase.GenerateFromModalitySchedulesAsync(organizationId, request, cancellationToken);
-            return created is null
-                ? NotFound(SystemMessages.TheActiveModalityIsUnavailableInThisOrganization)
-                : CreatedAtRoute("ListLessons", new { page = 1, pageSize = Math.Max(created.Count, 1) }, created);
+            return created is null ? NotFound(SystemMessages.TheActiveModalityIsUnavailableInThisOrganization) : CreatedAtRoute("ListLessons", new { page = 1, pageSize = Math.Max(created.Count, 1) }, created);
         }
         catch (ArgumentException exception)
         {
@@ -77,13 +65,7 @@ public sealed class LessonsController(
 
     [HttpGet("", Name = "ListLessons")]
     [Authorize(Roles = "owner,admin,teacher,reception")]
-    public async Task<ActionResult<IReadOnlyList<LessonResponse>>> ListAsync(
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 50,
-        [FromQuery] Guid? teacherId = null,
-        [FromQuery] DateTimeOffset? from = null,
-        [FromQuery] DateTimeOffset? to = null,
-        CancellationToken cancellationToken = default)
+    public async Task<ActionResult<IReadOnlyList<LessonResponse>>> ListAsync([FromQuery] int page = 1, [FromQuery] int pageSize = 50, [FromQuery] Guid? teacherId = null, [FromQuery] DateTimeOffset? from = null, [FromQuery] DateTimeOffset? to = null, CancellationToken cancellationToken = default)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
@@ -92,6 +74,16 @@ public sealed class LessonsController(
 
         try
         {
+            if (User.IsInRole("teacher") && !User.IsInRole("owner") && !User.IsInRole("admin") && !User.IsInRole("reception"))
+            {
+                if (!Guid.TryParse(User.FindFirstValue("person_id"), out var person))
+                    return Unauthorized();
+                var teacher = await teachers.GetByPersonIdAsync(organizationId, person, cancellationToken);
+                if (teacher is null || teacher.Status != "active")
+                    return NotFound();
+                teacherId = teacher.Id;
+            }
+
             var lessons = await lessonUseCase.ListAsync(organizationId, page, pageSize, cancellationToken, teacherId, from, to);
             return Ok(lessons);
         }
@@ -116,10 +108,7 @@ public sealed class LessonsController(
 
     [HttpPut("{id:guid}")]
     [Authorize(Roles = "owner,admin,teacher")]
-    public async Task<ActionResult<LessonResponse>> UpdateAsync(
-        Guid id,
-        [FromBody] UpdateLessonRequest request,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<LessonResponse>> UpdateAsync(Guid id, [FromBody] UpdateLessonRequest request, CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
@@ -139,10 +128,7 @@ public sealed class LessonsController(
 
     [HttpPatch("{id:guid}/cancel")]
     [Authorize(Roles = "owner,admin,teacher")]
-    public async Task<ActionResult<LessonResponse>> CancelAsync(
-        Guid id,
-        [FromBody] CancelLessonRequest request,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<LessonResponse>> CancelAsync(Guid id, [FromBody] CancelLessonRequest request, CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
@@ -162,10 +148,7 @@ public sealed class LessonsController(
 
     [HttpPatch("{id:guid}/reschedule")]
     [Authorize(Roles = "owner,admin,teacher")]
-    public async Task<ActionResult<LessonResponse>> RescheduleAsync(
-        Guid id,
-        [FromBody] RescheduleLessonRequest request,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<LessonResponse>> RescheduleAsync(Guid id, [FromBody] RescheduleLessonRequest request, CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
@@ -185,9 +168,7 @@ public sealed class LessonsController(
 
     [HttpGet("{id:guid}/attendances")]
     [Authorize(Roles = "owner,admin,teacher,reception")]
-    public async Task<ActionResult<IReadOnlyList<AttendanceRecordResponse>>> GetAttendancesAsync(
-        Guid id,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<IReadOnlyList<AttendanceRecordResponse>>> GetAttendancesAsync(Guid id, CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
@@ -206,38 +187,32 @@ public sealed class LessonsController(
 
     [HttpGet("{id:guid}/eligible-clients")]
     [Authorize(Roles = "owner,admin,teacher,reception")]
-    public async Task<ActionResult<IReadOnlyList<EligibleAttendanceClientResponse>>> GetEligibleClientsAsync(
-        Guid id,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<IReadOnlyList<EligibleAttendanceClientResponse>>> GetEligibleClientsAsync(Guid id, CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
             return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
-        if (await lessonUseCase.GetByIdAsync(organizationId, id, cancellationToken) is null)
+        if (await lessonUseCase.GetByIdAsync(organizationId, id, cancellationToken)is null)
         {
             return NotFound();
         }
 
-        var clients = await attendanceUseCase.ListEligibleClientsByLessonAsync(
-            organizationId, id, cancellationToken);
+        var clients = await attendanceUseCase.ListEligibleClientsByLessonAsync(organizationId, id, cancellationToken);
         return Ok(clients);
     }
 
     [HttpPut("{id:guid}/attendances")]
     [Authorize(Roles = "owner,admin,teacher,reception")]
-    public async Task<ActionResult<IReadOnlyList<AttendanceRecordResponse>>> SaveAttendancesAsync(
-        Guid id,
-        [FromBody] SaveAttendanceCallRequest request,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<IReadOnlyList<AttendanceRecordResponse>>> SaveAttendancesAsync(Guid id, [FromBody] SaveAttendanceCallRequest request, CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
             return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
-        if (await lessonUseCase.GetByIdAsync(organizationId, id, cancellationToken) is null)
+        if (await lessonUseCase.GetByIdAsync(organizationId, id, cancellationToken)is null)
         {
             return NotFound();
         }
@@ -249,11 +224,8 @@ public sealed class LessonsController(
 
         try
         {
-            var attendance = await attendanceUseCase.SaveLessonCallAsync(
-                organizationId, id, validatorPersonId, request, cancellationToken);
-            return attendance is null
-                ? Conflict(SystemMessages.TheLessonIsUnavailableOrOneOrMoreClientsAreNotActivelyEnrolledInItsClassGroup)
-                : Ok(attendance);
+            var attendance = await attendanceUseCase.SaveLessonCallAsync(organizationId, id, validatorPersonId, request, cancellationToken);
+            return attendance is null ? Conflict(SystemMessages.TheLessonIsUnavailableOrOneOrMoreClientsAreNotActivelyEnrolledInItsClassGroup) : Ok(attendance);
         }
         catch (ArgumentException exception)
         {

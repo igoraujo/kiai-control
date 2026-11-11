@@ -4,11 +4,13 @@ on:
   pull_request:
     paths:
       - "backend/kiai-control-api/**"
+      - "database/kiai-control-database/**"
       - "frontend/kiai-control-admin/**"
       - ".github/workflows/backend-api-ci.yml"
   push:
     paths:
       - "backend/kiai-control-api/**"
+      - "database/kiai-control-database/**"
       - "frontend/kiai-control-admin/**"
       - ".github/workflows/backend-api-ci.yml"
   workflow_dispatch:

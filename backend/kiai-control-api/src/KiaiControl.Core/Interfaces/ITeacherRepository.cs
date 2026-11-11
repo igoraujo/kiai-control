@@ -14,6 +14,8 @@ public interface ITeacherRepository
 
     Task<Teacher?> GetByIdAsync(Guid organizationId, Guid id, CancellationToken cancellationToken = default);
 
+    Task<Teacher?> GetByPersonIdAsync(Guid organizationId, Guid personId, CancellationToken cancellationToken = default);
+
     Task<Teacher?> UpdateAsync(Teacher teacher, CancellationToken cancellationToken = default);
 
     Task<bool> DeleteAsync(Guid organizationId, Guid id, CancellationToken cancellationToken = default);

@@ -1,0 +1,46 @@
+@inject AdminApiClient Api
+@inject AdminSession Session
+@inject ISnackbar Snackbar
+<MudDialog>
+<DialogContent>
+<MudStack Spacing="3">
+    @if(_error is not null){<MudAlert Severity="Severity.Error">@_error</MudAlert>}
+    <MudText Typo="Typo.h6">@Person.FullName</MudText>
+    <MudText Typo="Typo.subtitle2">Vínculos de cadastro</MudText>
+    <MudStack Row="true" Wrap="Wrap.Wrap">
+        @if(Person.ClientId is null && (!Protected||IsOwner) && Can(PermissionCodes.ClientsManage)){<MudButton Disabled="_busy" OnClick='()=>AddProfileAsync("client")' StartIcon="@Icons.Material.Filled.PersonAdd">Adicionar aluno</MudButton>}
+        @if(Person.TeacherId is null && (!Protected||IsOwner) && Can(PermissionCodes.TeachersManage)){<MudButton Disabled="_busy" OnClick='()=>AddProfileAsync("teacher")' StartIcon="@Icons.Material.Filled.School">Adicionar professor</MudButton>}
+        @if(Person.ClientId is not null){<MudChip T="string" Color="Color.Info">Cadastro de aluno</MudChip>}
+        @if(Person.TeacherId is not null){<MudChip T="string" Color="Color.Success">Cadastro de professor</MudChip>}
+    </MudStack>
+    <MudDivider />
+    @if(Person.UserId is null){
+        <MudText Typo="Typo.subtitle2">Criar conta de acesso</MudText>
+        <MudTextField @bind-Value="_email" Label="E-mail de acesso" InputType="InputType.Email" />
+        <MudTextField @bind-Value="_password" Label="Senha temporária" HelperText="@PasswordPolicy.Requirements" InputType="InputType.Password" autocomplete="new-password" />
+        <MudSelect T="string" @bind-Value="_role" Label="Perfil inicial">@foreach(var role in AssignableRoles){<MudSelectItem Value="@role.Code">@AdminNavigation.RoleLabel(role.Code)</MudSelectItem>}</MudSelect>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" Disabled="_busy" OnClick="CreateAsync">Criar acesso</MudButton>
+    }else{
+        <MudText Typo="Typo.subtitle2">@Person.LoginEmail · @(Person.IsActive?"Acesso ativo":"Acesso bloqueado")</MudText>
+        <MudTextField @bind-Value="_loginEmail" Label="E-mail de acesso" InputType="InputType.Email" Disabled="Protected" />
+<MudButton Disabled="@(_busy||Protected)" OnClick="ChangeEmailAsync">Salvar e-mail de acesso</MudButton>
+<MudText Typo="Typo.caption">Alterar papéis ou encerrar sessões exige novo login. A própria conta e contas superiores são protegidas.</MudText>
+        <MudStack Row="true" Wrap="Wrap.Wrap">@foreach(var role in _roles){<MudChip T="string" Disabled="@(!CanEditRole(role)||_busy)" OnClose="()=>RemoveRoleAsync(role)">@AdminNavigation.RoleLabel(role)</MudChip>}</MudStack>
+        <MudStack Row="true" AlignItems="AlignItems.Center">
+<MudSelect T="string" @bind-Value="_role" Label="Adicionar papel">@foreach(var role in AssignableRoles.Where(r=>!_roles.Contains(r.Code))){<MudSelectItem Value="@role.Code">@AdminNavigation.RoleLabel(role.Code)</MudSelectItem>}</MudSelect>
+<MudButton Disabled="@(_busy||string.IsNullOrEmpty(_role)||Protected)" OnClick="AddRoleAsync">Adicionar</MudButton>
+</MudStack>
+        <MudDivider />
+        <MudStack Row="true" Wrap="Wrap.Wrap">
+<MudButton Disabled="@(_busy||Protected)" Color="Color.Warning" OnClick="ToggleAsync">@(Person.IsActive?"Bloquear acesso":"Reativar acesso")</MudButton>
+<MudButton Disabled="@(_busy||Protected)" OnClick="()=>RunAsync(()=>Api.RevokeAccountSessionsAsync(Person.PersonId))">Encerrar sessões</MudButton>
+</MudStack>
+        <MudTextField @bind-Value="_password" Label="Nova senha temporária" InputType="InputType.Password" autocomplete="new-password" HelperText="@PasswordPolicy.Requirements" />
+        <MudButton Disabled="@(_busy||Protected)" OnClick="ResetAsync">Redefinir senha</MudButton>
+    }
+</MudStack>
+</DialogContent>
+<DialogActions>
+<MudButton OnClick="Close" Disabled="_busy">Concluir</MudButton>
+</DialogActions>
+</MudDialog>

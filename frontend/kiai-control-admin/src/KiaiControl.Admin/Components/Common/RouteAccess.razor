@@ -1,0 +1,18 @@
+@implements IDisposable
+@inject AdminSession Session
+@inject NavigationManager Navigation
+@if (_allowed)
+{
+    <RouteView RouteData="RouteData" DefaultLayout="typeof(Layout.MainLayout)" />
+}
+else if (Session.Current is not null && !Session.Current.User.MustChangePassword)
+{
+    <LayoutView Layout="typeof(Layout.MainLayout)">
+        <MudPaper Class="pa-8" Outlined="true">
+            <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Large" Color="Color.Warning" />
+            <MudText Typo="Typo.h5" Class="mt-3">Acesso restrito</MudText>
+            <MudText Class="my-3">Seu perfil não tem acesso a esta área. Solicite a permissão ao responsável pela academia.</MudText>
+            <MudButton Href="@AdminNavigation.Home(Session.Current.User)" Color="Color.Primary" Variant="Variant.Filled">Ir para minha área</MudButton>
+        </MudPaper>
+    </LayoutView>
+}

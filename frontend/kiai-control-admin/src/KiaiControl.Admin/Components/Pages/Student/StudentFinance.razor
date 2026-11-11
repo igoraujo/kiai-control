@@ -1,0 +1,43 @@
+@inject AdminApiClient Api
+<MudStack Spacing="3">
+<MudText Typo="Typo.h6">Minhas mensalidades</MudText>
+<MudText Typo="Typo.body2">Consulte as cobranças e os pagamentos registrados pela academia.</MudText>
+    @if(_error is not null){<MudAlert Severity="Severity.Error">@_error <MudButton OnClick="LoadAsync">Tentar novamente</MudButton>
+</MudAlert>}
+    @if(_busy){<MudProgressLinear Indeterminate="true" />}
+    <MudTable Items="_invoices" Dense="true" Breakpoint="Breakpoint.Sm">
+<HeaderContent>
+<MudTh>Vencimento</MudTh>
+<MudTh>Valor</MudTh>
+<MudTh>Pago</MudTh>
+<MudTh>Situação</MudTh>
+</HeaderContent>
+<RowTemplate>
+<MudTd DataLabel="Vencimento">@context.DueDate.ToString("dd/MM/yyyy")</MudTd>
+<MudTd DataLabel="Valor">@context.Amount.ToString("C",Culture)</MudTd>
+<MudTd DataLabel="Pago">@context.PaidAmount.ToString("C",Culture)</MudTd>
+<MudTd DataLabel="Situação">@Status(context.Status)</MudTd>
+</RowTemplate>
+<NoRecordsContent>
+<MudText Class="pa-4">Nenhuma mensalidade registrada.</MudText>
+</NoRecordsContent>
+</MudTable>
+    <PageControls Page="_invoicePage" HasNext="@(_invoices.Count==20)" Busy="_busy" Changed="InvoicePageAsync" />
+    <MudText Typo="Typo.h6">Meus pagamentos</MudText>
+    <MudTable Items="_payments" Dense="true" Breakpoint="Breakpoint.Sm">
+<HeaderContent>
+<MudTh>Data</MudTh>
+<MudTh>Valor</MudTh>
+<MudTh>Forma</MudTh>
+</HeaderContent>
+<RowTemplate>
+<MudTd DataLabel="Data">@context.PaidAt.ToLocalTime().ToString("dd/MM/yyyy")</MudTd>
+<MudTd DataLabel="Valor">@context.Amount.ToString("C",Culture)</MudTd>
+<MudTd DataLabel="Forma">@Method(context.Method)</MudTd>
+</RowTemplate>
+<NoRecordsContent>
+<MudText Class="pa-4">Nenhum pagamento registrado.</MudText>
+</NoRecordsContent>
+</MudTable>
+    <PageControls Page="_paymentPage" HasNext="@(_payments.Count==20)" Busy="_busy" Changed="PaymentPageAsync" />
+</MudStack>

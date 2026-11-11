@@ -1,0 +1,18 @@
+@inherits FormDialogBase
+<MudDialog>
+<DialogContent>
+<MudForm @ref="Form">
+<MudStack Spacing="3">
+    @if(ErrorMessage is not null){<MudAlert Severity="Severity.Error">@ErrorMessage</MudAlert>}
+    <MudTextField @bind-Value="_form.FullName" Label="Nome completo" Required="true" MaxLength="180" Variant="Variant.Outlined" />
+    <MudTextField @bind-Value="_form.Email" Label="E-mail de contato" InputType="InputType.Email" MaxLength="160" Variant="Variant.Outlined" />
+    <MudTextField @bind-Value="_form.Phone" Label="Telefone" MaxLength="30" Variant="Variant.Outlined" />
+    <MudText Typo="Typo.caption">Depois de salvar, use Gerenciar para criar o acesso ou adicionar o vínculo de aluno/professor.</MudText>
+</MudStack>
+</MudForm>
+</DialogContent>
+<DialogActions>
+<MudButton OnClick="Cancel" Disabled="IsSaving">Cancelar</MudButton>
+<MudButton OnClick="SubmitAsync" Disabled="IsSaving" Color="Color.Primary" Variant="Variant.Filled">Salvar pessoa</MudButton>
+</DialogActions>
+</MudDialog>

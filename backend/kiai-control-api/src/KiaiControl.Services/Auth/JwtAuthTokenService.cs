@@ -7,13 +7,7 @@ using KiaiControl.Core.Interfaces;
 using Microsoft.IdentityModel.Tokens;
 
 namespace KiaiControl.Services.Auth;
-
-public sealed class JwtAuthTokenService(
-    string issuer,
-    string audience,
-    string signingKey,
-    int accessTokenExpirationMinutes,
-    int refreshTokenExpirationDays) : IAuthTokenService
+public sealed class JwtAuthTokenService(string issuer, string audience, string signingKey, int accessTokenExpirationMinutes, int refreshTokenExpirationDays) : IAuthTokenService
 {
     public IssuedAccessToken CreateAccessToken(AuthUser user, DateTimeOffset now)
     {
@@ -22,6 +16,7 @@ public sealed class JwtAuthTokenService(
         {
             new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new("person_id", user.PersonId.ToString()),
+            new("session_version", user.SessionVersion.ToString(System.Globalization.CultureInfo.InvariantCulture)),
             new("organization_id", user.OrganizationId.ToString()),
             new(JwtRegisteredClaimNames.Email, user.Email),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
@@ -30,29 +25,19 @@ public sealed class JwtAuthTokenService(
         {
             claims.Add(new Claim("must_change_password", "true"));
         }
-        claims.AddRange(user.Roles
-            .Where(role => !string.IsNullOrWhiteSpace(role))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Select(role => new Claim(ClaimTypes.Role, role)));
-        claims.AddRange(user.Permissions
-            .Where(permission => !string.IsNullOrWhiteSpace(permission))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Select(permission => new Claim("permission", permission)));
 
+        claims.AddRange(user.Roles.Where(role => !string.IsNullOrWhiteSpace(role)).Distinct(StringComparer.OrdinalIgnoreCase).Select(role => new Claim(ClaimTypes.Role, role)));
+        claims.AddRange(user.Permissions.Where(permission => !string.IsNullOrWhiteSpace(permission)).Distinct(StringComparer.OrdinalIgnoreCase).Select(permission => new Claim("permission", permission)));
         var tokenDescriptor = new SecurityTokenDescriptor
         {
             Subject = new ClaimsIdentity(claims),
             Issuer = issuer,
             Audience = audience,
             Expires = expiresAt.UtcDateTime,
-            SigningCredentials = new SigningCredentials(
-                new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey)),
-                SecurityAlgorithms.HmacSha256)
+            SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey)), SecurityAlgorithms.HmacSha256)
         };
-
         var tokenHandler = new JwtSecurityTokenHandler();
         var securityToken = tokenHandler.CreateToken(tokenDescriptor);
-
         return new IssuedAccessToken
         {
             Token = tokenHandler.WriteToken(securityToken),

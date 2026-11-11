@@ -7,16 +7,20 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace KiaiControl.Api.Controllers;
-
 [ApiController]
 [Authorize(Roles = "owner,admin,financial")]
 [Authorize(Policy = PermissionCodes.BillingManage)]
 [Route("api/v1/billing")]
-public sealed class BillingController(
-    OrganizationContext organizationContext,
-    BillingUseCase billingUseCase,
-    BillingCatalogUseCase billingCatalogUseCase) : ControllerBase
+public sealed class BillingController(OrganizationContext organizationContext, BillingUseCase billingUseCase, BillingCatalogUseCase billingCatalogUseCase, KiaiControl.UseCases.Clients.ClientUseCase clients) : ControllerBase
 {
+    [HttpGet("options")]
+    public async Task<IActionResult> Options(CancellationToken ct)
+    {
+        if (organizationContext.OrganizationId is not Guid org)
+            return Unauthorized();
+        return Ok(new BillingOptionsResponse { Clients = await clients.ListAllOptionsAsync(org, ct), Plans = await KiaiControl.UseCases.Common.PagedOptions.ReadAllAsync(page => billingCatalogUseCase.ListPlansAsync(org, page, 200, ct)) });
+    }
+
     [AllowAnonymous]
     [HttpGet("status")]
     public ActionResult<ContextStatusResponse> GetStatus()
@@ -38,7 +42,6 @@ public sealed class BillingController(
         }
 
         request.OrganizationId = organizationId;
-
         if (request.ClientId == Guid.Empty || request.ClientPlanSubscriptionId == Guid.Empty)
         {
             return BadRequest(SystemMessages.ClientIdAndClientPlanSubscriptionIdAreRequired);
@@ -56,11 +59,7 @@ public sealed class BillingController(
     }
 
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<BillingResponse>>> ListAsync(
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 50,
-        [FromQuery] Guid? clientId = null,
-        CancellationToken cancellationToken = default)
+    public async Task<ActionResult<IReadOnlyList<BillingResponse>>> ListAsync([FromQuery] int page = 1, [FromQuery] int pageSize = 50, [FromQuery] Guid? clientId = null, [FromQuery] string? search = null, CancellationToken cancellationToken = default)
     {
         if (organizationContext.OrganizationId is null)
         {
@@ -72,8 +71,9 @@ public sealed class BillingController(
             return BadRequest(SystemMessages.ClientIdMustBeAValidIdentifier);
         }
 
-        var billingItems = await billingUseCase.ListAsync(
-            organizationContext.OrganizationId.Value, page, pageSize, cancellationToken, clientId);
+        if (search?.Length > 200)
+            return BadRequest("Use até 200 caracteres na busca.");
+        var billingItems = await billingUseCase.ListAsync(organizationContext.OrganizationId.Value, page, pageSize, cancellationToken, clientId, search);
         return Ok(billingItems);
     }
 
@@ -121,10 +121,7 @@ public sealed class BillingController(
     }
 
     [HttpPost("{id:guid}/payments")]
-    public async Task<ActionResult<PaymentResponse>> RegisterPaymentAsync(
-        Guid id,
-        [FromBody] RegisterPaymentRequest request,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<PaymentResponse>> RegisterPaymentAsync(Guid id, [FromBody] RegisterPaymentRequest request, CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
@@ -134,9 +131,7 @@ public sealed class BillingController(
         try
         {
             var payment = await billingUseCase.RegisterPaymentAsync(organizationId, id, request, cancellationToken);
-            return payment is null
-                ? Conflict(SystemMessages.TheInvoiceIsUnavailableClosedOrThePaymentExceedsItsOutstandingBalance)
-                : CreatedAtAction(nameof(GetById), new { id }, payment);
+            return payment is null ? Conflict(SystemMessages.TheInvoiceIsUnavailableClosedOrThePaymentExceedsItsOutstandingBalance) : CreatedAtAction(nameof(GetById), new { id }, payment);
         }
         catch (ArgumentException exception)
         {
@@ -145,11 +140,7 @@ public sealed class BillingController(
     }
 
     [HttpGet("payments")]
-    public async Task<ActionResult<IReadOnlyList<PaymentResponse>>> ListPaymentsAsync(
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 50,
-        [FromQuery] Guid? clientId = null,
-        CancellationToken cancellationToken = default)
+    public async Task<ActionResult<IReadOnlyList<PaymentResponse>>> ListPaymentsAsync([FromQuery] int page = 1, [FromQuery] int pageSize = 50, [FromQuery] Guid? clientId = null, CancellationToken cancellationToken = default)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
@@ -166,16 +157,14 @@ public sealed class BillingController(
     }
 
     [HttpGet("{id:guid}/payments")]
-    public async Task<ActionResult<IReadOnlyList<PaymentResponse>>> ListPaymentsByInvoiceAsync(
-        Guid id,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<IReadOnlyList<PaymentResponse>>> ListPaymentsByInvoiceAsync(Guid id, CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
             return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
-        if (await billingUseCase.GetByIdAsync(organizationId, id, cancellationToken) is null)
+        if (await billingUseCase.GetByIdAsync(organizationId, id, cancellationToken)is null)
         {
             return NotFound();
         }
@@ -185,9 +174,7 @@ public sealed class BillingController(
     }
 
     [HttpPost("plans")]
-    public async Task<ActionResult<BillingPlanResponse>> CreatePlanAsync(
-        [FromBody] CreateBillingPlanRequest request,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<BillingPlanResponse>> CreatePlanAsync([FromBody] CreateBillingPlanRequest request, CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
@@ -210,10 +197,7 @@ public sealed class BillingController(
     }
 
     [HttpGet("plans")]
-    public async Task<ActionResult<IReadOnlyList<BillingPlanResponse>>> ListPlansAsync(
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 50,
-        CancellationToken cancellationToken = default)
+    public async Task<ActionResult<IReadOnlyList<BillingPlanResponse>>> ListPlansAsync([FromQuery] int page = 1, [FromQuery] int pageSize = 50, CancellationToken cancellationToken = default)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
@@ -225,10 +209,7 @@ public sealed class BillingController(
     }
 
     [HttpPut("plans/{id:guid}")]
-    public async Task<ActionResult<BillingPlanResponse>> UpdatePlanAsync(
-        Guid id,
-        [FromBody] UpdateBillingPlanRequest request,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<BillingPlanResponse>> UpdatePlanAsync(Guid id, [FromBody] UpdateBillingPlanRequest request, CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
@@ -263,10 +244,7 @@ public sealed class BillingController(
     }
 
     [HttpPost("clients/{clientId:guid}/subscriptions")]
-    public async Task<ActionResult<ClientPlanSubscriptionResponse>> CreateSubscriptionAsync(
-        Guid clientId,
-        [FromBody] CreateClientSubscriptionRequest request,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<ClientPlanSubscriptionResponse>> CreateSubscriptionAsync(Guid clientId, [FromBody] CreateClientSubscriptionRequest request, CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
@@ -276,9 +254,7 @@ public sealed class BillingController(
         try
         {
             var subscription = await billingCatalogUseCase.CreateSubscriptionAsync(organizationId, clientId, request, cancellationToken);
-            return subscription is null
-                ? Conflict(SystemMessages.TheClientOrActivePlanIsUnavailableOrTheClientAlreadyHasAnActiveSubscription)
-                : StatusCode(StatusCodes.Status201Created, subscription);
+            return subscription is null ? Conflict(SystemMessages.TheClientOrActivePlanIsUnavailableOrTheClientAlreadyHasAnActiveSubscription) : StatusCode(StatusCodes.Status201Created, subscription);
         }
         catch (ArgumentException exception)
         {
@@ -287,11 +263,7 @@ public sealed class BillingController(
     }
 
     [HttpGet("subscriptions")]
-    public async Task<ActionResult<IReadOnlyList<ClientPlanSubscriptionResponse>>> ListSubscriptionsAsync(
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 50,
-        [FromQuery] Guid? clientId = null,
-        CancellationToken cancellationToken = default)
+    public async Task<ActionResult<IReadOnlyList<ClientPlanSubscriptionResponse>>> ListSubscriptionsAsync([FromQuery] int page = 1, [FromQuery] int pageSize = 50, [FromQuery] Guid? clientId = null, CancellationToken cancellationToken = default)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
@@ -303,15 +275,11 @@ public sealed class BillingController(
             return BadRequest(SystemMessages.ClientIdMustBeAValidIdentifier);
         }
 
-        return Ok(await billingCatalogUseCase.ListSubscriptionsAsync(
-            organizationId, page, pageSize, cancellationToken, clientId));
+        return Ok(await billingCatalogUseCase.ListSubscriptionsAsync(organizationId, page, pageSize, cancellationToken, clientId));
     }
 
     [HttpPatch("subscriptions/{subscriptionId:guid}/cancel")]
-    public async Task<ActionResult<ClientPlanSubscriptionResponse>> CancelSubscriptionAsync(
-        Guid subscriptionId,
-        [FromBody] CancelClientSubscriptionRequest request,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<ClientPlanSubscriptionResponse>> CancelSubscriptionAsync(Guid subscriptionId, [FromBody] CancelClientSubscriptionRequest request, CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
@@ -330,9 +298,7 @@ public sealed class BillingController(
     }
 
     [HttpPost("invoices/generate")]
-    public async Task<ActionResult<IReadOnlyList<BillingResponse>>> GenerateInvoicesAsync(
-        [FromBody] GenerateInvoicesRequest request,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<IReadOnlyList<BillingResponse>>> GenerateInvoicesAsync([FromBody] GenerateInvoicesRequest request, CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {

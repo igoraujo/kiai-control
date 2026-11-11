@@ -3,8 +3,30 @@ namespace KiaiControl.Repositories.Queries.Billing;
 public static class BillingQueries
 {
     public const string Insert = @"
-        insert into invoices (id, organization_id, client_plan_subscription_id, client_id, due_date, amount, paid_amount, status, issued_at, created_at)
-        values (@Id, @OrganizationId, @ClientPlanSubscriptionId, @ClientId, @DueDate, @Amount, 0, @Status::invoice_status, @CreatedAt, @CreatedAt)
+        insert into invoices (
+            id,
+            organization_id,
+            client_plan_subscription_id,
+            client_id,
+            due_date,
+            amount,
+            paid_amount,
+            status,
+            issued_at,
+            created_at
+        )
+        values (
+            @Id,
+            @OrganizationId,
+            @ClientPlanSubscriptionId,
+            @ClientId,
+            @DueDate,
+            @Amount,
+            0,
+            @Status::invoice_status,
+            @CreatedAt,
+            @CreatedAt
+        )
         returning id, organization_id as OrganizationId, client_plan_subscription_id as ClientPlanSubscriptionId, client_id as ClientId, due_date as DueDate, amount, paid_amount as PaidAmount, status::text as Status, created_at as CreatedAt, updated_at as UpdatedAt;
         ";
 
@@ -16,14 +38,28 @@ public static class BillingQueries
             client_id as ClientId,
             due_date as DueDate,
             amount,
-                paid_amount as PaidAmount,
-                status::text as Status,
+            paid_amount as PaidAmount,
+            status::text as Status,
             created_at as CreatedAt,
             updated_at as UpdatedAt
         from invoices
         where organization_id = @OrganizationId
-          and (@ClientId is null or client_id = @ClientId)
-        order by due_date desc, created_at desc
+            and (@ClientId is null
+                or client_id = @ClientId)
+            and (@Search is null
+                or status::text ilike @Search
+                or exists (
+                    select 1
+                    from clients c
+                    join persons p on p.id = c.person_id
+                    where c.id = invoices.client_id
+                        and c.organization_id = invoices.organization_id
+                        and p.full_name ilike @Search
+                ))
+        order by
+            due_date desc,
+            created_at desc,
+            id
         offset @Offset rows fetch next @PageSize rows only;
         ";
 

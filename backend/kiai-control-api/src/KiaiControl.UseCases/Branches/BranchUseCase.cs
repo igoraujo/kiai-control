@@ -3,32 +3,16 @@ using KiaiControl.Core.Entities;
 using KiaiControl.Core.Interfaces;
 
 namespace KiaiControl.UseCases.Branches;
-
 public sealed class BranchUseCase(IBranchRepository branchRepository)
 {
-    public async Task<BranchResponse?> CreateAsync(
-        Guid organizationId,
-        CreateBranchRequest request,
-        CancellationToken cancellationToken)
+    public async Task<BranchResponse?> CreateAsync(Guid organizationId, CreateBranchRequest request, CancellationToken cancellationToken)
     {
         Validate(organizationId, request.Name, request.AddressLine, request.City, request.State, request.PostalCode);
-        var branch = await branchRepository.CreateAsync(new Branch
-        {
-            OrganizationId = organizationId,
-            Name = request.Name.Trim(),
-            AddressLine = Normalize(request.AddressLine),
-            City = Normalize(request.City),
-            State = Normalize(request.State),
-            PostalCode = Normalize(request.PostalCode)
-        }, cancellationToken);
+        var branch = await branchRepository.CreateAsync(new Branch { OrganizationId = organizationId, Name = request.Name.Trim(), AddressLine = Normalize(request.AddressLine), City = Normalize(request.City), State = Normalize(request.State), PostalCode = Normalize(request.PostalCode) }, cancellationToken);
         return branch is null ? null : ToResponse(branch);
     }
 
-    public async Task<IReadOnlyList<BranchResponse>> ListAsync(
-        Guid organizationId,
-        int page,
-        int pageSize,
-        CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<BranchResponse>> ListAsync(Guid organizationId, int page, int pageSize, CancellationToken cancellationToken)
     {
         EnsureOrganization(organizationId);
         var branches = await branchRepository.ListByOrganizationAsync(organizationId, page, pageSize, cancellationToken);
@@ -42,23 +26,10 @@ public sealed class BranchUseCase(IBranchRepository branchRepository)
         return branch is null ? null : ToResponse(branch);
     }
 
-    public async Task<BranchResponse?> UpdateAsync(
-        Guid organizationId,
-        Guid id,
-        UpdateBranchRequest request,
-        CancellationToken cancellationToken)
+    public async Task<BranchResponse?> UpdateAsync(Guid organizationId, Guid id, UpdateBranchRequest request, CancellationToken cancellationToken)
     {
         Validate(organizationId, request.Name, request.AddressLine, request.City, request.State, request.PostalCode);
-        var branch = await branchRepository.UpdateAsync(new Branch
-        {
-            Id = id,
-            OrganizationId = organizationId,
-            Name = request.Name.Trim(),
-            AddressLine = Normalize(request.AddressLine),
-            City = Normalize(request.City),
-            State = Normalize(request.State),
-            PostalCode = Normalize(request.PostalCode)
-        }, cancellationToken);
+        var branch = await branchRepository.UpdateAsync(new Branch { Id = id, OrganizationId = organizationId, Name = request.Name.Trim(), AddressLine = Normalize(request.AddressLine), City = Normalize(request.City), State = Normalize(request.State), PostalCode = Normalize(request.PostalCode) }, cancellationToken);
         return branch is null ? null : ToResponse(branch);
     }
 
@@ -73,13 +44,7 @@ public sealed class BranchUseCase(IBranchRepository branchRepository)
         return branchRepository.DeleteAsync(organizationId, id, cancellationToken);
     }
 
-    private static void Validate(
-        Guid organizationId,
-        string name,
-        string? addressLine,
-        string? city,
-        string? state,
-        string? postalCode)
+    private static void Validate(Guid organizationId, string name, string? addressLine, string? city, string? state, string? postalCode)
     {
         EnsureOrganization(organizationId);
         if (string.IsNullOrWhiteSpace(name) || name.Trim().Length > 160)
@@ -106,7 +71,7 @@ public sealed class BranchUseCase(IBranchRepository branchRepository)
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
-    private static BranchResponse ToResponse(Branch branch)
+    internal static BranchResponse ToResponse(Branch branch)
     {
         return new BranchResponse
         {

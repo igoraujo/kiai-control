@@ -1,6 +1,7 @@
 using System.Net.Mail;
 using Dapper;
 using KiaiControl.Api.Configuration;
+using KiaiControl.Contracts.Auth;
 using KiaiControl.Core.Interfaces;
 using Microsoft.Extensions.Options;
 
@@ -33,9 +34,9 @@ public sealed class PlatformOwnerBootstrapper(
             throw new InvalidOperationException(KiaiControl.Api.Common.SystemMessages.PlatformOwnerConfigurationMustBeComplete);
         }
 
-        if (configured.Password.Length < 12)
+        if (!PasswordPolicy.IsValid(configured.Password))
         {
-            throw new InvalidOperationException(KiaiControl.Api.Common.SystemMessages.InitialPlatformOwnerPasswordMustHaveAtLeast12Characters);
+            throw new InvalidOperationException(PasswordPolicy.Requirements);
         }
 
         var email = new MailAddress(configured.Email.Trim()).Address.ToLowerInvariant();

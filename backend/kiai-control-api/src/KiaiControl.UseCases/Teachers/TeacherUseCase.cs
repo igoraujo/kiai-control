@@ -4,13 +4,11 @@ using KiaiControl.Core.Interfaces;
 using KiaiControl.UseCases.Common;
 
 namespace KiaiControl.UseCases.Teachers;
-
 public sealed class TeacherUseCase(ITeacherRepository teacherRepository, IBranchRepository branchRepository)
 {
     public async Task<TeacherResponse> CreateAsync(CreateTeacherRequest request, CancellationToken cancellationToken)
     {
         await PersonDataValidator.ValidateBranchAsync(branchRepository, request.OrganizationId, request.BranchId, cancellationToken);
-
         var teacher = new Teacher
         {
             OrganizationId = request.OrganizationId,
@@ -29,7 +27,6 @@ public sealed class TeacherUseCase(ITeacherRepository teacherRepository, IBranch
             ActiveFrom = request.ActiveFrom,
             Status = PersonDataValidator.NormalizeStatus(request.Status)
         };
-
         return Map(await teacherRepository.CreateAsync(teacher, cancellationToken));
     }
 
@@ -45,10 +42,15 @@ public sealed class TeacherUseCase(ITeacherRepository teacherRepository, IBranch
         return teacher is null ? null : Map(teacher);
     }
 
+    public async Task<TeacherResponse?> GetByPersonIdAsync(Guid organizationId, Guid personId, CancellationToken cancellationToken)
+    {
+        var teacher = await teacherRepository.GetByPersonIdAsync(organizationId, personId, cancellationToken);
+        return teacher is null ? null : Map(teacher);
+    }
+
     public async Task<TeacherResponse?> UpdateAsync(Guid organizationId, Guid id, UpdateTeacherRequest request, CancellationToken cancellationToken)
     {
         await PersonDataValidator.ValidateBranchAsync(branchRepository, organizationId, request.BranchId, cancellationToken);
-
         var teacher = new Teacher
         {
             Id = id,
@@ -68,7 +70,6 @@ public sealed class TeacherUseCase(ITeacherRepository teacherRepository, IBranch
             ActiveFrom = request.ActiveFrom,
             Status = PersonDataValidator.NormalizeStatus(request.Status)
         };
-
         var updated = await teacherRepository.UpdateAsync(teacher, cancellationToken);
         return updated is null ? null : Map(updated);
     }
@@ -78,7 +79,7 @@ public sealed class TeacherUseCase(ITeacherRepository teacherRepository, IBranch
         return teacherRepository.DeleteAsync(organizationId, id, cancellationToken);
     }
 
-    private static TeacherResponse Map(Teacher teacher) => new()
+    internal static TeacherResponse Map(Teacher teacher) => new()
     {
         Id = teacher.Id,
         OrganizationId = teacher.OrganizationId,

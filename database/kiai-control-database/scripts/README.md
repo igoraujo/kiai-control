@@ -24,7 +24,7 @@ O seed não cria organização nem usuários. Para provisionar o primeiro dono g
 - `PlatformOwner__FullName`
 - `PlatformOwner__Password`
 
-Configure as três variáveis juntas. A senha deve ter pelo menos 12 caracteres e não deve ser armazenada no repositório, em arquivos versionados ou em logs. No primeiro início da API, o bootstrap cria a conta de forma idempotente; a senha inicial será temporária e deverá ser trocada no primeiro acesso. Depois, o dono global cadastra as organizações pelo painel, e cada organização administra as contas de acesso da própria equipe.
+Configure as três variáveis juntas. A senha deve ter no mínimo 6 caracteres, incluindo uma letra maiúscula, uma minúscula e um caractere especial e não deve ser armazenada no repositório, em arquivos versionados ou em logs. No primeiro início da API, o bootstrap cria a conta de forma idempotente; a senha inicial será temporária e deverá ser trocada no primeiro acesso. Depois, o dono global cadastra as organizações pelo painel, e cada organização administra as contas de acesso da própria equipe.
 
 Para bancos existentes, aplique a migration `010_platform_owner_and_temporary_passwords.sql` antes de iniciar a nova versão da API. Usando `DATABASE_URL`:
 
@@ -43,3 +43,11 @@ where table_schema = 'public'
   and column_name in ('is_platform_owner', 'must_change_password')
 order by column_name;
 ```
+
+## Atualização do painel Admin
+
+Para bancos existentes, aplique `011_account_session_version.sql`, `012_fitness_goal_direction.sql` e `013_catalog_read_permissions.sql` em ordem, pelo fluxo de migrations. Elas preservam os registros existentes. A `011` exige novo login; a `012` mantém metas antigas com direção `increase` e habilita metas `decrease` com valor inicial maior que o alvo; a `013` cria permissões de consulta independentes da gestão.
+
+Aplique também `014_backfill_organization_settings.sql`: ela cria as configurações padrão das academias antigas que ainda não possuem esse registro, preservando as políticas já configuradas. O seed administrativo legado agora também cria essas configurações. A `014` foi aplicada em transação no banco local `dev`, com registro no ledger e sem excluir dados.
+
+O schema consolidado de produção, o seed de referência e o DBML incluem essas estruturas. A aplicação no banco local `dev` e o registro em `schema_migrations` foram executados em transação nesta entrega.

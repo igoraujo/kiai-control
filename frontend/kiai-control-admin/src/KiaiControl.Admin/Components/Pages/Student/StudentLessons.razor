@@ -1,0 +1,37 @@
+@inject AdminApiClient Api
+@inject ISnackbar Snackbar
+<MudStack Spacing="3">
+<div class="page-heading">
+<div>
+<MudText Typo="Typo.h6">Sua agenda</MudText>
+<MudText Typo="Typo.body2">Próximos 30 dias · horários das suas modalidades.</MudText>
+</div>
+<MudButton OnClick="LoadAsync" Disabled="_busy" StartIcon="@Icons.Material.Filled.Refresh">Atualizar</MudButton>
+</div>
+    @if(_error is not null){<MudAlert Severity="Severity.Error">@_error</MudAlert>}
+    @if(_busy){<MudProgressLinear Indeterminate="true" />}
+    <MudTable Items="_lessons" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm" RowsPerPage="10">
+<HeaderContent>
+<MudTh>Modalidade</MudTh>
+<MudTh>Quando</MudTh>
+<MudTh>Unidade</MudTh>
+<MudTh>Check-in</MudTh>
+</HeaderContent>
+<RowTemplate>
+<MudTd DataLabel="Modalidade">@context.ModalityName</MudTd>
+<MudTd DataLabel="Quando">@context.StartsAt.ToLocalTime().ToString("dd/MM · HH:mm")</MudTd>
+<MudTd DataLabel="Unidade">@(context.BranchName??"—")</MudTd>
+<MudTd DataLabel="Check-in">
+        @if(context.CheckInStatus is not null){<MudChip T="string" Size="Size.Small" Color="Color.Info">@ClientProgressPanel.AttendanceLabel(context.CheckInStatus)</MudChip>@if(context.CanCancelCheckIn){<MudButton Disabled="_busy" OnClick="()=>CancelAsync(context.Id)" Size="Size.Small">Cancelar check-in</MudButton>}}
+        else if(context.AllowCheckIn){<MudButton Disabled="@(_busy||context.StartsAt<=DateTimeOffset.UtcNow)" OnClick="()=>CheckInAsync(context.Id)" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small">Fazer check-in</MudButton>}
+        else{<MudText Typo="Typo.caption">Presença registrada pela academia</MudText>}
+    </MudTd>
+</RowTemplate>
+<NoRecordsContent>
+<MudText Class="pa-4">Nenhuma aula agendada. Confira com a academia suas modalidades e os próximos horários.</MudText>
+</NoRecordsContent>
+<PagerContent>
+<MudTablePager RowsPerPageString="Aulas por página" />
+</PagerContent>
+</MudTable>
+</MudStack>

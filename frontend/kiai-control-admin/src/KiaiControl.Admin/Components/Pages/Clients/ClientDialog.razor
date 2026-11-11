@@ -8,6 +8,13 @@
                 {
                     <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">@ErrorMessage</MudAlert>
                 }
+                @if(Item is null){
+                    <MudSelect T="Guid?" @bind-Value="_existingPerson" Label="Pessoa já cadastrada (opcional)" Disabled="@(IsSaving||_createdClientId is not null)" Clearable="true" Variant="Variant.Outlined">
+                        @foreach(var person in _candidates){<MudSelectItem T="Guid?" Value="@((Guid?)person.PersonId)">@person.FullName</MudSelectItem>}
+                    </MudSelect>
+                    @if(_candidateError is not null){<MudAlert Severity="Severity.Warning">@_candidateError</MudAlert>}
+                }
+                @if(_existingPerson is null){
                 <PersonFormFields Model="_person" Branches="Branches" />
                 <MudDivider />
                 <MudText Typo="Typo.subtitle2">Dados do aluno</MudText>
@@ -19,7 +26,12 @@
                         <MudDatePicker @bind-Date="_joinedAt" Label="Data de ingresso" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" />
                     </MudItem>
                 </MudGrid>
+                }
                 <MudText Typo="Typo.subtitle2" Class="pt-2">Modalidades</MudText>
+                @if (Area != AcademyArea.General)
+                {
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Para aparecer em @AcademyArea.Label(Area), vincule uma modalidade dessa área. Alunos sem modalidade aparecem na visão Geral.</MudText>
+                }
                 <MudSelect T="Guid" @bind-SelectedValues="_selectedModalityIds" MultiSelection="true"
                            Label="Modalidades do aluno" Placeholder="Selecione uma ou mais modalidades"
                            MultiSelectionTextFunc="GetModalitySelectionText"
@@ -39,7 +51,13 @@
 </MudDialog>
 
 @code {
+    private IReadOnlyList<PersonOptionResponse> _candidates=[];
+    private Guid? _existingPerson;
+    private string? _candidateError;
+    protected override async Task OnInitializedAsync(){if(Item is null){try{_candidates=await Api.GetAsync<List<PersonOptionResponse>>("clients/people");}catch(HttpRequestException){_candidateError="Não foi possível consultar pessoas existentes. Você pode tentar novamente ao reabrir o formulário.";}}}
+
     [Parameter] public ClientResponse? Item { get; set; }
+    [Parameter] public string Area { get; set; } = AcademyArea.General;
     [Parameter] public IReadOnlyList<BranchResponse> Branches { get; set; } = [];
     [Parameter] public IReadOnlyList<ModalityResponse> Modalities { get; set; } = [];
     [Parameter] public IReadOnlyList<Guid> SelectedModalityIds { get; set; } = [];
@@ -79,7 +97,7 @@
         {
             if (_createdClientId is null)
             {
-                var created = await Api.CreateAsync<CreateClientRequest, ClientResponse>("clients", new CreateClientRequest
+                var created = _existingPerson is Guid existing ? await Api.CreateAsync<object,ClientResponse>($"clients/people/{existing}/profile",new {}) : await Api.CreateAsync<CreateClientRequest, ClientResponse>("clients", new CreateClientRequest
                 {
                     BranchId = _person.BranchId,
                     FullName = _person.FullName,

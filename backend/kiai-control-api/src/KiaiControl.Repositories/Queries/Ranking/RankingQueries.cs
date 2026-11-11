@@ -65,7 +65,7 @@ public static class RankingQueries
         ), sequenced as (
             select lesson_states.*,
                    row_number() over (partition by client_id order by starts_at, lesson_id) as sequence_number,
-                   count(*) filter (where attended) over (
+                   count(1) filter (where attended) over (
                        partition by client_id order by starts_at, lesson_id rows unbounded preceding
                    ) as attended_sequence,
                    sum(case when attended then 0 else 1 end) over (
@@ -75,7 +75,7 @@ public static class RankingQueries
         ), grouped_streaks as (
                  select client_id, (sequence_number - attended_sequence) as streak_group, attended,
                    bool_and(attended) as group_is_attended,
-                   count(*) filter (where attended)::integer as streak_length,
+                   count(1) filter (where attended)::integer as streak_length,
                    max(starts_at) as latest_lesson_at
             from sequenced
                  group by client_id, sequence_number - attended_sequence, attended
@@ -86,7 +86,7 @@ public static class RankingQueries
             order by client_id, latest_lesson_at desc
         ), totals as (
             select client_id,
-                   count(*) filter (where attended)::integer as attendance_count
+                   count(1) filter (where attended)::integer as attendance_count
             from lesson_states
             group by client_id
         ), ranked as (

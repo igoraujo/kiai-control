@@ -6,15 +6,36 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace KiaiControl.Api.Controllers;
-
 [ApiController]
 [Authorize(Roles = "owner,admin")]
 [Authorize(Policy = PermissionCodes.OrganizationsManage)]
 [Route("api/v1/organizations")]
-public sealed class OrganizationsController(
-    OrganizationContext organizationContext,
-    OrganizationUseCase organizationUseCase) : ControllerBase
+public sealed class OrganizationsController(OrganizationContext organizationContext, OrganizationUseCase organizationUseCase, KiaiControl.UseCases.Administration.AdministrationUseCase administration) : ControllerBase
 {
+    [HttpGet("settings")]
+    public async Task<IActionResult> Settings(CancellationToken ct)
+    {
+        if (organizationContext.OrganizationId is not Guid org)
+            return Unauthorized();
+        return Ok(await administration.GetSettingsAsync(org, ct));
+    }
+
+    [HttpPut("settings")]
+    public async Task<IActionResult> SaveSettings(KiaiControl.Contracts.Administration.OrganizationSettingsResponse request, CancellationToken ct)
+    {
+        if (organizationContext.OrganizationId is not Guid org)
+            return Unauthorized();
+        try
+        {
+            await administration.SaveSettingsAsync(org, request, ct);
+            return NoContent();
+        }
+        catch (ArgumentException e)
+        {
+            return BadRequest(e.Message);
+        }
+    }
+
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<OrganizationResponse>> GetById(Guid id, CancellationToken cancellationToken)
     {
@@ -33,10 +54,7 @@ public sealed class OrganizationsController(
     }
 
     [HttpPut("{id:guid}")]
-    public async Task<ActionResult<OrganizationResponse>> UpdateAsync(
-        Guid id,
-        [FromBody] UpdateOrganizationRequest request,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<OrganizationResponse>> UpdateAsync(Guid id, [FromBody] UpdateOrganizationRequest request, CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {

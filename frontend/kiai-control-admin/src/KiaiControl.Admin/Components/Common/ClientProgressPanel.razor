@@ -1,0 +1,92 @@
+@inject AdminApiClient Api
+<MudStack Spacing="3" Class="pt-3">
+    @if(_error is not null){<MudAlert Severity="Severity.Error">@_error <MudButton OnClick="LoadAsync" Size="Size.Small">Tentar novamente</MudButton>
+</MudAlert>}
+    @if(_busy){<MudProgressLinear Indeterminate="true" />}
+    @if(_journey is not null){
+        <div class="metric-grid">
+<div class="metric-tile">
+<span>Presenças confirmadas</span>
+<strong>@_journey.PresentCount</strong>
+</div>
+<div class="metric-tile">
+<span>Frequência registrada</span>
+<strong>@(_journey.CompletedCount==0?"—":$"{100m*_journey.PresentCount/_journey.CompletedCount:0}%")</strong>
+</div>
+<div class="metric-tile">
+<span>Medalhas conquistadas</span>
+<strong>@_journey.Medals.Count</strong>
+</div>
+</div>
+        <MudTabs Rounded="true" Border="true">
+            <MudTabPanel Text="Presença">
+<MudTable Items="_journey.Attendance.Items" Dense="true" Breakpoint="Breakpoint.Sm">
+<HeaderContent>
+<MudTh>Aula</MudTh>
+<MudTh>Data</MudTh>
+<MudTh>Presença</MudTh>
+</HeaderContent>
+<RowTemplate>
+<MudTd DataLabel="Aula">@context.ModalityName</MudTd>
+<MudTd DataLabel="Data">@context.StartsAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
+<MudTd DataLabel="Presença">@AttendanceLabel(context.Status)</MudTd>
+</RowTemplate>
+<NoRecordsContent>
+<MudText Class="pa-4">O histórico aparecerá depois das primeiras aulas.</MudText>
+</NoRecordsContent>
+</MudTable>
+<PageControls Page="_page" Total="_journey.Attendance.Total" HasNext="@(_page*20<_journey.Attendance.Total)" Busy="_busy" Changed="ChangePageAsync" />
+</MudTabPanel>
+            <MudTabPanel Text="Fight · graduações">
+<div class="progress-section fight">
+<MudIcon Icon="@Icons.Material.Filled.MilitaryTech" />
+<div>
+<strong>Jornada no tatame</strong>
+<p>Graduação atual e histórico de conquistas.</p>
+</div>
+</div>
+<MudTable Items="_journey.Graduations" Dense="true" Breakpoint="Breakpoint.Sm">
+<HeaderContent>
+<MudTh>Modalidade</MudTh>
+<MudTh>Faixa / grau</MudTh>
+<MudTh>Data</MudTh>
+<MudTh>Registro</MudTh>
+</HeaderContent>
+<RowTemplate>
+<MudTd DataLabel="Modalidade">@context.ModalityName</MudTd>
+<MudTd DataLabel="Faixa / grau">@context.LevelName</MudTd>
+<MudTd DataLabel="Data">@context.EventDate.ToString("dd/MM/yyyy")</MudTd>
+<MudTd DataLabel="Registro">@(context.EventType=="current"?"Graduação atual":"Histórico")</MudTd>
+</RowTemplate>
+<NoRecordsContent>
+<MudText Class="pa-4">Nenhuma graduação registrada.</MudText>
+</NoRecordsContent>
+</MudTable>
+</MudTabPanel>
+            <MudTabPanel Text="Conquistas">
+<div class="workspace-grid pa-3">@foreach(var medal in _journey.Medals){<div class="achievement-card">
+<MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Warning" />
+<strong>@medal.Name</strong>
+<span>@medal.Reason</span>
+<small>@medal.AwardedAt.ToLocalTime().ToString("dd/MM/yyyy")</small>
+</div>}</div>@if(_journey.Medals.Count==0){<MudText Class="pa-4">As medalhas recebidas aparecerão aqui.</MudText>}<MudTable Items="_journey.Rankings" Dense="true" Breakpoint="Breakpoint.Sm">
+<HeaderContent>
+<MudTh>Ranking</MudTh>
+<MudTh>Posição</MudTh>
+<MudTh>Pontos</MudTh>
+<MudTh>Sequência</MudTh>
+</HeaderContent>
+<RowTemplate>
+<MudTd DataLabel="Ranking">@context.CycleName</MudTd>
+<MudTd DataLabel="Posição">@context.Position º</MudTd>
+<MudTd DataLabel="Pontos">@context.Points</MudTd>
+<MudTd DataLabel="Sequência">@context.StreakCount</MudTd>
+</RowTemplate>
+<NoRecordsContent>
+<MudText Class="pa-4">Você ainda não participa de um ranking calculado.</MudText>
+</NoRecordsContent>
+</MudTable>
+</MudTabPanel>
+        </MudTabs>
+    }
+</MudStack>

@@ -79,7 +79,7 @@
                         <MudTd>@context.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
                     </RowTemplate>
                     <NoRecordsContent><MudText>Nenhum comunicado registrado.</MudText></NoRecordsContent>
-                </MudTable>
+                </MudTable><PageControls Page="_outboxPage" HasNext="@(_outbox.Count==50)" Busy="_isLoading" Changed="OutboxPageAsync" />
             </MudPaper>
         }
 
@@ -87,7 +87,7 @@
             <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
                 <div>
                     <MudText Typo="Typo.h6">Minha caixa de entrada</MudText>
-                    <MudText Typo="Typo.body2" Color="Color.Secondary">@_inbox.Count(notification => notification.ReadAt is null) não lida(s)</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">@_inbox.Count(notification => notification.ReadAt is null) não lida(s) nesta página</MudText>
                 </div>
                 <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadAsync" Disabled="_isSaving">
                     Atualizar
@@ -121,13 +121,16 @@
                     </MudTd>
                 </RowTemplate>
                 <NoRecordsContent><MudText>Nenhuma notificação recebida.</MudText></NoRecordsContent>
-            </MudTable>
+            </MudTable><PageControls Page="_inboxPage" HasNext="@(_inbox.Count==50)" Busy="_isLoading" Changed="InboxPageAsync" />
         </MudPaper>
     }
 </MudStack>
 
 @code {
+    private async Task InboxPageAsync(int p){_inboxPage=p;await LoadAsync();}
+    private async Task OutboxPageAsync(int p){_outboxPage=p;await LoadAsync();}
     private IReadOnlyList<ClientResponse> _clients = [];
+    private int _inboxPage=1,_outboxPage=1;
     private IReadOnlyList<NotificationResponse> _inbox = [];
     private IReadOnlyList<NotificationResponse> _outbox = [];
     private Guid? _recipientId;
@@ -163,11 +166,11 @@
         _errorMessage = null;
         try
         {
-            var inboxTask = Api.ListMyNotificationsAsync(pageSize: 50);
+            var inboxTask = Api.ListMyNotificationsAsync(page:_inboxPage,pageSize:50);
             if (_canManage)
             {
                 var optionsTask = Api.GetNotificationOptionsAsync();
-                var outboxTask = Api.ListNotificationOutboxAsync(pageSize: 50);
+                var outboxTask = Api.ListNotificationOutboxAsync(page:_outboxPage,pageSize:50);
                 await Task.WhenAll(inboxTask, optionsTask, outboxTask);
                 _inbox = await inboxTask;
                 _clients = (await optionsTask).Clients;
@@ -247,7 +250,7 @@
         try
         {
             await Api.MarkNotificationAsReadAsync(notification.Id);
-            _inbox = await Api.ListMyNotificationsAsync(pageSize: 50);
+            _inbox = await Api.ListMyNotificationsAsync(page:_inboxPage,pageSize:50);
             Snackbar.Add(AdminSystemMessages.NotificationMarkedAsRead, Severity.Success);
         }
         catch (UnauthorizedAccessException)

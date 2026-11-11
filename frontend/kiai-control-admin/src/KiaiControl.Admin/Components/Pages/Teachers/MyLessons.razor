@@ -1,0 +1,33 @@
+@page "/teacher"
+@inject AdminApiClient Api
+@inject AdminSession Session
+<PageTitle>Minhas aulas | Kiai Control</PageTitle>
+<MudStack Spacing="3">
+<div>
+<span class="eyebrow">Área do professor</span>
+<MudText Typo="Typo.h4">Minhas aulas</MudText>
+<MudText Color="Color.Secondary">Sua agenda e a chamada dos alunos · últimos 7 e próximos 24 dias.</MudText>
+</div>
+    @if(_error is not null){<MudAlert Severity="Severity.Error">@_error <MudButton OnClick="LoadAsync">Tentar novamente</MudButton>
+</MudAlert>}
+    <MudTable Items="_lessons" Dense="true" Loading="_busy" Breakpoint="Breakpoint.Sm" RowsPerPage="10">
+<HeaderContent>
+<MudTh>Modalidade</MudTh>
+<MudTh>Quando</MudTh>
+<MudTh>Unidade</MudTh>
+<MudTh>Chamada</MudTh>
+</HeaderContent>
+<RowTemplate>
+<MudTd DataLabel="Modalidade">@context.ModalityName</MudTd>
+<MudTd DataLabel="Quando">@context.StartsAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
+<MudTd DataLabel="Unidade">@context.BranchName</MudTd>
+<MudTd DataLabel="Chamada">@if(AdminNavigation.CanUse(Session.Current?.User,PermissionCodes.AttendanceManage)){<MudButton Href="@($"/lessons/{context.Id}/attendance")" StartIcon="@Icons.Material.Filled.FactCheck">Abrir chamada</MudButton>}</MudTd>
+</RowTemplate>
+<NoRecordsContent>
+<MudText Class="pa-4">Nenhuma aula vinculada a você neste período.</MudText>
+</NoRecordsContent>
+<PagerContent>
+<MudTablePager />
+</PagerContent>
+</MudTable>
+</MudStack>

@@ -439,7 +439,7 @@ public sealed class SqlProgressionRepository(IDbConnectionFactory dbConnectionFa
         Guid? clientId,
         int page,
         int pageSize,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default, string area = "shared")
     {
         var safePage = page < 1 ? 1 : page;
         var safePageSize = pageSize is < 1 or > 200 ? 50 : pageSize;
@@ -448,6 +448,7 @@ public sealed class SqlProgressionRepository(IDbConnectionFactory dbConnectionFa
         {
             OrganizationId = organizationId,
             ClientId = clientId,
+            Area = area,
             Offset = (safePage - 1) * safePageSize,
             PageSize = safePageSize
         });

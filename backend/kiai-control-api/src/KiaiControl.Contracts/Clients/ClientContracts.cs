@@ -66,6 +66,8 @@ public sealed class UpdateClientRequest
 
 public sealed class ClientResponse
 {
+    public IReadOnlyList<string> Areas { get; init; } = [];
+
     public Guid Id { get; init; }
 
     public Guid OrganizationId { get; init; }

@@ -8,6 +8,13 @@
                 {
                     <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">@ErrorMessage</MudAlert>
                 }
+                @if(Item is null){
+                    <MudSelect T="Guid?" @bind-Value="_existingPerson" Label="Pessoa já cadastrada (opcional)" Clearable="true" Variant="Variant.Outlined">
+                        @foreach(var person in _candidates){<MudSelectItem T="Guid?" Value="@((Guid?)person.PersonId)">@person.FullName</MudSelectItem>}
+                    </MudSelect>
+                    @if(_candidateError is not null){<MudAlert Severity="Severity.Warning">@_candidateError</MudAlert>}
+                }
+                @if(_existingPerson is null){
                 <PersonFormFields Model="_person" Branches="Branches" />
                 <MudDivider />
                 <MudText Typo="Typo.subtitle2">Dados do professor</MudText>
@@ -19,6 +26,7 @@
                         <MudDatePicker @bind-Date="_activeFrom" Label="Início da atividade" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" />
                     </MudItem>
                 </MudGrid>
+                }
             </MudStack>
         </MudForm>
     </DialogContent>
@@ -29,6 +37,11 @@
 </MudDialog>
 
 @code {
+    private IReadOnlyList<PersonOptionResponse> _candidates=[];
+    private Guid? _existingPerson;
+    private string? _candidateError;
+    protected override async Task OnInitializedAsync(){if(Item is null){try{_candidates=await Api.GetAsync<List<PersonOptionResponse>>("teachers/people");}catch(HttpRequestException){_candidateError="Não foi possível consultar pessoas existentes. Você pode tentar novamente ao reabrir o formulário.";}}}
+
     [Parameter] public TeacherResponse? Item { get; set; }
     [Parameter] public IReadOnlyList<BranchResponse> Branches { get; set; } = [];
 
@@ -59,6 +72,7 @@
 
     protected override async Task SaveCoreAsync()
     {
+        if(Item is null && _existingPerson is Guid existing){await Api.CreateAsync<object,TeacherResponse>($"teachers/people/{existing}/profile",new {});return;}
         if (Item is null)
         {
             await Api.CreateAsync<CreateTeacherRequest, TeacherResponse>("teachers", new CreateTeacherRequest

@@ -3,29 +3,24 @@ using KiaiControl.Contracts.Auth;
 using KiaiControl.Core.Interfaces;
 
 namespace KiaiControl.UseCases.Auth;
-
 public sealed class AccessControlUseCase(IAccessControlRepository repository, IPasswordHasher passwordHasher)
 {
     private static readonly HashSet<string> RoleCodes = new(StringComparer.Ordinal)
     {
-        "client", "teacher", "admin", "financial", "reception", "owner"
+        "client",
+        "teacher",
+        "admin",
+        "financial",
+        "reception",
+        "owner"
     };
-
     public async Task<IReadOnlyList<RoleResponse>> ListRolesAsync(CancellationToken cancellationToken)
     {
         var roles = await repository.ListRolesAsync(cancellationToken);
-        return roles.Select(role => new RoleResponse
-        {
-            Id = role.Id,
-            Code = role.Code,
-            Name = role.Name,
-            Description = role.Description
-        }).ToList();
+        return roles.Select(role => new RoleResponse { Id = role.Id, Code = role.Code, Name = role.Name, Description = role.Description }).ToList();
     }
 
-    public async Task<IReadOnlyList<UserAccountCandidateResponse>> ListPeopleWithoutAccountsAsync(
-        Guid organizationId,
-        CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<UserAccountCandidateResponse>> ListPeopleWithoutAccountsAsync(Guid organizationId, CancellationToken cancellationToken)
     {
         if (organizationId == Guid.Empty)
         {
@@ -33,21 +28,10 @@ public sealed class AccessControlUseCase(IAccessControlRepository repository, IP
         }
 
         var candidates = await repository.ListPeopleWithoutAccountsAsync(organizationId, cancellationToken);
-        return candidates.Select(person => new UserAccountCandidateResponse
-        {
-            PersonId = person.PersonId,
-            FullName = person.FullName,
-            Email = person.Email
-        }).ToList();
+        return candidates.Select(person => new UserAccountCandidateResponse { PersonId = person.PersonId, HasClientProfile = person.HasClientProfile, HasTeacherProfile = person.HasTeacherProfile, FullName = person.FullName, Email = person.Email }).ToList();
     }
 
-    public async Task<UserAccountResponse?> CreateUserAccountAsync(
-        Guid organizationId,
-        Guid personId,
-        Guid actorUserId,
-        CreateUserAccountRequest request,
-        bool actorIsOwner,
-        CancellationToken cancellationToken)
+    public async Task<UserAccountResponse?> CreateUserAccountAsync(Guid organizationId, Guid personId, Guid actorUserId, CreateUserAccountRequest request, bool actorIsOwner, CancellationToken cancellationToken)
     {
         if (organizationId == Guid.Empty || personId == Guid.Empty || actorUserId == Guid.Empty)
         {
@@ -68,9 +52,9 @@ public sealed class AccessControlUseCase(IAccessControlRepository repository, IP
             throw new ArgumentException(SystemMessages.AccountEmailIsInvalid);
         }
 
-        if (string.IsNullOrWhiteSpace(request.TemporaryPassword) || request.TemporaryPassword.Length < 12)
+        if (!PasswordPolicy.IsValid(request.TemporaryPassword))
         {
-            throw new ArgumentException(SystemMessages.AccountTemporaryPasswordMustHaveAtLeast12Characters);
+            throw new ArgumentException(PasswordPolicy.Requirements);
         }
 
         var roleCode = NormalizeRoleCode(request.RoleCode);
@@ -80,18 +64,15 @@ public sealed class AccessControlUseCase(IAccessControlRepository repository, IP
         }
 
         var email = request.Email.Trim().ToLowerInvariant();
-        var created = await repository.CreateUserAccountAsync(
-            organizationId,
-            personId,
-            email,
-            passwordHasher.Hash(request.TemporaryPassword),
-            roleCode,
-            actorUserId,
-            cancellationToken);
+        var created = await repository.CreateUserAccountAsync(organizationId, personId, email, passwordHasher.Hash(request.TemporaryPassword), roleCode, actorUserId, cancellationToken);
+        return created ? new UserAccountResponse
+        {
+            PersonId = personId,
+            Email = email,
+            RoleCode = roleCode
+        }
 
-        return created
-            ? new UserAccountResponse { PersonId = personId, Email = email, RoleCode = roleCode }
-            : null;
+        : null;
     }
 
     public async Task<IReadOnlyList<PermissionResponse>> ListPermissionsAsync(CancellationToken cancellationToken)
@@ -107,13 +88,7 @@ public sealed class AccessControlUseCase(IAccessControlRepository repository, IP
         return roles ?? throw new KeyNotFoundException(SystemMessages.PersonDoesNotExistInThisOrganization);
     }
 
-    public async Task<bool> AssignPersonRoleAsync(
-        Guid organizationId,
-        Guid personId,
-        Guid actorUserId,
-        string roleCode,
-        bool actorIsOwner,
-        CancellationToken cancellationToken)
+    public async Task<bool> AssignPersonRoleAsync(Guid organizationId, Guid personId, Guid actorUserId, string roleCode, bool actorIsOwner, CancellationToken cancellationToken)
     {
         EnsureIds(organizationId, personId);
         if (actorUserId == Guid.Empty)
@@ -130,12 +105,7 @@ public sealed class AccessControlUseCase(IAccessControlRepository repository, IP
         return await repository.AssignPersonRoleAsync(organizationId, personId, roleCode, actorUserId, cancellationToken);
     }
 
-    public async Task<bool> RevokePersonRoleAsync(
-        Guid organizationId,
-        Guid personId,
-        string roleCode,
-        bool actorIsOwner,
-        CancellationToken cancellationToken)
+    public async Task<bool> RevokePersonRoleAsync(Guid organizationId, Guid personId, string roleCode, bool actorIsOwner, CancellationToken cancellationToken)
     {
         EnsureIds(organizationId, personId);
         roleCode = NormalizeRoleCode(roleCode);
@@ -173,6 +143,8 @@ public sealed class AccessControlUseCase(IAccessControlRepository repository, IP
             throw new ArgumentException(SystemMessages.PermissionCodeIsRequiredAndMustNotExceed120Characters);
         }
 
+        if (!PermissionRoleRules.CanGrant(roleCode, permissionCode.Trim()))
+            throw new ArgumentException("Esta permissão não está disponível para o perfil selecionado.");
         return await repository.GrantRolePermissionAsync(organizationId, roleCode, permissionCode.Trim(), actorUserId, cancellationToken);
     }
 

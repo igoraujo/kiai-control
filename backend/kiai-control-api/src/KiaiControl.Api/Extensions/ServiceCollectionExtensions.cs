@@ -14,23 +14,19 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
 
 namespace KiaiControl.Api.Extensions;
-
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddKiaiApi(
-        this IServiceCollection services,
-        IConfiguration configuration,
-        IHostEnvironment environment)
+    public static IServiceCollection AddKiaiApi(this IServiceCollection services, IConfiguration configuration, IHostEnvironment environment)
     {
         var cacheOptions = configuration.GetSection(CacheOptions.SectionName).Get<CacheOptions>() ?? new CacheOptions();
         var connectionStrings = configuration.GetSection(DatabaseOptions.SectionName).Get<DatabaseOptions>() ?? new DatabaseOptions();
         var redisOptions = configuration.GetSection(RedisOptions.SectionName).Get<RedisOptions>() ?? new RedisOptions();
         var jwtOptions = configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>() ?? new JwtOptions();
         var useRedisCache = string.Equals(cacheOptions.Provider, "Redis", StringComparison.OrdinalIgnoreCase);
-
         services.Configure<CacheOptions>(configuration.GetSection(CacheOptions.SectionName));
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
         services.Configure<PlatformOwnerOptions>(configuration.GetSection(PlatformOwnerOptions.SectionName));
+        services.AddSingleton<KiaiControl.Core.Interfaces.IPasswordRecoveryDelivery>(provider => new KiaiControl.Services.Auth.SmtpPasswordRecoveryDelivery(configuration["Smtp:Host"], configuration.GetValue("Smtp:Port", 587), configuration["Smtp:Username"], configuration["Smtp:Password"], configuration["Smtp:From"], configuration["Smtp:ResetUrl"], provider.GetRequiredService<ILogger<KiaiControl.Services.Auth.SmtpPasswordRecoveryDelivery>>()));
         services.AddHttpContextAccessor();
         services.AddProblemDetails();
         services.AddControllers();
@@ -40,54 +36,65 @@ public static class ServiceCollectionExtensions
         {
             foreach (var permissionCode in PermissionCodes.All)
             {
-                options.AddPolicy(permissionCode, policy => policy
-                    .RequireAuthenticatedUser()
-                    .RequireClaim(PermissionCodes.ClaimType, permissionCode));
+                options.AddPolicy(permissionCode, policy => policy.RequireAuthenticatedUser().RequireAssertion(context => context.User.HasClaim(PermissionCodes.ClaimType, permissionCode) || (PermissionCodes.ReadPermissions.TryGetValue(permissionCode, out var readPermission) && context.Resource is HttpContext http && HttpMethods.IsGet(http.Request.Method) && context.User.HasClaim(PermissionCodes.ClaimType, readPermission))));
             }
         });
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-            options.AddPolicy("auth-sensitive", context => RateLimitPartition.GetFixedWindowLimiter(
-                context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-                _ => new FixedWindowRateLimiterOptions
-                {
-                    AutoReplenishment = true,
-                    PermitLimit = 10,
-                    Window = TimeSpan.FromMinutes(1),
-                    QueueLimit = 0,
-                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst
-                }));
+            options.AddPolicy("auth-sensitive", context => RateLimitPartition.GetFixedWindowLimiter(context.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ => new FixedWindowRateLimiterOptions { AutoReplenishment = true, PermitLimit = Math.Clamp(configuration.GetValue("RateLimiting:AuthPermitLimit", 10), 1, 1000), Window = TimeSpan.FromMinutes(1), QueueLimit = 0, QueueProcessingOrder = QueueProcessingOrder.OldestFirst }));
         });
         services.AddScoped<OrganizationContext>();
         services.AddScoped<PlatformOwnerBootstrapper>();
-
         jwtOptions.Validate();
         var signingKey = jwtOptions.ResolveSigningKey(environment.IsDevelopment());
-
-        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-            .AddJwtBearer(options =>
+        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
+        {
+            options.RequireHttpsMetadata = !environment.IsDevelopment();
+            options.MapInboundClaims = false;
+            options.Events = new JwtBearerEvents
             {
-                options.RequireHttpsMetadata = !environment.IsDevelopment();
-                options.MapInboundClaims = false;
-                options.TokenValidationParameters = new TokenValidationParameters
+                OnTokenValidated = async context =>
                 {
-                    ValidateIssuer = true,
-                    ValidIssuer = jwtOptions.Issuer,
-                    ValidateAudience = true,
-                    ValidAudience = jwtOptions.Audience,
-                    RequireSignedTokens = true,
-                    ValidateIssuerSigningKey = true,
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey)),
-                    ValidateLifetime = true,
-                    RequireExpirationTime = true,
-                    ValidAlgorithms = [SecurityAlgorithms.HmacSha256],
-                    RoleClaimType = "role",
-                    NameClaimType = "sub",
-                    ClockSkew = TimeSpan.FromSeconds(30)
-                };
-            });
+                    var userId = context.Principal?.FindFirst("sub")?.Value;
+                    var version = context.Principal?.FindFirst("session_version")?.Value;
+                    if (!Guid.TryParse(userId, out var id) || !int.TryParse(version, out var sessionVersion))
+                    {
+                        context.Fail("Sessão inválida.");
+                        return;
+                    }
 
+                    var repository = context.HttpContext.RequestServices.GetRequiredService<KiaiControl.Core.Interfaces.IAuthRepository>();
+                    var user = await repository.GetByIdAsync(id, context.HttpContext.RequestAborted);
+                    if (user is null || !user.IsActive || user.SessionVersion != sessionVersion)
+                    {
+                        context.Fail("Sessão encerrada.");
+                        return;
+                    }
+
+                    var roles = context.Principal!.FindAll("role").Select(c => c.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                    var permissions = context.Principal.FindAll("permission").Select(c => c.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                    if (!roles.SetEquals(user.Roles) || !permissions.SetEquals(user.Permissions))
+                        context.Fail("Permissões atualizadas. Renove a sessão.");
+                }
+            };
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuer = true,
+                ValidIssuer = jwtOptions.Issuer,
+                ValidateAudience = true,
+                ValidAudience = jwtOptions.Audience,
+                RequireSignedTokens = true,
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey)),
+                ValidateLifetime = true,
+                RequireExpirationTime = true,
+                ValidAlgorithms = [SecurityAlgorithms.HmacSha256],
+                RoleClaimType = "role",
+                NameClaimType = "sub",
+                ClockSkew = TimeSpan.FromSeconds(30)
+            };
+        });
         if (useRedisCache)
         {
             if (string.IsNullOrWhiteSpace(redisOptions.Redis))
@@ -109,15 +116,7 @@ public static class ServiceCollectionExtensions
         services.AddHealthChecks();
         services.AddKiaiUseCases();
         services.AddKiaiRepositories(connectionStrings.PostgreSql);
-        services.AddKiaiServices(
-            redisOptions.Redis,
-            useRedisCache,
-            jwtOptions.Issuer,
-            jwtOptions.Audience,
-            signingKey,
-            jwtOptions.AccessTokenExpirationMinutes,
-            jwtOptions.RefreshTokenExpirationDays);
-
+        services.AddKiaiServices(redisOptions.Redis, useRedisCache, jwtOptions.Issuer, jwtOptions.Audience, signingKey, jwtOptions.AccessTokenExpirationMinutes, jwtOptions.RefreshTokenExpirationDays);
         return services;
     }
 }

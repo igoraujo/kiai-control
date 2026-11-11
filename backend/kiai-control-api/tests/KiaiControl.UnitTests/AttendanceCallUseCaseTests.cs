@@ -98,6 +98,27 @@ public sealed class AttendanceCallUseCaseTests
     }
 
     [Fact]
+    public async Task CancelClientCheckInAsync_ShouldRemoveOnlyTheClientPendingCheckIn()
+    {
+        var repository = new InMemoryAttendanceRepository();
+        var useCase = new AttendanceUseCase(repository);
+        var organizationId = Guid.NewGuid();
+        var personId = Guid.NewGuid();
+        var lessonId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+        var checkIn = await useCase.CheckInAsync(
+            organizationId, personId, lessonId, now, CancellationToken.None);
+
+        Assert.NotNull(checkIn);
+        Assert.False(await useCase.CancelClientCheckInAsync(
+            organizationId, Guid.NewGuid(), lessonId, now, CancellationToken.None));
+        Assert.True(await useCase.CancelClientCheckInAsync(
+            organizationId, personId, lessonId, now, CancellationToken.None));
+        Assert.Empty(await useCase.ListClientCheckInsAsync(
+            organizationId, personId, now.AddMinutes(-1), now.AddMinutes(1), CancellationToken.None));
+    }
+
+    [Fact]
     public async Task SaveLessonCallAsync_ShouldRecordValidatorForManualAttendance()
     {
         var useCase = new AttendanceUseCase(new InMemoryAttendanceRepository());

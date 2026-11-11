@@ -13,37 +13,114 @@ public static class AttendanceQueries
         )
         returning id, organization_id as OrganizationId, lesson_id as LessonId, client_id as ClientId,
             checked_in_at as AttendanceDate, status::text as Status, validated_at as ValidatedAt,
-            validated_by_person_id as ValidatedByPersonId, created_at as CreatedAt, updated_at as UpdatedAt;";
+            validated_by_person_id as ValidatedByPersonId, created_at as CreatedAt, updated_at as UpdatedAt;
+        ";
 
     public const string CreateCheckIn = @"
         insert into attendances (
-            id, organization_id, lesson_id, client_id, status, checked_in_at, created_at
+            id,
+            organization_id,
+            lesson_id,
+            client_id,
+            status,
+            checked_in_at,
+            validated_at,
+            validated_by_person_id,
+            created_at
         )
         select
-            @Id, l.organization_id, l.id, c.id, 'pending_confirmation'::attendance_status, @CheckedInAt, @CreatedAt
+            @Id,
+            l.organization_id,
+            l.id,
+            c.id,
+            case
+                when settings.require_teacher_confirmation then 'pending_confirmation'::attendance_status
+                else 'present'::attendance_status
+            end,
+            @CheckedInAt,
+            case
+                when settings.require_teacher_confirmation then null
+                else @CheckedInAt
+            end,
+            case
+                when settings.require_teacher_confirmation then null
+                else p.id
+            end,
+            @CreatedAt
         from lessons l
+        join organization_settings settings on settings.organization_id = l.organization_id
+            and settings.allow_client_checkin = true
         join clients c on c.organization_id = l.organization_id
             and c.current_status = 'active'
         join persons p on p.id = c.person_id
-            and p.deleted_at is null
-            and p.id = @PersonId
+            and p.organization_id = l.organization_id
+        and p.deleted_at is null
+        and p.id = @PersonId
         where l.organization_id = @OrganizationId
             and l.id = @LessonId
             and exists (
-                select 1 from person_modalities pm
+                select 1
+                from person_modalities pm
                 join modalities modality on modality.id = pm.modality_id
                     and modality.organization_id = l.organization_id
-                    and modality.is_active = true
+                and modality.is_active = true
                 where pm.person_id = c.person_id
-                  and pm.modality_id = l.modality_id
+                    and pm.modality_id = l.modality_id
             )
-            and l.status = 'scheduled'
-            and l.starts_at <= @CheckedInAt
-            and l.ends_at >= @CheckedInAt
+            and l.status in ('scheduled', 'rescheduled')
+            and l.starts_at >= @CheckedInAt
         on conflict (organization_id, lesson_id, client_id) do nothing
-        returning id, organization_id as OrganizationId, lesson_id as LessonId, client_id as ClientId,
-            checked_in_at as AttendanceDate, status::text as Status, validated_at as ValidatedAt,
-            validated_by_person_id as ValidatedByPersonId, created_at as CreatedAt, updated_at as UpdatedAt;";
+        returning
+            id,
+            organization_id as OrganizationId,
+            lesson_id as LessonId,
+            client_id as ClientId,
+            checked_in_at as AttendanceDate,
+            status::text as Status,
+            validated_at as ValidatedAt,
+            validated_by_person_id as ValidatedByPersonId,
+            created_at as CreatedAt,
+            updated_at as UpdatedAt;
+        ";
+
+    public const string ListClientCheckIns = @"
+        select
+            a.lesson_id as LessonId,
+            a.status::text as Status,
+            a.validated_by_person_id as ValidatedByPersonId
+        from attendances a
+        join lessons l on l.id = a.lesson_id
+            and l.organization_id = a.organization_id
+        where a.organization_id = @OrganizationId
+            and a.client_id = @ClientId
+            and l.starts_at >= @From
+            and l.starts_at < @To;
+        ";
+
+    public const string CancelClientCheckIn = @"
+        delete
+        from attendances a using
+            clients c,
+            persons p,
+            lessons l
+        where a.organization_id = @OrganizationId
+            and a.lesson_id = @LessonId
+            and a.client_id = c.id
+            and c.organization_id = a.organization_id
+            and c.current_status = 'active'
+            and c.person_id = p.id
+            and p.organization_id = a.organization_id
+            and p.deleted_at is null
+            and p.id = @PersonId
+            and l.id = a.lesson_id
+            and l.organization_id = a.organization_id
+            and l.status in ('scheduled', 'rescheduled')
+            and l.starts_at >= @CancelledAt
+            and ((a.status = 'pending_confirmation'
+                and a.validated_at is null)
+                or (a.status = 'present'
+                    and a.validated_by_person_id = p.id));
+        ";
 
     public const string ListByOrganization = @"
         select
@@ -63,7 +140,8 @@ public static class AttendanceQueries
         join persons p on p.id = c.person_id
         where a.organization_id = @OrganizationId
         order by a.created_at desc
-        offset @Offset rows fetch next @PageSize rows only;";
+        offset @Offset rows fetch next @PageSize rows only;
+        ";
 
     public const string GetById = @"
         select
@@ -81,7 +159,8 @@ public static class AttendanceQueries
         from attendances a
         join clients c on c.id = a.client_id and c.organization_id = a.organization_id
         join persons p on p.id = c.person_id
-        where a.organization_id = @OrganizationId and a.id = @Id;";
+        where a.organization_id = @OrganizationId and a.id = @Id;
+        ";
 
     public const string Update = @"
         update attendances
@@ -96,11 +175,13 @@ public static class AttendanceQueries
         where organization_id = @OrganizationId and id = @Id
         returning id, organization_id as OrganizationId, lesson_id as LessonId, client_id as ClientId,
             checked_in_at as AttendanceDate, status::text as Status, validated_at as ValidatedAt,
-            validated_by_person_id as ValidatedByPersonId, created_at as CreatedAt, updated_at as UpdatedAt;";
+            validated_by_person_id as ValidatedByPersonId, created_at as CreatedAt, updated_at as UpdatedAt;
+        ";
 
     public const string Delete = @"
         delete from attendances
-        where organization_id = @OrganizationId and id = @Id;";
+        where organization_id = @OrganizationId and id = @Id;
+        ";
 
     public const string ListByLesson = @"
         select
@@ -119,7 +200,8 @@ public static class AttendanceQueries
         join clients c on c.id = a.client_id and c.organization_id = a.organization_id
         join persons p on p.id = c.person_id
         where a.organization_id = @OrganizationId and a.lesson_id = @LessonId
-        order by a.created_at, a.client_id;";
+        order by a.created_at, a.client_id;
+        ";
 
     public const string ListEligibleClientsByLesson = @"
         select c.id as ClientId, person.full_name as ClientName
@@ -138,7 +220,8 @@ public static class AttendanceQueries
               where pm.person_id = c.person_id
                 and pm.modality_id = l.modality_id
           )
-        order by person.full_name;";
+        order by person.full_name;
+        ";
 
     public const string ListPendingByOrganization = @"
         select
@@ -154,12 +237,31 @@ public static class AttendanceQueries
             a.created_at as CreatedAt,
             a.updated_at as UpdatedAt
         from attendances a
-        join clients c on c.id = a.client_id and c.organization_id = a.organization_id
+        join clients c on c.id = a.client_id
+            and c.organization_id = a.organization_id
         join persons p on p.id = c.person_id
         where a.organization_id = @OrganizationId
             and a.status = 'pending_confirmation'
-        order by a.checked_in_at, p.full_name
-        offset @Offset rows fetch next @PageSize rows only;";
+            and (@TeacherId is null
+                or exists (
+                    select 1
+                    from lessons l
+                    left join modality_schedules s on s.id = l.modality_schedule_id
+                    where l.id = a.lesson_id
+                        and l.organization_id = a.organization_id
+                        and (s.teacher_id = @TeacherId
+                            or exists (
+                                select 1
+                                from lesson_instructors i
+                                where i.lesson_id = l.id
+                                    and i.teacher_id = @TeacherId
+                            ))
+                ))
+        order by
+            a.checked_in_at,
+            p.full_name
+        offset @Offset rows fetch next @PageSize rows only;
+        ";
 
     public const string ValidateCheckIn = @"
         update attendances
@@ -172,15 +274,17 @@ public static class AttendanceQueries
             and status = 'pending_confirmation'
         returning id, organization_id as OrganizationId, lesson_id as LessonId, client_id as ClientId,
             checked_in_at as AttendanceDate, status::text as Status, validated_at as ValidatedAt,
-            validated_by_person_id as ValidatedByPersonId, created_at as CreatedAt, updated_at as UpdatedAt;";
+            validated_by_person_id as ValidatedByPersonId, created_at as CreatedAt, updated_at as UpdatedAt;
+        ";
 
     public const string LockLessonForCall = @"
         select l.id
         from lessons l
         where l.organization_id = @OrganizationId
           and l.id = @LessonId
-          and l.status in ('scheduled', 'completed')
-        for update;";
+          and l.status in ('scheduled', 'rescheduled', 'completed')
+        for update;
+        ";
 
     public const string UpsertCallEntry = @"
         insert into attendances (
@@ -197,7 +301,7 @@ public static class AttendanceQueries
          and c.current_status = 'active'
         where l.organization_id = @OrganizationId
           and l.id = @LessonId
-          and l.status in ('scheduled', 'completed')
+          and l.status in ('scheduled', 'rescheduled', 'completed')
           and exists (
               select 1 from person_modalities pm
               join modalities modality on modality.id = pm.modality_id
@@ -223,5 +327,6 @@ public static class AttendanceQueries
             validated_at as ValidatedAt,
             validated_by_person_id as ValidatedByPersonId,
             created_at as CreatedAt,
-            updated_at as UpdatedAt;";
+            updated_at as UpdatedAt;
+        ";
 }

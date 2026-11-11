@@ -1,0 +1,12 @@
+global using Microsoft.AspNetCore.Components;
+global using MudBlazor;
+global using KiaiControl.Admin.Services;
+global using KiaiControl.Admin.Components.Common;
+global using KiaiControl.Contracts.Administration;
+global using KiaiControl.Contracts.Auth;
+global using KiaiControl.Contracts.Billing;
+global using KiaiControl.Contracts.Clients;
+global using KiaiControl.Contracts.Common;
+global using KiaiControl.Contracts.Fitness;
+global using KiaiControl.Contracts.Organizations;
+global using KiaiControl.Contracts.Teachers;
