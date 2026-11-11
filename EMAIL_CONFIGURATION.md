@@ -46,6 +46,43 @@ Exemplos de servidores compatíveis com o adaptador SMTP:
 
 Referências dos fornecedores: [SMTP Brevo](https://developers.brevo.com/docs/smtp-integration), [SMTP Resend](https://resend.com/docs/send-with-smtp). Estes exemplos não fixam o fornecedor no código. Provedores que exigem OAuth2 ou somente API HTTP podem usar outro adaptador, conforme a seção abaixo.
 
+## Brevo no desenvolvimento local
+
+A API tem o `UserSecretsId` `kiai-control-api-development`. Ao executar em `Development`, o ASP.NET Core carrega automaticamente os User Secrets depois dos arquivos `appsettings` e antes das variáveis de ambiente/argumentos. A configuração permanece fora do repositório; nenhum adaptador específico da Brevo é necessário.
+
+No painel da Brevo:
+
+1. Em **Configurações → SMTP e API → SMTP**, copie o **login SMTP** e gere uma **chave SMTP** para o Kiai Control. O login pode ser diferente do e-mail da sua conta. A chave SMTP é usada como senha; senha de acesso à Brevo e chave da API HTTP não servem para essa conexão.
+2. Cadastre e verifique o endereço que será usado como remetente em **Remetentes e domínios**. Não use o login técnico `...@smtp-brevo.com` como remetente. Configure a autenticação do domínio conforme as instruções da Brevo.
+3. Na raiz deste repositório, abra o arquivo de segredos da API em seu editor. No macOS/Linux ele fica em `~/.microsoft/usersecrets/kiai-control-api-development/secrets.json`; no Windows, em `%APPDATA%\Microsoft\UserSecrets\kiai-control-api-development\secrets.json`. Mescle estas seções, preservando eventuais outros segredos:
+
+```json
+{
+  "Email": {
+    "Provider": "Disabled",
+    "FromAddress": "",
+    "FromName": "Kiai Control",
+    "Smtp": {
+      "Host": "smtp-relay.brevo.com",
+      "Port": 587,
+      "Security": "StartTls",
+      "Username": "",
+      "Password": "",
+      "TimeoutSeconds": 30
+    }
+  },
+  "PasswordRecovery": {
+    "ResetUrl": "http://localhost:5081/reset-password"
+  }
+}
+```
+
+4. Preencha `FromAddress` com o remetente verificado, `Username` com o login SMTP e `Password` com a chave SMTP. Depois altere `Provider` para `Smtp` e reinicie a API em `Development`. Enquanto os dados da conta não forem preenchidos, mantenha `Provider=Disabled`. Não coloque a chave em comandos de terminal que fiquem no histórico nem em arquivos versionados. User Secrets é armazenamento local de desenvolvimento, sem criptografia; em produção, use o gerenciador de segredos da infraestrutura e a URL HTTPS real do painel.
+
+Configuração e limites confirmados em 2026-11-11: o plano gratuito oferece **300 envios por dia**. O Kiai Control não sincroniza contatos ou campanhas com a Brevo; usa o relay apenas para as mensagens transacionais solicitadas pelo sistema. O adaptador não consulta a cota nem implementa fila/retry próprio. Acompanhe aceitação, entrega e rejeições no painel transacional da Brevo.
+
+Referências oficiais: [configurar o relay SMTP](https://help.brevo.com/hc/en-us/articles/7924908994450-Send-transactional-emails-using-Brevo-SMTP), [criar chaves SMTP](https://help.brevo.com/hc/en-us/articles/7959631848850-Create-and-manage-your-SMTP-keys), [validar login e remetente](https://help.brevo.com/hc/en-us/articles/115000188150-Troubleshooting-Issues-with-Brevo-SMTP), [limites do plano gratuito](https://help.brevo.com/hc/en-us/articles/208580669-FAQs-What-are-the-limits-of-the-Free-plan).
+
 ## Recuperação de senha
 
 `PasswordRecovery:ResetUrl` é independente do transporte. Se não houver URL configurada ou o remetente estiver desabilitado, a recuperação por e-mail não fica habilitada. A API continua retornando a mensagem genérica, sem revelar existência de conta ou token; o painel permite redefinição administrativa.

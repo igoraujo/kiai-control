@@ -1,8 +1,4 @@
-@page "/fight"
-@page "/gym"
 @inject AdminSession Session
-@inject NavigationManager Navigation
-@inject AdminApiClient Api
 <PageTitle>@(_fight?"Fight":"Gym") | Kiai Control</PageTitle>
 <MudStack Spacing="4">
     <section class="workspace-hero @(_fight?"fight":"gym")">

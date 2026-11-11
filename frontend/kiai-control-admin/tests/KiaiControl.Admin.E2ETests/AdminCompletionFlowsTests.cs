@@ -117,7 +117,24 @@ public sealed class AdminCompletionFlowsTests
         var page = await browser.NewPageAsync(new() { ViewportSize = new() { Width = 390, Height = 844 } });
         await LoginPageAsync(page, env.AdminUrl, email, password);
         await page.WaitForURLAsync(env.AdminUrl + (role == "reception" ? "/clients" : "/"));
-        await page.GotoAsync(env.AdminUrl + "/fight");
+        await page.SetViewportSizeAsync(1440, 1000);
+        await page.Locator(".module-switch a[href='/fight']").WaitForAsync();
+        await page.EvaluateAsync("window.workspaceNavigationMarker = 'same-document'");
+        foreach (var area in new[] { "fight", "gym", "fight", "gym" })
+        {
+            await page.Locator($".module-switch a[href='/{area}']").ClickAsync();
+            await AssertWorkspaceAsync(page, env.AdminUrl, area);
+            Assert.Equal("same-document", await page.EvaluateAsync<string>("window.workspaceNavigationMarker"));
+        }
+        await page.GoBackAsync();
+        await AssertWorkspaceAsync(page, env.AdminUrl, "fight");
+        await page.GoForwardAsync();
+        await AssertWorkspaceAsync(page, env.AdminUrl, "gym");
+        await page.ReloadAsync();
+        await AssertWorkspaceAsync(page, env.AdminUrl, "gym");
+        await page.Locator(".module-switch a[href='/fight']").ClickAsync();
+        await AssertWorkspaceAsync(page, env.AdminUrl, "fight");
+        await page.SetViewportSizeAsync(390, 844);
         await page.Locator("a.workspace-card").Filter(new() { HasText = "Jornada dos alunos" }).ClickAsync();
         await page.WaitForURLAsync(env.AdminUrl + "/clients?area=fight");
         await page.GetByRole(AriaRole.Row).Filter(new() { HasText = "Aluno Fight" }).WaitForAsync();
@@ -156,6 +173,18 @@ public sealed class AdminCompletionFlowsTests
             await page.GetByRole(AriaRole.Option, new() { Name = "Aluno Gym", Exact = true }).WaitForAsync();
             Assert.Equal(0, await page.GetByRole(AriaRole.Option, new() { Name = "Aluno Fight", Exact = true }).CountAsync());
         }
+    }
+
+    private static async Task AssertWorkspaceAsync(IPage page, string adminUrl, string area)
+    {
+        await page.WaitForURLAsync($"{adminUrl}/{area}");
+        await page.GetByRole(AriaRole.Heading, new() { Name = area == "fight" ? "Kiai Fight" : "Kiai Gym", Exact = true })
+            .WaitForAsync(new() { Timeout = 5_000 });
+        Assert.Equal(area.ToUpperInvariant(), await page.Locator(".workspace-badge").InnerTextAsync());
+        Assert.True(await page.Locator($".dashboard-shell.area-{area} .workspace-hero.{area}").IsVisibleAsync());
+        Assert.Equal($"/clients?area={area}", await page.Locator("a.workspace-card").Filter(new() { HasText = "Jornada dos alunos" }).GetAttributeAsync("href"));
+        Assert.Equal($"/clients?area={area}", await page.Locator("#menu-section-academymanagement a").Filter(new() { HasText = "Alunos" }).GetAttributeAsync("href"));
+        Assert.False(await page.Locator("#blazor-error-ui").IsVisibleAsync());
     }
 
     [Fact]

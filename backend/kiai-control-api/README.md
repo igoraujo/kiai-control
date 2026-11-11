@@ -2,6 +2,8 @@
 
 Serviço de e-mail agnóstico (`IEmailSender`), configuração SMTP, adaptadores adicionais e captura local: [EMAIL_CONFIGURATION.md](../../EMAIL_CONFIGURATION.md).
 
+Brevo no desenvolvimento: a API carrega User Secrets pelo ID `kiai-control-api-development` em `Development`. Configure login/chave SMTP e remetente verificado fora do repositório, conforme o [passo a passo](../../EMAIL_CONFIGURATION.md#brevo-no-desenvolvimento-local).
+
 Administração global e provisionamento do Super Admin: [PLATFORM_ADMINISTRATION.md](../../PLATFORM_ADMINISTRATION.md). A versão atual exige migrations até `016_platform_lifecycle_observability_privacy.sql`.
 
 ## Objetivo

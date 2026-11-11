@@ -19,8 +19,8 @@
     <MudDivider Class="menu-divider" />
     <div class="module-switch" aria-label="Áreas da academia">
         @if(HasSharedManagementLinks){<a href="@GeneralHref" class="module-link general @(Session.Area == "shared" ? "selected" : "")" @onclick='()=>Session.SelectArea("shared")'><MudIcon Icon="@Icons.Material.Filled.Apps" /><span>Geral<small>Todas as áreas</small></span></a>}
-        @if(HasFightWorkspace){<a href="/fight" class="module-link fight" @onclick='()=>Session.SelectArea("fight")'><MudIcon Icon="@Icons.Material.Filled.SportsMartialArts" /><span>Fight<small>Artes marciais</small></span></a>}
-        @if(HasGymWorkspace){<a href="/gym" class="module-link gym" @onclick='()=>Session.SelectArea("gym")'><MudIcon Icon="@Icons.Material.Filled.FitnessCenter" /><span>Gym<small>Treinamento</small></span></a>}
+        @if(HasFightWorkspace){<a href="/fight" class="module-link fight"><MudIcon Icon="@Icons.Material.Filled.SportsMartialArts" /><span>Fight<small>Artes marciais</small></span></a>}
+        @if(HasGymWorkspace){<a href="/gym" class="module-link gym"><MudIcon Icon="@Icons.Material.Filled.FitnessCenter" /><span>Gym<small>Treinamento</small></span></a>}
     </div>
     @if(AdminNavigation.HasRole(Session.Current?.User,"client")){<MudNavLink Href="/student" Icon="@Icons.Material.Filled.Person">Minha área do aluno</MudNavLink>}
     @if(AdminNavigation.HasRole(Session.Current?.User,"teacher")){<MudNavLink Href="/teacher" Icon="@Icons.Material.Filled.FactCheck">Minhas aulas</MudNavLink>}

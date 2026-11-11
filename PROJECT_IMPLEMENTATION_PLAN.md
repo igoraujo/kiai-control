@@ -78,6 +78,23 @@ As passadas completas do Admin expuseram sincronização em dois E2E antigos (se
 
 O envio começa desabilitado se não houver seleção/configuração de provedor, respeitando instalações com configuração SMTP antiga. Não foram cadastradas credenciais de provedor externo nem enviados e-mails a pessoas reais. Aceitação SMTP não garante entrega na caixa de entrada; fila durável/retry automático e webhooks de entrega/bounce não fazem parte desta implementação.
 
+### Preparação da Brevo no ambiente local (2026-11-11)
+
+- [x] Habilitar User Secrets na API com ID `kiai-control-api-development`; configuração da Brevo permanece fora do repositório, sem acoplar o adaptador SMTP ao fornecedor.
+- [x] Preparar arquivo local com permissões `0600`: `smtp-relay.brevo.com:587`, STARTTLS obrigatório e URL de recuperação local; envio desabilitado e campos de conta vazios até o preenchimento pelo mantenedor.
+- [x] Documentar criação de conta/chave SMTP, verificação de remetente, preenchimento local, ativação e limites do plano gratuito, com referências oficiais.
+- [ ] Criar conta na Brevo, verificar remetente, preencher login/chave SMTP, ativar o envio e enviar o teste solicitado para o mantenedor. O usuário informou que ainda precisa criar a conta; não há credenciais disponíveis.
+
+Validação: **28 testes unitários de e-mail aprovados** e API compilada; verificação temporária com `WebApplication.CreateBuilder` confirmou carregamento dos User Secrets em Development, opções SMTP/URL válidas e ausência dessa configuração em Production. Conexão real com a Brevo confirmou STARTTLS e certificado válido com **TLS 1.3**, sem autenticação nem envio de mensagem. `git diff --check` aprovado. Nenhum servidor da aplicação foi iniciado, nenhuma migration ou commit foi necessário.
+
+### Alternância entre Gym e Fight (validada em 2026-11-11)
+
+- [x] Corrigir a navegação interna entre `/fight` e `/gym`: as duas rotas reutilizavam uma página sem parâmetros de rota, mantendo o conteúdo da primeira área ao alternar pelo menu.
+- [x] Usar páginas de entrada independentes que passam a área explicitamente ao componente visual compartilhado `Workspace`, preservando a modularidade. A área da sessão é atualizada pela página de destino; os links do menu não antecipam essa mudança.
+- [x] Ampliar os três E2E de owner/admin/recepção para clicar alternadamente no menu, conferir título/tema/atalhos, preservar o documento, voltar/avançar e recarregar, mantendo as verificações de alunos nas visões Geral/Fight/Gym.
+
+Validação: os **três cenários reproduziram a falha antes da correção e passaram depois**. Build do Admin/API sem avisos ou erros; **41 testes unitários/componentes Admin e 3 E2E Chromium/API/Admin/PostgreSQL aprovados**. Relatórios temporários em `/private/tmp/kiai-workspace-validation`. Nenhuma alteração de banco ou commit foi necessário.
+
 ### Fluxo de aulas
 
 O fluxo e modalidade → horarios recorrentes por unidade (professor opcional) → aulas por data → chamada. Um aluno ativo vinculado a modalidade pode frequentar qualquer horario dela; nao ha vinculo fixo a horario. A migration `007_remove_class_groups.sql` remove tabelas, endpoints e telas de turma/matricula fixa; aulas e ciclos de ranking sao associados a modalidade e matriculas ativas sao transferidas para `person_modalities`.
