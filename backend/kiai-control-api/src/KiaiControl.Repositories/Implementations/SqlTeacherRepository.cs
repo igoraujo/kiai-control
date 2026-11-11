@@ -48,6 +48,14 @@ public sealed class SqlTeacherRepository(IDbConnectionFactory dbConnectionFactor
         return await connection.QuerySingleOrDefaultAsync<Teacher>(TeacherQueries.GetById, new { OrganizationId = organizationId, Id = id });
     }
 
+    public async Task<Teacher?> GetByPersonIdAsync(Guid organizationId, Guid personId, CancellationToken cancellationToken = default)
+    {
+        using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
+        return await connection.QuerySingleOrDefaultAsync<Teacher>(
+            TeacherQueries.GetByPersonId,
+            new { OrganizationId = organizationId, PersonId = personId });
+    }
+
     public async Task<Teacher?> UpdateAsync(Teacher teacher, CancellationToken cancellationToken = default)
     {
         teacher.UpdatedAt = DateTimeOffset.UtcNow;

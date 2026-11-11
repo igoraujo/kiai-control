@@ -56,6 +56,17 @@ public sealed class LessonUseCase(ILessonRepository lessonRepository)
         return lesson is null ? null : ToResponse(lesson);
     }
 
+    public async Task<LessonResponse?> GetByIdForTeacherAsync(
+        Guid organizationId,
+        Guid id,
+        Guid teacherId,
+        CancellationToken cancellationToken)
+    {
+        var lesson = await lessonRepository.GetByIdForTeacherAsync(
+            organizationId, id, teacherId, cancellationToken);
+        return lesson is null ? null : ToResponse(lesson);
+    }
+
     public async Task<LessonResponse?> UpdateAsync(
         Guid organizationId,
         Guid id,

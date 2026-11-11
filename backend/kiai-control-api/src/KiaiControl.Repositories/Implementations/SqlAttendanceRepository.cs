@@ -36,6 +36,38 @@ public sealed class SqlAttendanceRepository(IDbConnectionFactory dbConnectionFac
         });
     }
 
+    public async Task<IReadOnlyList<AttendanceRecord>> ListClientCheckInsAsync(
+        Guid organizationId,
+        Guid clientId,
+        DateTimeOffset from,
+        DateTimeOffset to,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
+        var records = await connection.QueryAsync<AttendanceRecord>(
+            AttendanceQueries.ListClientCheckIns,
+            new { OrganizationId = organizationId, ClientId = clientId, From = from, To = to });
+        return records.ToList();
+    }
+
+    public async Task<bool> CancelClientCheckInAsync(
+        Guid organizationId,
+        Guid personId,
+        Guid lessonId,
+        DateTimeOffset cancelledAt,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
+        var affected = await connection.ExecuteAsync(AttendanceQueries.CancelClientCheckIn, new
+        {
+            OrganizationId = organizationId,
+            PersonId = personId,
+            LessonId = lessonId,
+            CancelledAt = cancelledAt
+        });
+        return affected > 0;
+    }
+
     public async Task<IReadOnlyList<AttendanceRecord>> ListByOrganizationAsync(Guid organizationId, int page, int pageSize, CancellationToken cancellationToken = default)
     {
         var safePage = page < 1 ? 1 : page;

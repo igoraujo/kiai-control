@@ -18,7 +18,8 @@ public static class SystemMessages
     public const string AMedalWithThisCodeAlreadyExists = "A medal with this code already exists.";
     public const string AModalidadeNaoFoiEncontradaEstaInativaOuNaoEUmaArteMarcialNestaOrganizacao = "A modalidade não foi encontrada, está inativa ou não é uma arte marcial nesta organização.";
     public const string AnOpenRankingCycleWasNotFound = "An open ranking cycle was not found.";
-    public const string CheckInIndisponivelConfirmeSuaMatriculaOHorarioDaAulaOuSeJaRealizouOCheckIn = "Check-in indisponível: confirme sua matrícula, o horário da aula ou se já realizou o check-in.";
+    public const string CheckInIndisponivelConfirmeSuaMatriculaOHorarioDaAulaOuSeJaRealizouOCheckIn = "Check-in disponível somente para aulas futuras, até o início da aula, e para alunos matriculados na modalidade.";
+    public const string CancelamentoDoCheckInDisponivelSomenteAteOInicioDaAula = "O check-in só pode ser desfeito antes do início da aula.";
     public const string ClientIdAndClientPlanSubscriptionIdAreRequired = "ClientId and ClientPlanSubscriptionId are required.";
     public const string ClientIdAndLessonIdAreRequired = "ClientId and LessonId are required.";
     public const string ClientIdMustBeAValidIdentifier = "ClientId must be a valid identifier.";

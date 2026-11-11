@@ -107,6 +107,34 @@ public static class TeacherQueries
         where t.organization_id = @OrganizationId and t.id = @Id and p.deleted_at is null;
         ";
 
+    public const string GetByPersonId = @"
+        select
+            t.id,
+            t.organization_id as OrganizationId,
+            t.person_id as PersonId,
+            p.branch_id as BranchId,
+            p.full_name as FullName,
+            p.preferred_name as PreferredName,
+            p.email,
+            p.phone,
+            p.birth_date as BirthDate,
+            p.document,
+            p.medical_notes as MedicalNotes,
+            p.emergency_contact_name as EmergencyContactName,
+            p.emergency_contact_phone as EmergencyContactPhone,
+            p.hide_from_ranking as HideFromRanking,
+            t.hired_at as HiredAt,
+            t.active_from as ActiveFrom,
+            t.current_status::text as Status,
+            t.created_at as CreatedAt,
+            t.updated_at as UpdatedAt
+        from teachers t
+        join persons p on p.id = t.person_id
+        where t.organization_id = @OrganizationId
+          and t.person_id = @PersonId
+          and p.deleted_at is null;
+        ";
+
     public const string Update = @"
         with target as (
             select t.id, t.organization_id, t.person_id

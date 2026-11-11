@@ -172,6 +172,38 @@ public sealed class AttendanceUseCase(IAttendanceRepository attendanceRepository
         return record is null ? null : ToResponse(record);
     }
 
+    public async Task<IReadOnlyList<AttendanceRecord>> ListClientCheckInsAsync(
+        Guid organizationId,
+        Guid clientId,
+        DateTimeOffset from,
+        DateTimeOffset to,
+        CancellationToken cancellationToken)
+    {
+        if (organizationId == Guid.Empty || clientId == Guid.Empty || from >= to)
+        {
+            throw new ArgumentException(SystemMessages.OrganizationIdClientIdAndValidDateRangeAreRequired);
+        }
+
+        return await attendanceRepository.ListClientCheckInsAsync(
+            organizationId, clientId, from, to, cancellationToken);
+    }
+
+    public Task<bool> CancelClientCheckInAsync(
+        Guid organizationId,
+        Guid personId,
+        Guid lessonId,
+        DateTimeOffset cancelledAt,
+        CancellationToken cancellationToken)
+    {
+        if (organizationId == Guid.Empty || personId == Guid.Empty || lessonId == Guid.Empty)
+        {
+            throw new ArgumentException(SystemMessages.OrganizationIdPersonIdAndLessonIdAreRequired);
+        }
+
+        return attendanceRepository.CancelClientCheckInAsync(
+            organizationId, personId, lessonId, cancelledAt, cancellationToken);
+    }
+
     public async Task<IReadOnlyList<AttendanceRecordResponse>> ListPendingAsync(
         Guid organizationId,
         int page,

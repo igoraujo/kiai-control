@@ -45,6 +45,12 @@ public sealed class TeacherUseCase(ITeacherRepository teacherRepository, IBranch
         return teacher is null ? null : Map(teacher);
     }
 
+    public async Task<TeacherResponse?> GetByPersonIdAsync(Guid organizationId, Guid personId, CancellationToken cancellationToken)
+    {
+        var teacher = await teacherRepository.GetByPersonIdAsync(organizationId, personId, cancellationToken);
+        return teacher is null ? null : Map(teacher);
+    }
+
     public async Task<TeacherResponse?> UpdateAsync(Guid organizationId, Guid id, UpdateTeacherRequest request, CancellationToken cancellationToken)
     {
         await PersonDataValidator.ValidateBranchAsync(branchRepository, organizationId, request.BranchId, cancellationToken);

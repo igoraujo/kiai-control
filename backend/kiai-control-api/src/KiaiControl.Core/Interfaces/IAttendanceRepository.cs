@@ -13,6 +13,20 @@ public interface IAttendanceRepository
         DateTimeOffset checkedInAt,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<AttendanceRecord>> ListClientCheckInsAsync(
+        Guid organizationId,
+        Guid clientId,
+        DateTimeOffset from,
+        DateTimeOffset to,
+        CancellationToken cancellationToken = default);
+
+    Task<bool> CancelClientCheckInAsync(
+        Guid organizationId,
+        Guid personId,
+        Guid lessonId,
+        DateTimeOffset cancelledAt,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<AttendanceRecord>> ListByOrganizationAsync(
         Guid organizationId,
         int page,

@@ -5,6 +5,7 @@ using KiaiControl.Contracts.Lessons;
 using KiaiControl.Contracts.Modalities;
 using KiaiControl.Core.Common;
 using KiaiControl.UseCases.Clients;
+using KiaiControl.UseCases.Attendance;
 using KiaiControl.UseCases.Fitness;
 using KiaiControl.UseCases.Lessons;
 using KiaiControl.UseCases.Modalities;
@@ -21,6 +22,7 @@ public sealed class ClientPortalController(
     ClientUseCase clientUseCase,
     ModalityUseCase modalityUseCase,
     LessonUseCase lessonUseCase,
+    AttendanceUseCase attendanceUseCase,
     FitnessUseCase fitnessUseCase) : ControllerBase
 {
     [HttpGet("profile")]
@@ -67,7 +69,7 @@ public sealed class ClientPortalController(
     }
 
     [HttpGet("lessons")]
-    public async Task<ActionResult<IReadOnlyList<LessonResponse>>> GetLessonsAsync(
+    public async Task<ActionResult<IReadOnlyList<ClientPortalLessonResponse>>> GetLessonsAsync(
         [FromQuery] DateTimeOffset? from,
         [FromQuery] DateTimeOffset? to,
         CancellationToken cancellationToken)
@@ -83,7 +85,9 @@ public sealed class ClientPortalController(
             return NotFound();
         }
 
-        var rangeStart = from?.ToUniversalTime() ?? DateTimeOffset.UtcNow;
+        var now = DateTimeOffset.UtcNow;
+        var requestedStart = from?.ToUniversalTime() ?? now;
+        var rangeStart = requestedStart < now ? now : requestedStart;
         var rangeEnd = to?.ToUniversalTime() ?? rangeStart.AddDays(30);
         if (rangeEnd <= rangeStart || rangeEnd - rangeStart > TimeSpan.FromDays(31))
         {
@@ -93,7 +97,7 @@ public sealed class ClientPortalController(
         var modalities = await modalityUseCase.ListClientModalitiesAsync(organizationId, client.Id, cancellationToken);
         if (modalities.Count == 0)
         {
-            return Ok(Array.Empty<LessonResponse>());
+            return Ok(Array.Empty<ClientPortalLessonResponse>());
         }
 
         var modalityIds = modalities.Select(modality => modality.Id).ToHashSet();
@@ -112,7 +116,22 @@ public sealed class ClientPortalController(
             }
         }
 
-        return Ok(lessons.OrderBy(lesson => lesson.StartsAt).ToArray());
+        var eligibleLessons = lessons.OrderBy(lesson => lesson.StartsAt).ToArray();
+        var checkIns = await attendanceUseCase.ListClientCheckInsAsync(
+            organizationId, client.Id, rangeStart, rangeEnd, cancellationToken);
+        var checkInStatuses = checkIns.ToDictionary(record => record.LessonId, record => record.Status);
+
+        return Ok(eligibleLessons.Select(lesson => new ClientPortalLessonResponse
+        {
+            Id = lesson.Id,
+            ModalityId = lesson.ModalityId,
+            ModalityName = lesson.ModalityName,
+            BranchName = lesson.BranchName,
+            StartsAt = lesson.StartsAt,
+            EndsAt = lesson.EndsAt,
+            Status = lesson.Status,
+            CheckInStatus = checkInStatuses.GetValueOrDefault(lesson.Id)
+        }).ToArray());
     }
 
     [HttpGet("fitness")]

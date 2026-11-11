@@ -17,6 +17,12 @@ public interface ILessonRepository
 
     Task<Lesson?> GetByIdAsync(Guid organizationId, Guid id, CancellationToken cancellationToken = default);
 
+    Task<Lesson?> GetByIdForTeacherAsync(
+        Guid organizationId,
+        Guid id,
+        Guid teacherId,
+        CancellationToken cancellationToken = default);
+
     Task<Lesson?> UpdateAsync(Lesson lesson, CancellationToken cancellationToken = default);
 
     Task<Lesson?> CancelAsync(

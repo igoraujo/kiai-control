@@ -70,6 +70,35 @@ public static class LessonQueries
         where lessons.organization_id = @OrganizationId and lessons.id = @Id;
         ";
 
+    public const string GetByIdForTeacher = @"
+        select
+            lessons.id,
+            lessons.organization_id as OrganizationId,
+            lessons.modality_id as ModalityId,
+            lessons.modality_schedule_id as ModalityScheduleId,
+            lessons.starts_at as StartsAt,
+            lessons.ends_at as EndsAt,
+            lessons.status::text as Status,
+            lessons.cancellation_reason as CancellationReason,
+            lessons.created_at as CreatedAt,
+            lessons.updated_at as UpdatedAt,
+            modality.name as ModalityName,
+            branch.name as BranchName
+        from lessons
+        join modality_schedules modality_schedule
+            on modality_schedule.id = lessons.modality_schedule_id
+            and modality_schedule.organization_id = lessons.organization_id
+            and modality_schedule.teacher_id = @TeacherId
+        left join modalities modality
+            on modality.id = lessons.modality_id
+            and modality.organization_id = lessons.organization_id
+        left join branches branch
+            on branch.id = modality_schedule.branch_id
+            and branch.organization_id = lessons.organization_id
+        where lessons.organization_id = @OrganizationId
+          and lessons.id = @Id;
+        ";
+
     public const string Update = @"
         update lessons
         set starts_at = @StartsAt, ends_at = @EndsAt, updated_at = @UpdatedAt

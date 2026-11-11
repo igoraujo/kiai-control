@@ -49,6 +49,18 @@ public sealed class SqlLessonRepository(IDbConnectionFactory dbConnectionFactory
         return await connection.QuerySingleOrDefaultAsync<Lesson>(LessonQueries.GetById, new { OrganizationId = organizationId, Id = id });
     }
 
+    public async Task<Lesson?> GetByIdForTeacherAsync(
+        Guid organizationId,
+        Guid id,
+        Guid teacherId,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
+        return await connection.QuerySingleOrDefaultAsync<Lesson>(
+            LessonQueries.GetByIdForTeacher,
+            new { OrganizationId = organizationId, Id = id, TeacherId = teacherId });
+    }
+
     public async Task<Lesson?> UpdateAsync(Lesson lesson, CancellationToken cancellationToken = default)
     {
         lesson.UpdatedAt = DateTimeOffset.UtcNow;

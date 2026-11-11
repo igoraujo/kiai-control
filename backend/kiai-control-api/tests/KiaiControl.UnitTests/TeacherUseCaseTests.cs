@@ -59,6 +59,28 @@ public sealed class TeacherUseCaseTests
     }
 
     [Fact]
+    public async Task GetByPersonIdAsync_ShouldOnlyReturnTeacherInOrganization()
+    {
+        var repository = new InMemoryTeacherRepository();
+        var useCase = new TeacherUseCase(repository, new InMemoryBranchRepository());
+        var organizationId = Guid.NewGuid();
+        var created = await useCase.CreateAsync(new CreateTeacherRequest
+        {
+            OrganizationId = organizationId,
+            FullName = "Carlos Lima"
+        }, CancellationToken.None);
+
+        var found = await useCase.GetByPersonIdAsync(
+            organizationId, created.PersonId, CancellationToken.None);
+        var fromOtherOrganization = await useCase.GetByPersonIdAsync(
+            Guid.NewGuid(), created.PersonId, CancellationToken.None);
+
+        Assert.NotNull(found);
+        Assert.Equal(created.Id, found.Id);
+        Assert.Null(fromOtherOrganization);
+    }
+
+    [Fact]
     public async Task UpdateAsync_ShouldPersistPersonAndEmploymentFields()
     {
         var repository = new InMemoryTeacherRepository();

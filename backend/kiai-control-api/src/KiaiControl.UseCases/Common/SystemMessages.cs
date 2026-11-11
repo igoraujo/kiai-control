@@ -68,6 +68,7 @@ public static class SystemMessages
     public const string OrganizationIdAndActorUserIdAreRequired = "OrganizationId and ActorUserId are required.";
     public const string OrganizationIdAndAttendanceIdAreRequired = "OrganizationId and AttendanceId are required.";
     public const string OrganizationIdAndClientIdAreRequired = "OrganizationId and ClientId are required.";
+    public const string OrganizationIdClientIdAndValidDateRangeAreRequired = "OrganizationId and ClientId are required, and the date range must be valid.";
     public const string OrganizationIdAndGoalIdAreRequired = "OrganizationId and GoalId are required.";
     public const string OrganizationIdAndInvoiceIdAreRequired = "OrganizationId and InvoiceId are required.";
     public const string OrganizationIdAndLessonIdAreRequired = "OrganizationId and LessonId are required.";

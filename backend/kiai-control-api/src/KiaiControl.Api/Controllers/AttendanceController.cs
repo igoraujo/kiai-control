@@ -88,6 +88,32 @@ public sealed class AttendanceController(OrganizationContext organizationContext
         }
     }
 
+    [Authorize(Roles = "client")]
+    [Authorize(Policy = PermissionCodes.AttendanceCheckIn)]
+    [HttpDelete("check-in/{lessonId:guid}")]
+    public async Task<IActionResult> CancelClientCheckInAsync(
+        Guid lessonId,
+        CancellationToken cancellationToken)
+    {
+        if (organizationContext.OrganizationId is not Guid organizationId || !TryGetPersonId(out var personId))
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            var cancelled = await attendanceUseCase.CancelClientCheckInAsync(
+                organizationId, personId, lessonId, DateTimeOffset.UtcNow, cancellationToken);
+            return cancelled
+                ? NoContent()
+                : Conflict(KiaiControl.Api.Common.SystemMessages.CancelamentoDoCheckInDisponivelSomenteAteOInicioDaAula);
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(exception.Message);
+        }
+    }
+
     [Authorize(Roles = "owner,admin,teacher,reception")]
     [Authorize(Policy = PermissionCodes.AttendanceManage)]
     [HttpGet]
