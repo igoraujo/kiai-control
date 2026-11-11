@@ -3,47 +3,90 @@ namespace KiaiControl.Repositories.Queries.Auth;
 public static class AccessControlQueries
 {
     public const string ListPeopleWithoutAccounts = @"
-        select person.id as PersonId, person.full_name as FullName, person.email as Email
+        select
+            person.id as PersonId,
+            person.full_name as FullName,
+            person.email as Email,
+            exists (
+                select 1
+                from clients c
+                where c.person_id = person.id
+                    and c.organization_id = person.organization_id
+            ) as HasClientProfile,
+            exists (
+                select 1
+                from teachers t
+                where t.person_id = person.id
+                    and t.organization_id = person.organization_id
+            ) as HasTeacherProfile
         from persons person
         where person.organization_id = @OrganizationId
-          and person.deleted_at is null
-          and not exists (
-              select 1 from user_accounts account where account.person_id = person.id
-          )
+            and person.deleted_at is null
+            and not exists (
+                select 1
+                from user_accounts account
+                where account.person_id = person.id
+            )
         order by person.full_name;
         ";
 
     public const string CreateUserAccount = @"
-        with target_person as (
-            update persons person
+        with
+            target_person as
+            (update persons person
             set email = @Email
             where person.id = @PersonId
-              and person.organization_id = @OrganizationId
-              and person.deleted_at is null
-              and not exists (
-                  select 1 from user_accounts account where account.person_id = person.id
-              )
-            returning person.id
-        ), created_account as (
-            insert into user_accounts (
-                id, person_id, email, password_hash, is_active, is_platform_owner,
-                must_change_password, created_at
-            )
-            select @UserId, target_person.id, @Email, @PasswordHash, true, false, true, now()
+                and person.organization_id = @OrganizationId
+                and person.deleted_at is null
+                and (@RoleCode not in ('client', 'teacher')
+                    or (@RoleCode = 'client'
+                        and exists (
+                            select 1
+                            from clients c
+                            where c.person_id = person.id
+                                and c.organization_id = @OrganizationId
+                        ))
+                    or (@RoleCode = 'teacher'
+                        and exists (
+                            select 1
+                            from teachers t
+                            where t.person_id = person.id
+                                and t.organization_id = @OrganizationId
+                        )))
+                and not exists (
+                    select 1
+                    from user_accounts account
+                    where account.person_id = person.id
+                )
+                returning person.id),
+            created_account as
+            (insert into user_accounts (id, person_id, email, password_hash, is_active, is_platform_owner, must_change_password, created_at) select
+                @UserId,
+                target_person.id,
+                @Email,
+                @PasswordHash,
+                true,
+                false,
+                true,
+                now()
             from target_person
-            returning person_id
-        ), assigned_role as (
-            insert into person_roles (person_id, role_id, granted_by_user_account_id, granted_at)
-            select created_account.person_id, role.id, @GrantedByUserId, now()
+                returning person_id),
+            assigned_role as
+            (insert into person_roles (person_id, role_id, granted_by_user_account_id, granted_at) select
+                created_account.person_id,
+                role.id,
+                @GrantedByUserId,
+                now()
             from created_account
             cross join roles role
             where role.code = @RoleCode::role_code
-            on conflict (person_id, role_id) do update
-            set granted_by_user_account_id = excluded.granted_by_user_account_id,
-                granted_at = excluded.granted_at
-            returning person_id
-        )
-        select person_id from assigned_role;
+                on conflict (person_id, role_id) do update
+        set
+                    granted_by_user_account_id = excluded.granted_by_user_account_id,
+                    granted_at = excluded.granted_at
+                returning person_id)
+        select person_id
+        from assigned_role;
         ";
 
     public const string ListRoles = @"
@@ -69,14 +112,35 @@ public static class AccessControlQueries
 
     public const string AssignPersonRole = @"
         insert into person_roles (person_id, role_id, granted_by_user_account_id, granted_at)
-        select person.id, role.id, @GrantedByUserId, now()
+        select
+            person.id,
+            role.id,
+            @GrantedByUserId,
+            now()
         from persons person
         join roles role on role.code = @RoleCode::role_code
         where person.id = @PersonId
-          and person.organization_id = @OrganizationId
-          and person.deleted_at is null
-        on conflict (person_id, role_id)
-        do update set granted_by_user_account_id = excluded.granted_by_user_account_id, granted_at = now()
+            and person.organization_id = @OrganizationId
+            and person.deleted_at is null
+            and (@RoleCode not in ('client', 'teacher')
+                or (@RoleCode = 'client'
+                    and exists (
+                        select 1
+                        from clients c
+                        where c.person_id = person.id
+                            and c.organization_id = @OrganizationId
+                    ))
+                or (@RoleCode = 'teacher'
+                    and exists (
+                        select 1
+                        from teachers t
+                        where t.person_id = person.id
+                            and t.organization_id = @OrganizationId
+                    )))
+        on conflict (person_id, role_id) do update
+        set
+                granted_by_user_account_id = excluded.granted_by_user_account_id,
+                granted_at = now()
         returning person_id;
         ";
 
@@ -93,44 +157,58 @@ public static class AccessControlQueries
 
     public const string ListRolePermissions = @"
         select permission.id, permission.code, permission.name, permission.description
-      from roles role
-      cross join permissions permission
-      left join role_permissions base_grant
-        on base_grant.role_id = role.id and base_grant.permission_id = permission.id
-      left join organization_role_permissions organization_grant
-        on organization_grant.organization_id = @OrganizationId
-        and organization_grant.role_id = role.id
-        and organization_grant.permission_id = permission.id
-      where role.code = @RoleCode::role_code
-        and coalesce(organization_grant.is_granted, base_grant.role_id is not null)
-        order by permission.code;
+        from roles role
+        cross join permissions permission
+        left join role_permissions base_grant
+          on base_grant.role_id = role.id and base_grant.permission_id = permission.id
+        left join organization_role_permissions organization_grant
+          on organization_grant.organization_id = @OrganizationId
+          and organization_grant.role_id = role.id
+          and organization_grant.permission_id = permission.id
+        where role.code = @RoleCode::role_code
+          and coalesce(organization_grant.is_granted, base_grant.role_id is not null)
+          order by permission.code;
         ";
 
     public const string GrantRolePermission = @"
-      insert into organization_role_permissions (
-        organization_id, role_id, permission_id, is_granted, changed_at, changed_by_user_account_id
-      )
-      select @OrganizationId, role.id, permission.id, true, now(), @ActorUserId
-        from roles role cross join permissions permission
-        where role.code = @RoleCode::role_code and permission.code = @PermissionCode
-      on conflict (organization_id, role_id, permission_id) do update
-      set is_granted = true,
-        changed_at = now(),
-        changed_by_user_account_id = excluded.changed_by_user_account_id
-        returning role_id;
+        insert into organization_role_permissions (
+          organization_id, role_id, permission_id, is_granted, changed_at, changed_by_user_account_id
+        )
+        select @OrganizationId, role.id, permission.id, true, now(), @ActorUserId
+          from roles role cross join permissions permission
+          where role.code = @RoleCode::role_code and permission.code = @PermissionCode
+        on conflict (organization_id, role_id, permission_id) do update
+        set is_granted = true,
+          changed_at = now(),
+          changed_by_user_account_id = excluded.changed_by_user_account_id
+          returning role_id;
         ";
 
     public const string RevokeRolePermission = @"
-      insert into organization_role_permissions (
-        organization_id, role_id, permission_id, is_granted, changed_at, changed_by_user_account_id
-      )
-      select @OrganizationId, role.id, permission.id, false, now(), @ActorUserId
-      from roles role cross join permissions permission
-      where role.code = @RoleCode::role_code and permission.code = @PermissionCode
-      on conflict (organization_id, role_id, permission_id) do update
-      set is_granted = false,
-        changed_at = now(),
-        changed_by_user_account_id = excluded.changed_by_user_account_id
-      returning role_id;
+        insert into organization_role_permissions (
+          organization_id, role_id, permission_id, is_granted, changed_at, changed_by_user_account_id
+        )
+        select @OrganizationId, role.id, permission.id, false, now(), @ActorUserId
+        from roles role cross join permissions permission
+        where role.code = @RoleCode::role_code and permission.code = @PermissionCode
+        on conflict (organization_id, role_id, permission_id) do update
+        set is_granted = false,
+          changed_at = now(),
+          changed_by_user_account_id = excluded.changed_by_user_account_id
+        returning role_id;
+        ";
+
+    public const string PersonExists = @"
+        select true
+        from persons
+        where id = @PersonId
+            and organization_id = @OrganizationId
+            and deleted_at is null;
+        ";
+
+    public const string RoleExists = @"
+        select true
+        from roles
+        where code = @RoleCode::role_code;
         ";
 }

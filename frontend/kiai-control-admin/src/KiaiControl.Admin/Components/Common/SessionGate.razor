@@ -45,6 +45,11 @@ else
                         await Session.ClearAsync();
                     }
                 }
+                catch (UnauthorizedAccessException)
+                {
+                    await Session.ClearAsync();
+                    Navigation.NavigateTo("/login",replace:true);
+                }
                 catch (HttpRequestException exception)
                 {
                     Logger.LogWarning(exception, "Could not validate the restored admin session because the API is unavailable.");

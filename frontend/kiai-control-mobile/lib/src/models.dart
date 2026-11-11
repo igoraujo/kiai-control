@@ -43,6 +43,8 @@ class ClientLesson {
     required this.status,
     this.branchName,
     this.checkInStatus,
+    this.allowCheckIn = true,
+    this.cancellable,
   });
 
   final String id;
@@ -52,12 +54,14 @@ class ClientLesson {
   final String status;
   final String? branchName;
   final String? checkInStatus;
+  final bool allowCheckIn;
+  final bool? cancellable;
 
   bool get canCheckIn =>
-      checkInStatus == null && !startsAt.isBefore(DateTime.now());
+      allowCheckIn && checkInStatus == null && !startsAt.isBefore(DateTime.now());
 
   bool get canCancelCheckIn =>
-      checkInStatus == 'pending_confirmation' &&
+      (cancellable ?? (checkInStatus == 'pending_confirmation')) &&
       !startsAt.isBefore(DateTime.now());
 
   factory ClientLesson.fromJson(Map<String, dynamic> json) => ClientLesson(
@@ -68,6 +72,8 @@ class ClientLesson {
         status: json['status'] as String? ?? '',
         branchName: json['branchName'] as String?,
         checkInStatus: json['checkInStatus'] as String?,
+        allowCheckIn: json['allowCheckIn'] as bool? ?? true,
+        cancellable: json['canCancelCheckIn'] as bool?,
       );
 }
 
@@ -158,6 +164,8 @@ class FitnessGoal {
     required this.targetValue,
     required this.status,
     this.unit,
+    this.direction = 'increase',
+    this.initialValue = 0,
     this.dueDate,
   });
 
@@ -166,11 +174,19 @@ class FitnessGoal {
   final double targetValue;
   final String status;
   final String? unit;
+  final String direction;
+  final double initialValue;
   final DateTime? dueDate;
 
-  double get progress => targetValue <= 0
-      ? 0
-      : (currentValue / targetValue).clamp(0, 1).toDouble();
+  double get progress {
+    if (direction == 'decrease') {
+      return initialValue <= targetValue
+          ? 0
+          : ((initialValue - currentValue) / (initialValue - targetValue))
+              .clamp(0, 1).toDouble();
+    }
+    return targetValue <= 0 ? 0 : (currentValue / targetValue).clamp(0, 1).toDouble();
+  }
 
   factory FitnessGoal.fromJson(Map<String, dynamic> json) => FitnessGoal(
         title: json['title'] as String? ?? '',
@@ -178,6 +194,8 @@ class FitnessGoal {
         targetValue: (json['targetValue'] as num?)?.toDouble() ?? 0,
         status: json['status'] as String? ?? '',
         unit: json['unit'] as String?,
+        direction: json['direction'] as String? ?? 'increase',
+        initialValue: (json['initialValue'] as num?)?.toDouble() ?? 0,
         dueDate: json['dueDate'] == null
             ? null
             : DateTime.parse(json['dueDate'] as String),

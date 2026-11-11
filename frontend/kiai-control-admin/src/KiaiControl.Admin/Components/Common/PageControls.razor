@@ -1,0 +1,5 @@
+<div class="page-controls" aria-label="Paginação">
+    <MudButton Disabled="@(Busy||Page<=1)" OnClick="()=>Changed.InvokeAsync(Page-1)" StartIcon="@Icons.Material.Filled.ChevronLeft">Anterior</MudButton>
+    <span aria-live="polite">Página @Page @if(Total is not null){<span>· @Total registros</span>}</span>
+    <MudButton Disabled="@(Busy||!HasNext)" OnClick="()=>Changed.InvokeAsync(Page+1)" EndIcon="@Icons.Material.Filled.ChevronRight">Próxima</MudButton>
+</div>

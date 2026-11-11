@@ -32,6 +32,8 @@
                         <MudSelectItem Value="@type.Value">@type.Label</MudSelectItem>
                     }
                 </MudSelect>
+                <MudSelect T="string" @bind-Value="_direction" Label="Objetivo" Variant="Variant.Outlined"><MudSelectItem Value='@("increase")'>Aumentar até o alvo</MudSelectItem><MudSelectItem Value='@("decrease")'>Reduzir até o alvo</MudSelectItem></MudSelect>
+                <MudNumericField T="decimal" @bind-Value="_initialValue" Label="Valor inicial" Min="0" Variant="Variant.Outlined" HelperText="Exemplo: peso atual para uma meta de redução." />
                 <MudStack Row="true" Spacing="2">
                     <MudNumericField T="decimal" @bind-Value="_targetValue" Label="Alvo" Min="0.01m" Required="true"
                                      RequiredError="Informe um alvo maior que zero" Variant="Variant.Outlined" />
@@ -78,6 +80,8 @@
     private string? _description;
     private string _goalType = "training_days";
     private decimal _targetValue = 1;
+    private decimal _initialValue;
+    private string _direction="increase";
     private string? _unit;
     private DateTime? _startsAt = DateTime.Today;
     private DateTime? _dueDate = DateTime.Today.AddMonths(1);
@@ -102,6 +106,8 @@
             Description = _description?.Trim(),
             GoalType = _goalType,
             TargetValue = _targetValue,
+            Direction = _direction,
+            InitialValue = _initialValue,
             Unit = _unit?.Trim(),
             StartsAt = DateOnly.FromDateTime(_startsAt.Value),
             DueDate = DateOnly.FromDateTime(_dueDate.Value)

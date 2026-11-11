@@ -1,6 +1,6 @@
 # Kiai Control - Plano Geral de Implementacao
 
-**Estado verificado em:** 2026-11-02
+**Estado verificado em:** 2026-11-11
 **Escopo:** API, painel Admin, banco de dados, testes, seguranca, operacao e mobile.  
 **Objetivo:** ser a fonte de planejamento de evolucao do projeto e a checklist compartilhada pelos agentes.
 
@@ -15,9 +15,9 @@
 
 ## Resumo do Estado
 
-O backend ja tem uma base ampla de API e modulos de negocio. O Admin cobre uma parte dos fluxos operacionais. O banco tem schema inicial, migrations `001`-`009` e script de bootstrap com ledger para evitar reaplicacao. A principal lacuna nao e a ausencia de todos os modulos: e a falta de verificacao completa dos fluxos contra PostgreSQL, de cobertura automatizada em algumas areas e de paridade do painel com as capacidades existentes da API.
+O backend ja tem uma base ampla de API e modulos de negocio. O Admin cobre uma parte dos fluxos operacionais. O banco tem schema inicial, migrations `001`-`014` e script de bootstrap com ledger para evitar reaplicacao. A principal lacuna nao e a ausencia de todos os modulos: e a falta de verificacao completa dos fluxos contra PostgreSQL, de cobertura automatizada em algumas areas e de paridade do painel com as capacidades existentes da API.
 
-O workspace atual nao contem projeto mobile nem infraestrutura/deploy. Ha um workflow CI parcial; nao considere o produto pronto para producao com base apenas em build, testes locais ou controllers existentes.
+O workspace contem API, Admin e um aplicativo Flutter inicial. O Admin recebeu as jornadas de equipe/contas e portal pessoal, com diferenciacao visual Gym/Fight. Infraestrutura/deploy e observabilidade de producao continuam sendo etapas operacionais separadas; a validacao local nao comprova deploy ou servicos externos.
 
 ### Decisao de operacao de aulas
 
@@ -42,25 +42,70 @@ Esta atualizacao prevalece sobre itens de status conflitantes nas tabelas abaixo
 - Em 2026-11-02, as seções Principal, Gestão da academia, Artes marciais, Rotina, Comunidade e Administração passaram a ser expansíveis/recolhíveis de forma independente; Musculação e Fitness também tem seção própria quando aplicável. Os controles expõem o estado em `aria-expanded`; 26 testes unitários do Admin passaram, incluindo o recolhimento independente das seis seções nomeadas.
 - Em 2026-11-02, um E2E integrado passou pelas jornadas de graduação (faixa, grau, promoção), Fitness (meta, progresso e histórico), ranking (criação/recalculo de ciclo e concessão de medalha), comunicado e auditoria. As cinco telas não apresentaram overflow horizontal em viewport de 390 px. O fluxo encontrou e permitiu corrigir a gravação de progresso fitness: `person_id` era tratado incorretamente como `teacher_id`, causando erro de chave estrangeira para administradores. A resolução agora associa o autor a um professor apenas quando existe vínculo na mesma organização; E2E e teste de integração PostgreSQL validam os casos de administrador/aluno e professor.
 
+## Entrega do painel Admin — 2026-11-11
+
+Esta atualização prevalece sobre descrições históricas conflitantes abaixo. A entrega trata das jornadas do painel; não representa conclusão das pendências de produção/infraestrutura.
+
+- [x] Cadastro de pessoas/equipe independente de aluno/professor; o diretório e os dois formulários operacionais permitem acrescentar vínculos à mesma pessoa, preservando identidade e dados existentes.
+- [x] Gestão de contas existentes: e-mail de login, múltiplos papéis, bloqueio/reativação, redefinição temporária de senha e encerramento de sessões. A própria conta e contas superiores são protegidas nas operações administrativas.
+- [x] Proteção central de rotas/menu e destino após login por perfil. Consulta `.read` foi separada de gestão `.manage` nos quatro cadastros; permissões incompatíveis com o papel são rejeitadas.
+- [x] Área web do aluno: agenda/check-in, presença, graduação, metas e registros, conquistas, faturas e pagamentos pessoais. O servidor resolve a identidade pelas claims e rejeita tentativas de acesso aos dados de outro aluno.
+- [x] Área do professor e escopo de suas aulas/chamadas/check-ins pendentes nas rotas web e mobile.
+- [x] Jornada administrativa do aluno reúne cadastro, modalidades, financeiro, presença, graduação, metas e conquistas, reutilizando os componentes pessoais quando adequado.
+- [x] Paginação/busca no servidor nos cadastros e aulas; paginação nas jornadas financeiras, notificações e rankings; listas de opções completas. O perfil financeiro usa opções do próprio contexto, sem exigir acesso ao cadastro administrativo de alunos.
+- [x] Entradas Gym/Fight com cores, ícones e atalhos distintos, navegação conforme modalidades ativas, contexto compartilhado explícito e layout adaptado ao celular. Metas físicas continuam disponíveis para alunos de artes marciais; graduação é exclusiva de modalidades marciais.
+- [x] Dados/preferências da academia, check-in habilitável e confirmação opcional; troca voluntária e recuperação de senha. O transporte SMTP está implementado e requer credenciais externas para entrega real.
+- [x] Metas de aumento/redução com valor inicial e cálculo consistente no Admin e nos modelos do aplicativo.
+- [x] Migrations `011`–`013` aplicadas em transação e registradas no PostgreSQL local `dev`, sem excluir registros. Schema consolidado, seed de produção e DBML atualizados.
+
+Validação executada: **59 testes unitários backend, 13 de integração (incluindo PostgreSQL real e bootstrap consolidado idempotente), 1 arquitetural, 31 unitários/componentes Admin, 9 E2E Chromium/API/Admin/PostgreSQL e 9 testes Flutter: 122 aprovados, zero falhas**. `flutter analyze --no-pub` não apontou problemas. `git diff --check` aprovado. E2E verificou Gym/Fight e o portal em 390 px e gerou capturas temporárias. A suíte cobre também vínculo de uma pessoa existente pelos dois formulários, perfil financeiro, consulta sem gravação, bloqueio de conta, recuperação de senha com revogação e isolamento do professor/aluno.
+
+Não foi feita publicação/deploy nem configuração de credenciais SMTP. Nenhum commit foi criado.
+
+### Visões Geral, Fight e Gym — 2026-11-11
+
+- [x] Seletor reutilizável nas listas e metas; atalhos e menu preservam a área na URL após navegação/reload. Owner, admin e recepção acessam suas visões sem receber permissões adicionais.
+- [x] Filtros de alunos, professores, modalidades, aulas e metas no servidor antes de paginação/contagem. Vínculos com modalidades determinam as áreas; híbridas entram nas duas, múltiplos vínculos não duplicam alunos e a Geral inclui quem ainda não tem modalidade. Cadastro/jornada únicos, financeiro e dashboard gerais.
+- [x] Opções de metas e graduação coerentes com a área; metas vinculadas a modalidade seguem sua área e metas pessoais sem modalidade seguem os vínculos do aluno. Nenhuma migration ou alteração de dados foi necessária.
+
+Validação desta atualização: **59 testes unitários backend, 18 de integração PostgreSQL, 1 arquitetural, 34 unitários/componentes Admin e 13 E2E: 125 aprovados**. Os três perfis foram exercitados no navegador com troca de área e reload; a integração cobre busca/paginação acima de 25 alunos, tipos híbridos, vínculos cruzados de tenant, escopo do professor e metas com/sem modalidade. Capturas mobile/desktop foram inspecionadas; `git diff --check` aprovado. Flutter não foi alterado nesta atualização.
+
+### Revisão das queries — 2026-11-11
+
+- [x] Queries da entrega revisadas e indentadas no padrão de `BranchQueries`. As classes de queries agora expõem 170 constantes SQL completas; removidos os construtores de SQL, concatenações de fragmentos, interpolação, `Replace` e `Split`.
+- [x] Quatro consultas auxiliares foram movidas dos repositórios para constantes de seus contextos. Valores continuam separados do SQL em parâmetros nomeados do Dapper, incluindo busca, área, período, paginação e tenant.
+- [x] Comparação do SQL compilado antes/depois confirmou equivalência das 166 consultas existentes, ignorando apenas espaços e quebras de linha. Nenhuma migration ou alteração de dados foi necessária.
+- [x] Convenção protegida por teste arquitetural; cinco casos de integração verificam aspas, curingas/barras e tentativas de SQL injection nas buscas de alunos, professores, unidades, modalidades e pessoas, incluindo contagens e isolamento por academia.
+
+Validação: **59 unitários backend, 23 integração PostgreSQL, 2 arquiteturais, 34 unitários/componentes Admin e 13 E2E: 131 aprovados**. O teste de graduação confirma o campo por saída de foco antes do envio, e as 13 jornadas passaram juntas na execução final. Build, comparação do SQL e `git diff --check` aprovados. API local reiniciada e API/Admin respondendo HTTP 200. Nenhum commit foi realizado.
+
+### Política de senha — 2026-11-11
+
+- [x] Novas senhas exigem no mínimo 6 caracteres, uma letra maiúscula, uma minúscula e um caractere especial. Regra centralizada em `Contracts/Auth/PasswordPolicy.cs` e usada nos cadastros, bootstrap da plataforma, senhas temporárias, troca e recuperação.
+- [x] Painel usa a mesma política e mensagem, com validação visível no primeiro acesso. O aplicativo Flutter aplica uma política equivalente, incluindo letras/símbolos Unicode e contagem de caracteres.
+- [x] Jornadas reais usam senhas de seis caracteres e verificam rejeição de regras incompletas, primeiro acesso, recuperação, revogação de sessões e troca em Minha conta. Não houve migration nem alteração das senhas existentes na base.
+
+Validação: **81 unitários backend, 23 integração PostgreSQL, 2 arquiteturais, 34 unitários/componentes Admin, 13 E2E e 26 testes Flutter: 179 aprovados**. Build sem avisos/erros; `flutter analyze --no-pub` e `git diff --check` aprovados. Os processos descartáveis dos testes foram encerrados; nenhuma API/Admin de desenvolvimento ficou executando em segundo plano. Nenhum commit foi realizado.
+
 ## Inventario Verificado
 
 | Area | Estado atual | Evidencia e limite |
 |---|---|---|
 | API e arquitetura | Presente, validacao operacional incompleta | Projetos Api, Core, Contracts, UseCases, Repositories e Services; controllers para autenticacao, organizacoes, unidades, clientes, professores, modalidades, aulas, presenca, financeiro, fitness, graduacao, ranking, notificacoes, relatorios, auditoria e controle de acesso. Rotas de professor agora retornam horarios associados e aulas filtradas por professor/periodo; teste de integracao confirma query em PostgreSQL. Outras rotas ainda precisam de validacao operacional. |
-| Autenticacao | Melhorada; entrega de reset pendente | Access JWT valida issuer/audience, assinatura obrigatoria HS256, expiracao e role claim explicita; chave de 32 bytes e fallback somente em Development. Roles/permissoes efetivas entram no JWT no login/refresh. Login, refresh, logout e fluxos de senha tem rate limit de 10/IP/minuto. Recuperacao responde com mensagem generica sem token, mas nao entrega link por e-mail. |
-| Tenant e autorizacao | Policies e overrides por tenant implementados; integracao parcial | Middleware prioriza a organizacao do token sobre `X-Organization-Id`. Controllers combinam roles e permission claims; `role_permissions` define defaults globais e `organization_role_permissions` overrides locais. Owner nao pode ter suas permissions alteradas pela API. Migrations `001`-`009` executaram na fixture PostgreSQL; falta validar fluxos completos e autorizacao real de cada role. `persons` ainda representa uma organizacao por conta. |
+| Autenticacao | Sessões, troca e recuperação implementadas | Versão da sessão e estado atual da conta/permissões são verificados na API; bloqueio, alteração de login/senha e encerramento administrativo invalidam acessos anteriores. Recuperação web e transporte SMTP implementados; entrega externa requer configuração e não foi exercitada nesta sessão. |
+| Tenant e autorizacao | Matriz aplicada e jornadas principais verificadas | Papéis/permissões efetivos continuam tenant-scoped; quatro permissões de consulta foram separadas de gestão. Menu, rotas e API respeitam a matriz. E2E valida consulta sem gravação, aluno restrito aos próprios dados, professor restrito às próprias aulas, perfil financeiro e proteção da própria conta. O MVP mantém uma organização por conta. |
 | Auditoria | Parcial | Middleware e endpoint de consulta existem. A gravacao ocorre depois da resposta da mutacao e falhas sao capturadas; assim, uma operacao pode concluir sem auditoria persistida. Integridade/atomicidade nao foi comprovada. |
-| Banco de dados | Bootstrap em banco vazio validado; operacao ainda pendente | `001_initial_api_schema.sql`, migrations `002`-`009`, seed administrativo e `create_database.sh`. E2E executa o script duas vezes em PostgreSQL 17 descartavel e verifica o schema, `modality_schedules`, ausencia de `class_groups`, organizacao/conta seed e login administrativo pelo navegador. Teste de integracao confirma que consultas filtradas de assinaturas, faturas e pagamentos retornam somente registros do aluno solicitado. A migration `007` remove turmas; a `008` converte niveis de graduacao existentes em faixas e introduz graus configuraveis; a `009` limpa estruturas e historicos de graduacao associados a modalidades que nao sao artes marciais. Validacao de schema legado sem ledger e rollback continuam pendentes. |
-| Testes do backend | Unitarios, arquitetura e integracao PostgreSQL validados localmente e em CI | GitHub Actions run `41257017649`: 48 testes unitarios, 6 de integracao PostgreSQL e 1 arquitetural aprovados. Em 2026-10-31 passaram localmente 49 testes unitarios e 7 de integracao PostgreSQL, incluindo isolamento por aluno no historico financeiro e agenda/horarios filtrados por professor. `PerformanceTests` segue fora da solution ate existir benchmark real. |
-| Admin | Fluxos operacionais implementados; revisao ampla de estados e permissoes pendente | Inclui agenda por modalidade/unidade/professor, geracao de aulas e chamada com alunos ativos vinculados a modalidade; nao ha telas de turma ou matricula fixa. A jornada do aluno consolida cadastro/contato, modalidades, assinaturas, faturas e pagamentos. As telas `/graduation`, `/fitness`, `/rankings`, `/notifications` e `/audit` cobrem as jornadas correspondentes; `/fitness` tambem permite consultar historico paginado dos registros de progresso. A navegacao agrupa areas compartilhadas, Artes Marciais e Fitness/Condicionamento conforme capacidades ativas, sem duplicar os fluxos comuns. E2E percorre os fluxos centrais; verificacao ampla de roles, erros, estados vazios e carregamento segue pendente. |
-| Testes do Admin | Cobertura unitaria e E2E validada localmente | `KiaiControl.Admin.UnitTests` passou com 26 testes em 2026-11-02, incluindo menu de organizacoes marciais, fitness e mistas e recolhimento independente das secoes. `KiaiControl.Admin.E2ETests` passou com 4 cenarios Playwright/Chromium, PostgreSQL 17, API e Admin reais em 2026-11-03: bootstrap/idempotencia em banco vazio com login seed; fluxo operacional de aluno/professor, chamada/check-in, assinatura e pagamento; visibilidade/recolhimento independente das secoes de Artes Marciais e Fitness; e jornadas de graduacao, Fitness, ciclo/recalculo de ranking, medalha, comunicado e auditoria. Os tres cenarios sem seed criam organizacao pelo fluxo autenticado do dono global e trocam as senhas temporarias no primeiro acesso. O ultimo fluxo tambem verificou as cinco telas em viewport de 390 px sem overflow horizontal. A verificacao de bootstrap confirma a migration `010_platform_owner_and_temporary_passwords.sql`. |
-| Mobile | Fora do workspace | Nao ha pasta/projeto Flutter presente, embora esteja no escopo de `SYSTEM_DESIGN.md`. |
+| Banco de dados | Migrations e schema consolidado validados | Migrations `001`–`014`; `011`–`014` aplicadas em transação no banco local `dev`, com ledger, sem exclusão de registros. A `014` cria configurações ausentes de academias legadas, sem alterar políticas existentes. Integração cria banco descartável com o schema de produção e reaplica schema/seed duas vezes; 37 tabelas correspondem ao DBML. Validação de rollback/recuperação operacional continua na fase de produção. |
+| Testes do backend | 106 testes aprovados | 81 unitários, 23 integração e 2 arquiteturais aprovados localmente em 2026-11-11. Cobre política de senha, SQL constante, buscas parametrizadas com tentativas de injection, visões por área, configurações de academias legadas, filtros de aulas com offsets -03:00/+09:00, identidade compartilhada, mudança/bloqueio de conta, catálogo além dos primeiros 100, metas de redução, políticas de check-in e schema consolidado idempotente. |
+| Admin | Jornadas de gestão e portal pessoal entregues | Diretório/equipe e contas existentes, vínculo de pessoas pelos formulários, consulta sem gravação, paginação/busca, configurações, recuperação de senha, áreas pessoais de aluno/professor e entradas Gym/Fight. A jornada do aluno reutiliza componentes de presença, graduação, metas e conquistas. Componentes novos separam apresentação e lógica. |
+| Testes do Admin | 34 testes unitários/componentes e 13 E2E aprovados | Chromium/API/Admin/PostgreSQL reais: três visões de alunos para owner/admin/recepção, bootstrap, operação/financeiro, navegação, graduação/fitness/comunidade/auditoria, equipe/bloqueio/consulta, identidade nos dois formulários, portal privado e check-in, escopo do professor/perfil financeiro e recuperação com revogação. Aulas verificadas em America/Sao_Paulo; Gym/Fight e portal em 390 px. |
+| Mobile | Presente, escopo inicial | `frontend/kiai-control-mobile`: login/sessão, aulas/check-in, chamada do professor, perfil, metas e troca de senha com a mesma política da API. 26 testes (9 modelos, 17 senha) e análise estática aprovados nesta entrega. Widget/integration tests e ampliação das jornadas mobile continuam no backlog. |
 | Infraestrutura e CI/CD | CI parcial validado em runner limpo; nova etapa E2E aguarda execucao remota | Workflow GitHub Actions compila API/Admin, testa API/Admin e publica TRX; agora tambem instala Chromium e exige TRX do E2E. A execucao anterior `41257017649` passou o workflow entao existente e publicou `test-results` (`13063921778`); ela nao inclui as mudancas Playwright atuais. Nao foram encontrados Dockerfiles, Compose, deploy manifests ou configuracao de observabilidade. |
 | Health e observabilidade | Parcial | Correlation ID e logging de falha de auditoria existem. Ha `/health/live` e `/health/ready`, mas o registro usa `AddHealthChecks()` sem checks de PostgreSQL/Redis. Nao foi encontrada integracao OpenTelemetry/Prometheus/Grafana. |
 
 ## Alinhamento dos Documentos
 
-- `SYSTEM_DESIGN.md` permanece como referencia de arquitetura e escopo desejado; seus requisitos de mobile, observabilidade e deploy ainda nao estao presentes no workspace.
+- `SYSTEM_DESIGN.md` permanece como referencia de arquitetura e escopo desejado; o mobile está iniciado; observabilidade e deploy continuam pendentes.
 - `CHECKPOINT.md` e um snapshot de 2026-10-08. A afirmacao de 31 testes aprovados nao substitui a execucao atual; os projetos de teste contem placeholders.
 - `API_IMPLEMENTATION_PLAN.md` e de 2026-10-04 e esta desatualizado: controle de acesso, auditoria, fitness, graduacao, ranking, notificacoes e relatorios ja possuem controllers/camadas, e existem migrations posteriores a `001`.
 - O README da API dizia que os endpoints eram apenas smoke endpoints; isso nao representa mais a estrutura atual. O README do Admin sugeria `dotnet test` apesar de nao existir projeto de teste.
@@ -161,7 +206,7 @@ Esta atualizacao prevalece sobre itens de status conflitantes nas tabelas abaixo
 
 ### Fase 6 - Aplicativo Mobile (P2, escopo de produto)
 
-- [ ] Criar o projeto Flutter em `mobile/kiai-control-app` ou documentar formalmente a decisao de retirar mobile do MVP.
+- [x] Projeto Flutter presente em `frontend/kiai-control-mobile`; estruturas Android/iOS e nove testes unitários de modelos verificados em 2026-11-11.
 - [ ] Definir contratos e fluxo de organizacao/sessao para pessoas com os papeis de aluno e professor.
 - [ ] Entregar primeiro login/sessao, agenda/check-in do professor e consulta do aluno (presenca, evolucao, graduacao e pagamentos).
 - [ ] Adicionar testes unitarios, widget e integration_test para os fluxos mobile criticos.
@@ -180,4 +225,4 @@ Esta atualizacao prevalece sobre itens de status conflitantes nas tabelas abaixo
 
 ## Fontes e Limites da Analise
 
-Analise baseada no codigo e arquivos presentes no workspace em 2026-10-30, incluindo controllers, camadas de aplicacao, paginas do Admin, migrations e projetos de teste. Nao foi possivel comprovar execucao real contra PostgreSQL, deploy, restauracao de backup ou funcionamento de servicos externos; esses pontos permanecem abertos ate evidencia automatizada ou operacional.
+Inventário histórico iniciado em 2026-10-30, atualizado pela entrega e validação local de 2026-11-11 descrita acima. PostgreSQL real, API/Admin e navegador foram executados; deploy, restauração de backup, execução remota da pipeline atualizada e entrega SMTP externa não foram verificados nesta sessão.

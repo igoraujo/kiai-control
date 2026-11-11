@@ -40,6 +40,10 @@ begin
                 returning id into v_organization_id;
     end if;
 
+    insert into organization_settings (id, organization_id)
+    values (gen_random_uuid(), v_organization_id)
+    on conflict (organization_id) do nothing;
+
         select p.id
         into v_person_id
         from persons p

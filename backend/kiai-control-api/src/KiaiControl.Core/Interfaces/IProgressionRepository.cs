@@ -66,7 +66,7 @@ public interface IProgressionRepository
 
     Task<FitnessGoal?> CreateFitnessGoalAsync(FitnessGoal goal, CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<FitnessGoal>> ListFitnessGoalsAsync(Guid organizationId, Guid? clientId, int page, int pageSize, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<FitnessGoal>> ListFitnessGoalsAsync(Guid organizationId, Guid? clientId, int page, int pageSize, CancellationToken cancellationToken = default, string area = "shared");
 
     Task<FitnessProgressRecord?> RecordFitnessProgressAsync(Guid organizationId, FitnessProgressRecord progress, CancellationToken cancellationToken = default);
 

@@ -4,13 +4,11 @@ using KiaiControl.Core.Interfaces;
 using KiaiControl.UseCases.Common;
 
 namespace KiaiControl.UseCases.Clients;
-
 public sealed class ClientUseCase(IClientRepository clientRepository, IBranchRepository branchRepository)
 {
     public async Task<ClientResponse> CreateAsync(CreateClientRequest request, CancellationToken cancellationToken)
     {
         await PersonDataValidator.ValidateBranchAsync(branchRepository, request.OrganizationId, request.BranchId, cancellationToken);
-
         var client = new Client
         {
             OrganizationId = request.OrganizationId,
@@ -29,7 +27,6 @@ public sealed class ClientUseCase(IClientRepository clientRepository, IBranchRep
             JoinedAt = request.JoinedAt,
             Status = PersonDataValidator.NormalizeStatus(request.Status)
         };
-
         return Map(await clientRepository.CreateAsync(client, cancellationToken));
     }
 
@@ -37,6 +34,12 @@ public sealed class ClientUseCase(IClientRepository clientRepository, IBranchRep
     {
         var clients = await clientRepository.ListByOrganizationAsync(organizationId, page, pageSize, cancellationToken);
         return clients.Select(Map).ToList();
+    }
+
+    public async Task<IReadOnlyList<ClientResponse>> ListAllOptionsAsync(Guid org, CancellationToken ct)
+    {
+        var people = await PagedOptions.ReadAllAsync(page => ListAsync(org, page, 200, ct));
+        return people.Select(p => new ClientResponse { Id = p.Id, PersonId = p.PersonId, FullName = p.FullName, Status = p.Status, Areas = p.Areas }).ToArray();
     }
 
     public async Task<ClientResponse?> GetByIdAsync(Guid organizationId, Guid id, CancellationToken cancellationToken)
@@ -54,7 +57,6 @@ public sealed class ClientUseCase(IClientRepository clientRepository, IBranchRep
     public async Task<ClientResponse?> UpdateAsync(Guid organizationId, Guid id, UpdateClientRequest request, CancellationToken cancellationToken)
     {
         await PersonDataValidator.ValidateBranchAsync(branchRepository, organizationId, request.BranchId, cancellationToken);
-
         var client = new Client
         {
             Id = id,
@@ -74,7 +76,6 @@ public sealed class ClientUseCase(IClientRepository clientRepository, IBranchRep
             JoinedAt = request.JoinedAt,
             Status = PersonDataValidator.NormalizeStatus(request.Status)
         };
-
         var updated = await clientRepository.UpdateAsync(client, cancellationToken);
         return updated is null ? null : Map(updated);
     }
@@ -84,8 +85,9 @@ public sealed class ClientUseCase(IClientRepository clientRepository, IBranchRep
         return clientRepository.DeleteAsync(organizationId, id, cancellationToken);
     }
 
-    private static ClientResponse Map(Client client) => new()
+    internal static ClientResponse Map(Client client) => new()
     {
+        Areas = client.Areas,
         Id = client.Id,
         OrganizationId = client.OrganizationId,
         PersonId = client.PersonId,

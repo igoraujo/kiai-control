@@ -1,0 +1,45 @@
+@page "/organization"
+@inject AdminSession Session
+@inject AdminApiClient Api
+@inject ISnackbar Snackbar
+<PageTitle>Minha academia | Kiai Control</PageTitle>
+<MudStack Spacing="3" Style="max-width:960px">
+    <div>
+<span class="eyebrow">Administração · organização</span>
+<MudText Typo="Typo.h4">Minha academia</MudText>
+<MudText Color="Color.Secondary">Dados da organização e preferências da operação.</MudText>
+</div>
+    @if(_error is not null){<MudAlert Severity="Severity.Error">@_error</MudAlert>}
+    @if(_loading){<MudProgressLinear Indeterminate="true" />}else{
+        <MudPaper Class="pa-5" Outlined="true">
+<MudText Typo="Typo.h6">Dados da academia</MudText>
+<MudGrid Class="mt-2">
+            <MudItem xs="12" md="6">
+<MudTextField @bind-Value="_form.Name" Label="Nome da academia" Required="true" MaxLength="160" />
+</MudItem>
+<MudItem xs="12" md="6">
+<MudTextField @bind-Value="_form.TradeName" Label="Nome fantasia" MaxLength="160" />
+</MudItem>
+            <MudItem xs="12" md="4">
+<MudTextField @bind-Value="_form.Document" Label="Documento" MaxLength="30" />
+</MudItem>
+<MudItem xs="12" md="4">
+<MudTextField @bind-Value="_form.Email" Label="E-mail" InputType="InputType.Email" MaxLength="160" />
+</MudItem>
+<MudItem xs="12" md="4">
+<MudTextField @bind-Value="_form.Phone" Label="Telefone" MaxLength="30" />
+</MudItem>
+        </MudGrid>
+</MudPaper>
+        <MudPaper Class="pa-5" Outlined="true">
+<MudStack Spacing="2">
+<MudText Typo="Typo.h6">Agenda e check-in</MudText>
+<MudTextField @bind-Value="_settings.Timezone" Label="Fuso horário" HelperText="Exemplo: America/Sao_Paulo. Aplicado às próximas aulas geradas." />
+<MudCheckBox T="bool" @bind-Value="_settings.AllowClientCheckin" Label="Permitir check-in dos alunos" />
+<MudCheckBox T="bool" @bind-Value="_settings.RequireTeacherConfirmation" Label="Exigir confirmação de presença pelo professor" />
+<MudNumericField T="int" @bind-Value="_settings.DefaultLateToleranceMinutes" Label="Tolerância de atraso (minutos)" Min="0" Max="180" />
+</MudStack>
+</MudPaper>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SaveAsync" Disabled="_saving">@(_saving?"Salvando...":"Salvar configurações")</MudButton>
+    }
+</MudStack>

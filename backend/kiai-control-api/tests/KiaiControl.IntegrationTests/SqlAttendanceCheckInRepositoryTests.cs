@@ -4,7 +4,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 
 namespace KiaiControl.IntegrationTests;
-
 [Collection(PostgreSqlCollection.Name)]
 public sealed class SqlAttendanceCheckInRepositoryTests(PostgreSqlFixture fixture)
 {
@@ -23,14 +22,13 @@ public sealed class SqlAttendanceCheckInRepositoryTests(PostgreSqlFixture fixtur
         var futureStartsAt = now.AddMinutes(10);
         var atStartStartsAt = now.AddMinutes(20);
         var cancellationCutoffStartsAt = now.AddMinutes(30);
-
         await using (var connection = new NpgsqlConnection(fixture.ConnectionString))
         {
             await connection.OpenAsync();
-            await using var command = new NpgsqlCommand(
-                """
+            await using var command = new NpgsqlCommand("""
                 insert into organizations (id, name, status)
                 values (@organizationId, @organizationName, 'active');
+                insert into organization_settings(id,organization_id,allow_client_checkin) values(gen_random_uuid(),@organizationId,true);
                 insert into modalities (id, organization_id, name, type, is_active)
                 values (@modalityId, @organizationId, @modalityName, 'martial_art', true);
                 insert into modality_schedules (
@@ -50,8 +48,7 @@ public sealed class SqlAttendanceCheckInRepositoryTests(PostgreSqlFixture fixtur
                     (@futureLessonId, @organizationId, @modalityId, @modalityScheduleId, @futureStartsAt, @futureEndsAt, 'scheduled'),
                     (@atStartLessonId, @organizationId, @modalityId, @modalityScheduleId, @atStartStartsAt, @atStartEndsAt, 'rescheduled'),
                     (@cancellationCutoffLessonId, @organizationId, @modalityId, @modalityScheduleId, @cancellationCutoffStartsAt, @cancellationCutoffEndsAt, 'scheduled');
-                """,
-                connection);
+                """, connection);
             command.Parameters.AddWithValue("organizationId", organizationId);
             command.Parameters.AddWithValue("organizationName", $"Check-in integration {organizationId:N}");
             command.Parameters.AddWithValue("modalityId", modalityId);
@@ -75,29 +72,30 @@ public sealed class SqlAttendanceCheckInRepositoryTests(PostgreSqlFixture fixtur
         services.AddKiaiRepositories(fixture.ConnectionString);
         using var provider = services.BuildServiceProvider();
         var attendanceRepository = provider.GetRequiredService<IAttendanceRepository>();
-
-        var futureCheckIn = await attendanceRepository.CreateCheckInAsync(
-            organizationId, personId, futureLessonId, now);
-        var atStartCheckIn = await attendanceRepository.CreateCheckInAsync(
-            organizationId, personId, atStartLessonId, atStartStartsAt);
-        var afterCutoffCheckIn = await attendanceRepository.CreateCheckInAsync(
-            organizationId, personId, cancellationCutoffLessonId, now);
-        var checkIns = await attendanceRepository.ListClientCheckInsAsync(
-            organizationId, clientId, now, cancellationCutoffStartsAt.AddHours(1));
-
+        var futureCheckIn = await attendanceRepository.CreateCheckInAsync(organizationId, personId, futureLessonId, now);
+        var atStartCheckIn = await attendanceRepository.CreateCheckInAsync(organizationId, personId, atStartLessonId, atStartStartsAt);
+        var afterCutoffCheckIn = await attendanceRepository.CreateCheckInAsync(organizationId, personId, cancellationCutoffLessonId, now);
+        var checkIns = await attendanceRepository.ListClientCheckInsAsync(organizationId, clientId, now, cancellationCutoffStartsAt.AddHours(1));
         Assert.NotNull(futureCheckIn);
         Assert.NotNull(atStartCheckIn);
         Assert.NotNull(afterCutoffCheckIn);
         Assert.Equal(3, checkIns.Count);
         Assert.All(checkIns, checkIn => Assert.Equal("pending_confirmation", checkIn.Status));
-
-        Assert.True(await attendanceRepository.CancelClientCheckInAsync(
-            organizationId, personId, futureLessonId, now));
-        Assert.True(await attendanceRepository.CancelClientCheckInAsync(
-            organizationId, personId, atStartLessonId, atStartStartsAt));
-        Assert.False(await attendanceRepository.CancelClientCheckInAsync(
-            organizationId, personId, cancellationCutoffLessonId, cancellationCutoffStartsAt.AddSeconds(1)));
-        Assert.False(await attendanceRepository.CancelClientCheckInAsync(
-            organizationId, Guid.NewGuid(), cancellationCutoffLessonId, now));
+        Assert.True(await attendanceRepository.CancelClientCheckInAsync(organizationId, personId, futureLessonId, now));
+        Assert.True(await attendanceRepository.CancelClientCheckInAsync(organizationId, personId, atStartLessonId, atStartStartsAt));
+        Assert.False(await attendanceRepository.CancelClientCheckInAsync(organizationId, personId, cancellationCutoffLessonId, cancellationCutoffStartsAt.AddSeconds(1)));
+        Assert.False(await attendanceRepository.CancelClientCheckInAsync(organizationId, Guid.NewGuid(), cancellationCutoffLessonId, now));
+        await using var settingsConnection=new NpgsqlConnection(fixture.ConnectionString);
+        await settingsConnection.OpenAsync();
+        await using(var disabled=new NpgsqlCommand("update organization_settings set allow_client_checkin=false where organization_id=@org",settingsConnection)){
+            disabled.Parameters.AddWithValue("org",organizationId);await disabled.ExecuteNonQueryAsync();
+        }
+        Assert.Null(await attendanceRepository.CreateCheckInAsync(organizationId,personId,futureLessonId,now));
+        await using(var automatic=new NpgsqlCommand("update organization_settings set allow_client_checkin=true,require_teacher_confirmation=false where organization_id=@org",settingsConnection)){
+            automatic.Parameters.AddWithValue("org",organizationId);await automatic.ExecuteNonQueryAsync();
+        }
+        var confirmed=await attendanceRepository.CreateCheckInAsync(organizationId,personId,futureLessonId,now);
+        Assert.NotNull(confirmed);Assert.Equal("present",confirmed.Status);Assert.Equal(personId,confirmed.ValidatedByPersonId);
+        Assert.True(await attendanceRepository.CancelClientCheckInAsync(organizationId,personId,futureLessonId,now));
     }
 }

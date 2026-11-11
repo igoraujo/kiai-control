@@ -13,17 +13,11 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace KiaiControl.Api.Controllers;
-
 [ApiController]
 [Authorize(Roles = "client")]
 [Route("api/v1/mobile")]
-public sealed class ClientPortalController(
-    OrganizationContext organizationContext,
-    ClientUseCase clientUseCase,
-    ModalityUseCase modalityUseCase,
-    LessonUseCase lessonUseCase,
-    AttendanceUseCase attendanceUseCase,
-    FitnessUseCase fitnessUseCase) : ControllerBase
+[Route("api/v1/portal")]
+public sealed class ClientPortalController(OrganizationContext organizationContext, ClientUseCase clientUseCase, ModalityUseCase modalityUseCase, LessonUseCase lessonUseCase, AttendanceUseCase attendanceUseCase, FitnessUseCase fitnessUseCase, KiaiControl.UseCases.Administration.AdministrationUseCase administration) : ControllerBase
 {
     [HttpGet("profile")]
     public async Task<ActionResult<ClientPortalProfileResponse>> GetProfileAsync(CancellationToken cancellationToken)
@@ -39,22 +33,13 @@ public sealed class ClientPortalController(
             return NotFound();
         }
 
-        return Ok(new ClientPortalProfileResponse
-        {
-            ClientId = client.Id,
-            FullName = client.FullName,
-            PreferredName = client.PreferredName,
-            Email = client.Email,
-            Phone = client.Phone,
-            JoinedAt = client.JoinedAt,
-            Status = client.Status
-        });
+        return Ok(new ClientPortalProfileResponse { ClientId = client.Id, FullName = client.FullName, PreferredName = client.PreferredName, Email = client.Email, Phone = client.Phone, JoinedAt = client.JoinedAt, Status = client.Status });
     }
 
     [HttpGet("modalities")]
     public async Task<ActionResult<IReadOnlyList<ModalityResponse>>> GetModalitiesAsync(CancellationToken cancellationToken)
     {
-        var (organizationId, client) = await GetActiveClientAsync(cancellationToken);
+        var(organizationId, client) = await GetActiveClientAsync(cancellationToken);
         if (organizationId == Guid.Empty)
         {
             return Unauthorized();
@@ -69,12 +54,9 @@ public sealed class ClientPortalController(
     }
 
     [HttpGet("lessons")]
-    public async Task<ActionResult<IReadOnlyList<ClientPortalLessonResponse>>> GetLessonsAsync(
-        [FromQuery] DateTimeOffset? from,
-        [FromQuery] DateTimeOffset? to,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<IReadOnlyList<ClientPortalLessonResponse>>> GetLessonsAsync([FromQuery] DateTimeOffset? from, [FromQuery] DateTimeOffset? to, CancellationToken cancellationToken)
     {
-        var (organizationId, client) = await GetActiveClientAsync(cancellationToken);
+        var(organizationId, client) = await GetActiveClientAsync(cancellationToken);
         if (organizationId == Guid.Empty)
         {
             return Unauthorized();
@@ -85,6 +67,7 @@ public sealed class ClientPortalController(
             return NotFound();
         }
 
+        var settings = await administration.GetSettingsAsync(organizationId, cancellationToken);
         var now = DateTimeOffset.UtcNow;
         var requestedStart = from?.ToUniversalTime() ?? now;
         var rangeStart = requestedStart < now ? now : requestedStart;
@@ -103,13 +86,10 @@ public sealed class ClientPortalController(
         var modalityIds = modalities.Select(modality => modality.Id).ToHashSet();
         var lessons = new List<LessonResponse>();
         const int pageSize = 200;
-        for (var page = 1; ; page++)
+        for (var page = 1;; page++)
         {
-            var result = await lessonUseCase.ListAsync(
-                organizationId, page, pageSize, cancellationToken, from: rangeStart, to: rangeEnd);
-            lessons.AddRange(result.Where(lesson =>
-                modalityIds.Contains(lesson.ModalityId)
-                && lesson.Status is "scheduled" or "rescheduled"));
+            var result = await lessonUseCase.ListAsync(organizationId, page, pageSize, cancellationToken, from: rangeStart, to: rangeEnd);
+            lessons.AddRange(result.Where(lesson => modalityIds.Contains(lesson.ModalityId) && lesson.Status is "scheduled" or "rescheduled"));
             if (result.Count < pageSize)
             {
                 break;
@@ -117,27 +97,16 @@ public sealed class ClientPortalController(
         }
 
         var eligibleLessons = lessons.OrderBy(lesson => lesson.StartsAt).ToArray();
-        var checkIns = await attendanceUseCase.ListClientCheckInsAsync(
-            organizationId, client.Id, rangeStart, rangeEnd, cancellationToken);
+        var checkIns = await attendanceUseCase.ListClientCheckInsAsync(organizationId, client.Id, rangeStart, rangeEnd, cancellationToken);
         var checkInStatuses = checkIns.ToDictionary(record => record.LessonId, record => record.Status);
-
-        return Ok(eligibleLessons.Select(lesson => new ClientPortalLessonResponse
-        {
-            Id = lesson.Id,
-            ModalityId = lesson.ModalityId,
-            ModalityName = lesson.ModalityName,
-            BranchName = lesson.BranchName,
-            StartsAt = lesson.StartsAt,
-            EndsAt = lesson.EndsAt,
-            Status = lesson.Status,
-            CheckInStatus = checkInStatuses.GetValueOrDefault(lesson.Id)
-        }).ToArray());
+        var cancellable = checkIns.Where(record => record.Status == "pending_confirmation" || record.ValidatedByPersonId == client.PersonId).Select(record => record.LessonId).ToHashSet();
+        return Ok(eligibleLessons.Select(lesson => new ClientPortalLessonResponse { Id = lesson.Id, ModalityId = lesson.ModalityId, ModalityName = lesson.ModalityName, BranchName = lesson.BranchName, StartsAt = lesson.StartsAt, EndsAt = lesson.EndsAt, Status = lesson.Status, CheckInStatus = checkInStatuses.GetValueOrDefault(lesson.Id), AllowCheckIn = settings.AllowClientCheckin, CanCancelCheckIn = cancellable.Contains(lesson.Id) && lesson.StartsAt > now }).ToArray());
     }
 
     [HttpGet("fitness")]
     public async Task<ActionResult<FitnessSummaryResponse>> GetFitnessAsync(CancellationToken cancellationToken)
     {
-        var (organizationId, client) = await GetActiveClientAsync(cancellationToken);
+        var(organizationId, client) = await GetActiveClientAsync(cancellationToken);
         if (organizationId == Guid.Empty)
         {
             return Unauthorized();
@@ -171,8 +140,6 @@ public sealed class ClientPortalController(
     {
         organizationId = organizationContext.OrganizationId ?? Guid.Empty;
         personId = Guid.Empty;
-        return organizationId != Guid.Empty
-            && Guid.TryParse(User.FindFirstValue("person_id"), out personId)
-            && personId != Guid.Empty;
+        return organizationId != Guid.Empty && Guid.TryParse(User.FindFirstValue("person_id"), out personId) && personId != Guid.Empty;
     }
 }

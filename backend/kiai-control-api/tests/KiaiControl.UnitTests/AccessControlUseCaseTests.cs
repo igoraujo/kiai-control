@@ -63,7 +63,7 @@ public sealed class AccessControlUseCaseTests
             new CreateUserAccountRequest
             {
                 Email = "  TEACHER@EXAMPLE.TEST ",
-                TemporaryPassword = "TemporaryPassword123",
+                TemporaryPassword = "Aa!bcd",
                 RoleCode = "teacher"
             },
             actorIsOwner: false,
@@ -73,7 +73,7 @@ public sealed class AccessControlUseCaseTests
         Assert.Equal("teacher@example.test", account.Email);
         Assert.Equal("teacher", account.RoleCode);
         Assert.Equal("teacher@example.test", repository.LastAccountEmail);
-        Assert.Equal("HASH:TemporaryPassword123", repository.LastPasswordHash);
+        Assert.Equal("HASH:Aa!bcd", repository.LastPasswordHash);
         Assert.Equal("teacher", repository.LastAccountRoleCode);
     }
 
@@ -90,7 +90,7 @@ public sealed class AccessControlUseCaseTests
             new CreateUserAccountRequest
             {
                 Email = "owner@example.test",
-                TemporaryPassword = "TemporaryPassword123",
+                TemporaryPassword = "Aa!bcd",
                 RoleCode = "owner"
             },
             actorIsOwner: false,

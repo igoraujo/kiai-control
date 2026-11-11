@@ -9,18 +9,19 @@
             <MudText Typo="Typo.h4">Modalidades</MudText>
             <MudText Typo="Typo.body2" Color="Color.Secondary">Artes marciais e atividades oferecidas</MudText>
         </div>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="() => EditAsync(null)">Nova modalidade</MudButton>
+        @if(CanManage){<MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="() => EditAsync(null)">Nova modalidade</MudButton>}
     </MudStack>
+
+    <WorkspaceAreaSelector Path="/modalities" Value="@SelectedArea" />
 
     @if (ErrorMessage is not null)
     {
-        <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">@ErrorMessage</MudAlert>
+        <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">@ErrorMessage <MudButton OnClick="LoadAsync" Size="Size.Small">Tentar novamente</MudButton></MudAlert>
     }
 
-    <MudTable Items="Items" Loading="IsLoading" Hover="true" Dense="true"
-              Filter="@(new Func<ModalityResponse, bool>(m => string.IsNullOrWhiteSpace(Search) || m.Name.Contains(Search, StringComparison.OrdinalIgnoreCase)))">
+    <MudTable @ref="Table" ServerData="LoadServerData" RowsPerPage="25" Hover="true" Dense="true" Breakpoint="Breakpoint.Sm">
         <ToolBarContent>
-            <MudTextField @bind-Value="Search" Placeholder="Buscar por nome" Adornment="Adornment.Start"
+            <MudTextField T="string" Value="Search" ValueChanged="SearchAsync" DebounceInterval="300" Placeholder="Buscar por nome" Adornment="Adornment.Start"
                           AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Margin="Margin.Dense" />
         </ToolBarContent>
         <HeaderContent>
@@ -31,19 +32,20 @@
             <MudTh Style="text-align:right">Ações</MudTh>
         </HeaderContent>
         <RowTemplate>
-            <MudTd>@context.Name</MudTd>
-            <MudTd>@ModalityDialog.TypeLabel(context.Type)</MudTd>
-            <MudTd>@context.Description</MudTd>
-            <MudTd><MudChip T="string" Size="Size.Small" Color="@(context.IsActive ? Color.Success : Color.Default)">@(context.IsActive ? "Ativa" : "Inativa")</MudChip></MudTd>
-            <MudTd Style="text-align:right">
-                <MudIconButton Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" aria-label="Gerenciar horários da modalidade" OnClick="() => ManageSchedules(context)" />
-                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" aria-label="Editar" OnClick="() => EditAsync(context)" />
-                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" aria-label="Excluir" OnClick="() => DeleteAsync(context.Id, context.Name)" />
+            <MudTd DataLabel="Nome">@context.Name</MudTd>
+            <MudTd DataLabel="Tipo">@ModalityDialog.TypeLabel(context.Type)</MudTd>
+            <MudTd DataLabel="Descrição">@context.Description</MudTd>
+            <MudTd DataLabel="Situação"><MudChip T="string" Size="Size.Small" Color="@(context.IsActive ? Color.Success : Color.Default)">@(context.IsActive ? "Ativa" : "Inativa")</MudChip></MudTd>
+            <MudTd DataLabel="Ações" Style="text-align:right">
+                @if(CanManage){<MudIconButton Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" aria-label="Gerenciar horários da modalidade" OnClick="() => ManageSchedules(context)" />}
+                @if(CanManage){<MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" aria-label="Editar" OnClick="() => EditAsync(context)" />}
+                @if(CanManage){<MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" aria-label="Excluir" OnClick="() => DeleteAsync(context.Id, context.Name)" />}
             </MudTd>
         </RowTemplate>
         <NoRecordsContent>
             <MudText>Nenhuma modalidade encontrada.</MudText>
         </NoRecordsContent>
+        <PagerContent><MudTablePager PageSizeOptions="new int[] { 10, 25, 50, 100 }" RowsPerPageString="Registros por página" InfoFormat="{first_item}-{last_item} de {all_items}" /></PagerContent>
     </MudTable>
 </MudStack>
 

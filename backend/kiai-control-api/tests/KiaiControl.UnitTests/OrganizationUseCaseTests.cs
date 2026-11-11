@@ -18,14 +18,14 @@ public sealed class OrganizationUseCaseTests
             Name = "  Kiai Academy  ",
             OwnerFullName = "  Ana Silva  ",
             OwnerEmail = " ANA@EXAMPLE.TEST ",
-            OwnerPassword = "LongPassword123"
+            OwnerPassword = "Aa!bcd"
         }, CancellationToken.None);
 
         Assert.NotNull(registration);
         Assert.Equal("Kiai Academy", registration.Organization.Name);
         Assert.Equal("ana@example.test", registration.OwnerEmail);
         Assert.Equal("ana@example.test", repository.OwnerEmail);
-        Assert.Equal("HASH:LongPassword123", repository.OwnerPasswordHash);
+        Assert.Equal("HASH:Aa!bcd", repository.OwnerPasswordHash);
     }
 
     [Fact]

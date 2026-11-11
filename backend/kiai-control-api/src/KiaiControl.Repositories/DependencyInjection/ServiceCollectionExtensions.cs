@@ -6,7 +6,6 @@ using KiaiControl.Repositories.Implementations;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace KiaiControl.Repositories.DependencyInjection;
-
 public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddKiaiRepositories(this IServiceCollection services, string connectionString)
@@ -19,6 +18,9 @@ public static class ServiceCollectionExtensions
         SqlMapper.AddTypeHandler(new DateOnlyTypeHandler());
         services.AddSingleton<IDbConnectionFactory>(_ => new NpgsqlDbConnectionFactory(connectionString));
         services.AddScoped<IAuthRepository, SqlAuthRepository>();
+        services.AddScoped<ICatalogRepository, SqlCatalogRepository>();
+        services.AddScoped<IClientJourneyRepository, SqlClientJourneyRepository>();
+        services.AddScoped<IAdministrationRepository, SqlAdministrationRepository>();
         services.AddScoped<IClientRepository, SqlClientRepository>();
         services.AddScoped<ITeacherRepository, SqlTeacherRepository>();
         services.AddScoped<IModalityRepository, SqlModalityRepository>();
@@ -35,7 +37,6 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAccessControlRepository, SqlAccessControlRepository>();
         services.AddScoped<IReportRepository, SqlReportRepository>();
         services.AddScoped<IProgressionRepository, SqlProgressionRepository>();
-
         return services;
     }
 }

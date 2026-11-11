@@ -1,6 +1,7 @@
 @inject AdminSession Session
 @inject AdminApiClient Api
 @inject NavigationManager Navigation
+@implements IDisposable
 @using KiaiControl.Contracts.Auth
 @using KiaiControl.Contracts.Modalities
 
@@ -11,11 +12,19 @@
         <MudAvatar Size="Size.Medium" Color="Color.Secondary" Variant="Variant.Filled">KC</MudAvatar>
         <div>
             <MudText Typo="Typo.subtitle1" Class="menu-title">Kiai Control</MudText>
-            <MudText Typo="Typo.caption" Class="menu-subtitle">@(IsPlatformOwner ? "Administração da plataforma" : "Academia Central")</MudText>
+            <MudText Typo="Typo.caption" Class="menu-subtitle">@(IsPlatformOwner ? "Administração da plataforma" : Session.OrganizationName)</MudText>
         </div>
     </div>
 
     <MudDivider Class="menu-divider" />
+    <div class="module-switch" aria-label="Áreas da academia">
+        @if(HasSharedManagementLinks){<a href="@GeneralHref" class="module-link general @(Session.Area == "shared" ? "selected" : "")" @onclick='()=>Session.SelectArea("shared")'><MudIcon Icon="@Icons.Material.Filled.Apps" /><span>Geral<small>Todas as áreas</small></span></a>}
+        @if(HasFightWorkspace){<a href="/fight" class="module-link fight" @onclick='()=>Session.SelectArea("fight")'><MudIcon Icon="@Icons.Material.Filled.SportsMartialArts" /><span>Fight<small>Artes marciais</small></span></a>}
+        @if(HasGymWorkspace){<a href="/gym" class="module-link gym" @onclick='()=>Session.SelectArea("gym")'><MudIcon Icon="@Icons.Material.Filled.FitnessCenter" /><span>Gym<small>Treinamento</small></span></a>}
+    </div>
+    @if(AdminNavigation.HasRole(Session.Current?.User,"client")){<MudNavLink Href="/student" Icon="@Icons.Material.Filled.Person">Minha área do aluno</MudNavLink>}
+    @if(AdminNavigation.HasRole(Session.Current?.User,"teacher")){<MudNavLink Href="/teacher" Icon="@Icons.Material.Filled.FactCheck">Minhas aulas</MudNavLink>}
+
 
     @if (IsPlatformOwner)
     {
@@ -57,11 +66,11 @@
                  hidden="@(!IsSectionExpanded(MenuSection.AcademyManagement))">
                 @if (HasPermission(PermissionCodes.ClientsManage))
                 {
-                    <MudNavLink Href="/clients" Icon="@Icons.Material.Filled.Groups">Alunos</MudNavLink>
+                    <MudNavLink Href="@ScopedHref("/clients")" Icon="@Icons.Material.Filled.Groups">Alunos</MudNavLink>
                 }
                 @if (HasPermission(PermissionCodes.TeachersManage))
                 {
-                    <MudNavLink Href="/teachers" Icon="@Icons.Material.Filled.School">Professores</MudNavLink>
+                    <MudNavLink Href="@ScopedHref("/teachers")" Icon="@Icons.Material.Filled.School">Professores</MudNavLink>
                 }
                 @if (HasPermission(PermissionCodes.BranchesManage))
                 {
@@ -69,7 +78,7 @@
                 }
                 @if (HasPermission(PermissionCodes.ModalitiesManage))
                 {
-                    <MudNavLink Href="/modalities" Icon="@Icons.Material.Filled.SportsMartialArts">Modalidades</MudNavLink>
+                    <MudNavLink Href="@ScopedHref("/modalities")" Icon="@Icons.Material.Filled.SportsMartialArts">Modalidades</MudNavLink>
                 }
                 @if (HasPermission(PermissionCodes.BillingManage))
                 {
@@ -113,7 +122,7 @@
                  hidden="@(!IsSectionExpanded(MenuSection.Fitness))">
                 @if (HasPermission(PermissionCodes.FitnessManage))
                 {
-                    <MudNavLink Href="/fitness" Icon="@Icons.Material.Filled.FitnessCenter">Metas e progresso</MudNavLink>
+                    <MudNavLink Href="@ScopedHref("/fitness")" Icon="@Icons.Material.Filled.FitnessCenter">Metas e progresso</MudNavLink>
                 }
             </div>
         </section>
@@ -133,7 +142,7 @@
                  hidden="@(!IsSectionExpanded(MenuSection.Routine))">
                 @if (HasPermission(PermissionCodes.LessonsManage))
                 {
-                    <MudNavLink Href="/lessons" Icon="@Icons.Material.Filled.CalendarMonth">Aulas</MudNavLink>
+                    <MudNavLink Href="@ScopedHref("/lessons")" Icon="@Icons.Material.Filled.CalendarMonth">Aulas</MudNavLink>
                 }
                 @if (HasPermission(PermissionCodes.AttendanceManage))
                 {
@@ -180,6 +189,8 @@
                 {
                     <MudNavLink Href="/audit" Icon="@Icons.Material.Filled.ManageSearch">Auditoria</MudNavLink>
                 }
+                @if (HasPermission(PermissionCodes.OrganizationsManage)) {<MudNavLink Href="/organization" Icon="@Icons.Material.Filled.Settings">Minha academia</MudNavLink>}
+                @if (HasPermission(PermissionCodes.AccessManage)) {<MudNavLink Href="/people" Icon="@Icons.Material.Filled.ManageAccounts">Pessoas e equipe</MudNavLink>}
                 @if (HasPermission(PermissionCodes.AccessManage))
                 {
                     <MudNavLink Href="/access" Icon="@Icons.Material.Filled.AdminPanelSettings">Acesso e permissões</MudNavLink>
@@ -188,6 +199,8 @@
         </section>
     }
 
+    @if(Session.Current is not null){<MudNavLink Href="/account" Icon="@Icons.Material.Filled.AccountCircle">Minha conta</MudNavLink>}
+
     @if (!string.IsNullOrEmpty(_capabilityError))
     {
         <MudAlert Severity="Severity.Error" Dense="true" Class="ma-2">@_capabilityError</MudAlert>
@@ -195,13 +208,18 @@
 </MudNavMenu>
 
 @code {
-    private WorkspaceCapabilitiesResponse? _capabilities;
+    private WorkspaceCapabilitiesResponse? _capabilities => Session.Capabilities;
     private string? _capabilityError;
     private readonly Dictionary<MenuSection, bool> _expandedSections =
         Enum.GetValues<MenuSection>().ToDictionary(section => section, _ => true);
 
     private bool HasPermission(string permission) =>
-        Session.Current?.User.Permissions.Contains(permission, StringComparer.OrdinalIgnoreCase) == true;
+        AdminNavigation.CanRead(Session.Current?.User,permission);
+
+    private string ScopedHref(string path) => AdminNavigation.InArea(path, Session.Area);
+    private string GeneralHref => new Uri(Navigation.Uri).AbsolutePath is "/clients" or "/teachers" or "/modalities" or "/lessons" or "/fitness" ? new Uri(Navigation.Uri).AbsolutePath : AdminNavigation.Home(Session.Current?.User);
+    private void WorkspaceChanged() => _ = InvokeAsync(StateHasChanged);
+    public void Dispose() => Session.WorkspaceChanged -= WorkspaceChanged;
 
     private bool IsPlatformOwner =>
         Session.Current?.User.Roles.Contains("platform_owner", StringComparer.OrdinalIgnoreCase) == true;
@@ -213,6 +231,8 @@
         || HasPermission(PermissionCodes.ModalitiesManage)
         || HasPermission(PermissionCodes.BillingManage);
 
+    private bool HasFightWorkspace => _capabilities?.HasMartialArts==true && AdminNavigation.CanVisit(Session.Current?.User,"/fight",_capabilities);
+    private bool HasGymWorkspace => _capabilities?.HasFitnessActivities==true && AdminNavigation.CanVisit(Session.Current?.User,"/gym",_capabilities);
     private bool HasMartialArtsLinks =>
         _capabilities?.HasGraduation == true && HasPermission(PermissionCodes.GraduationManage);
 
@@ -224,6 +244,7 @@
     private bool HasAdministrationLinks =>
         HasPermission(PermissionCodes.NotificationsRead)
         || CanReadAudit
+        || HasPermission(PermissionCodes.OrganizationsManage)
         || HasPermission(PermissionCodes.AccessManage);
 
     private bool CanReadAudit =>
@@ -247,6 +268,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        Session.WorkspaceChanged += WorkspaceChanged;
         if (Session.Current is null)
         {
             return;
@@ -259,7 +281,7 @@
 
         try
         {
-            _capabilities = await Api.GetWorkspaceCapabilitiesAsync();
+            Session.SetCapabilities(await Api.GetWorkspaceCapabilitiesAsync());
         }
         catch (UnauthorizedAccessException)
         {

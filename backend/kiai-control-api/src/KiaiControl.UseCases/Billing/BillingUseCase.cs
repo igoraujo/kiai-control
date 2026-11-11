@@ -3,16 +3,13 @@ using KiaiControl.Core.Interfaces;
 using CoreBilling = KiaiControl.Core.Entities.Billing;
 
 namespace KiaiControl.UseCases.Billing;
-
 public sealed class BillingUseCase(IBillingRepository billingRepository)
 {
     private static readonly string[] AllowedInvoiceStatuses = ["pending", "paid", "overdue", "canceled", "exempt", "partially_paid"];
     private static readonly string[] AllowedPaymentMethods = ["cash", "pix", "bank_transfer", "credit_card", "debit_card", "boleto", "manual_adjustment"];
-
     public async Task<BillingResponse> CreateAsync(CreateBillingRequest request, CancellationToken cancellationToken)
     {
         Validate(request.OrganizationId, request.ClientId, request.ClientPlanSubscriptionId, request.Amount, request.Status);
-
         var billing = new CoreBilling
         {
             OrganizationId = request.OrganizationId,
@@ -22,9 +19,7 @@ public sealed class BillingUseCase(IBillingRepository billingRepository)
             Amount = request.Amount,
             Status = request.Status
         };
-
         var created = await billingRepository.CreateAsync(billing, cancellationToken);
-
         return new BillingResponse
         {
             Id = created.Id,
@@ -40,28 +35,10 @@ public sealed class BillingUseCase(IBillingRepository billingRepository)
         };
     }
 
-    public async Task<IReadOnlyList<BillingResponse>> ListAsync(
-        Guid organizationId,
-        int page,
-        int pageSize,
-        CancellationToken cancellationToken,
-        Guid? clientId = null)
+    public async Task<IReadOnlyList<BillingResponse>> ListAsync(Guid organizationId, int page, int pageSize, CancellationToken cancellationToken, Guid? clientId = null, string? search = null)
     {
-        var billingItems = await billingRepository.ListByOrganizationAsync(organizationId, page, pageSize, cancellationToken, clientId);
-
-        return billingItems.Select(item => new BillingResponse
-        {
-            Id = item.Id,
-            OrganizationId = item.OrganizationId,
-            ClientPlanSubscriptionId = item.ClientPlanSubscriptionId,
-            ClientId = item.ClientId,
-            DueDate = item.DueDate,
-            Amount = item.Amount,
-            PaidAmount = item.PaidAmount,
-            Status = item.Status,
-            CreatedAt = item.CreatedAt,
-            UpdatedAt = item.UpdatedAt
-        }).ToList();
+        var billingItems = await billingRepository.ListByOrganizationAsync(organizationId, page, pageSize, cancellationToken, clientId, search);
+        return billingItems.Select(item => new BillingResponse { Id = item.Id, OrganizationId = item.OrganizationId, ClientPlanSubscriptionId = item.ClientPlanSubscriptionId, ClientId = item.ClientId, DueDate = item.DueDate, Amount = item.Amount, PaidAmount = item.PaidAmount, Status = item.Status, CreatedAt = item.CreatedAt, UpdatedAt = item.UpdatedAt }).ToList();
     }
 
     public async Task<BillingResponse?> GetByIdAsync(Guid organizationId, Guid id, CancellationToken cancellationToken)
@@ -90,7 +67,6 @@ public sealed class BillingUseCase(IBillingRepository billingRepository)
     public async Task<BillingResponse?> UpdateAsync(Guid organizationId, Guid id, UpdateBillingRequest request, CancellationToken cancellationToken)
     {
         Validate(organizationId, request.ClientId, request.ClientPlanSubscriptionId, request.Amount, request.Status);
-
         var billing = new CoreBilling
         {
             Id = id,
@@ -101,7 +77,6 @@ public sealed class BillingUseCase(IBillingRepository billingRepository)
             Amount = request.Amount,
             Status = request.Status
         };
-
         var updated = await billingRepository.UpdateAsync(billing, cancellationToken);
         if (updated is null)
         {
@@ -128,11 +103,7 @@ public sealed class BillingUseCase(IBillingRepository billingRepository)
         return billingRepository.DeleteAsync(organizationId, id, cancellationToken);
     }
 
-    public async Task<PaymentResponse?> RegisterPaymentAsync(
-        Guid organizationId,
-        Guid invoiceId,
-        RegisterPaymentRequest request,
-        CancellationToken cancellationToken)
+    public async Task<PaymentResponse?> RegisterPaymentAsync(Guid organizationId, Guid invoiceId, RegisterPaymentRequest request, CancellationToken cancellationToken)
     {
         if (organizationId == Guid.Empty || invoiceId == Guid.Empty)
         {
@@ -144,8 +115,7 @@ public sealed class BillingUseCase(IBillingRepository billingRepository)
             throw new ArgumentException(SystemMessages.PaymentAmountMustBeGreaterThanZero);
         }
 
-        var method = AllowedPaymentMethods.FirstOrDefault(allowed =>
-            string.Equals(allowed, request.Method.Trim(), StringComparison.OrdinalIgnoreCase));
+        var method = AllowedPaymentMethods.FirstOrDefault(allowed => string.Equals(allowed, request.Method.Trim(), StringComparison.OrdinalIgnoreCase));
         if (method is null)
         {
             throw new ArgumentException(SystemMessages.PaymentMethodIsNotSupported);
@@ -156,33 +126,17 @@ public sealed class BillingUseCase(IBillingRepository billingRepository)
             throw new ArgumentException(SystemMessages.PaidAtIsRequiredExternalReferenceAndNotesExceedTheirAllowedLengths);
         }
 
-        var payment = await billingRepository.RegisterPaymentAsync(organizationId, invoiceId, new Core.Entities.Payment
-        {
-            Amount = request.Amount,
-            Method = method,
-            PaidAt = request.PaidAt.ToUniversalTime(),
-            ExternalReference = string.IsNullOrWhiteSpace(request.ExternalReference) ? null : request.ExternalReference.Trim(),
-            Notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim()
-        }, cancellationToken);
-
+        var payment = await billingRepository.RegisterPaymentAsync(organizationId, invoiceId, new Core.Entities.Payment { Amount = request.Amount, Method = method, PaidAt = request.PaidAt.ToUniversalTime(), ExternalReference = string.IsNullOrWhiteSpace(request.ExternalReference) ? null : request.ExternalReference.Trim(), Notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim() }, cancellationToken);
         return payment is null ? null : ToResponse(payment);
     }
 
-    public async Task<IReadOnlyList<PaymentResponse>> ListPaymentsAsync(
-        Guid organizationId,
-        int page,
-        int pageSize,
-        CancellationToken cancellationToken,
-        Guid? clientId = null)
+    public async Task<IReadOnlyList<PaymentResponse>> ListPaymentsAsync(Guid organizationId, int page, int pageSize, CancellationToken cancellationToken, Guid? clientId = null)
     {
         var payments = await billingRepository.ListPaymentsByOrganizationAsync(organizationId, page, pageSize, cancellationToken, clientId);
         return payments.Select(ToResponse).ToList();
     }
 
-    public async Task<IReadOnlyList<PaymentResponse>> ListPaymentsByInvoiceAsync(
-        Guid organizationId,
-        Guid invoiceId,
-        CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<PaymentResponse>> ListPaymentsByInvoiceAsync(Guid organizationId, Guid invoiceId, CancellationToken cancellationToken)
     {
         if (organizationId == Guid.Empty || invoiceId == Guid.Empty)
         {

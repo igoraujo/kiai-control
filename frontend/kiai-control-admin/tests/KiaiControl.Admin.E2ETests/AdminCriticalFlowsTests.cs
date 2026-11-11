@@ -11,7 +11,6 @@ using Npgsql;
 using Testcontainers.PostgreSql;
 
 namespace KiaiControl.Admin.E2ETests;
-
 public sealed class AdminCriticalFlowsTests
 {
     [Fact]
@@ -20,14 +19,9 @@ public sealed class AdminCriticalFlowsTests
         await using var environment = new E2EEnvironment();
         await environment.StartAsync(seedAdmin: true);
         await environment.VerifyFreshDatabaseBootstrapAsync();
-
         using var playwright = await Playwright.CreateAsync();
-        await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
-        {
-            Headless = true
-        });
+        await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = true });
         var page = await browser.NewPageAsync();
-
         await page.GotoAsync($"{environment.AdminUrl}/login");
         await page.GetByLabel("E-mail").FillAsync(environment.OwnerEmail);
         await page.GetByLabel("Senha").FillAsync(environment.OwnerPassword);
@@ -41,42 +35,32 @@ public sealed class AdminCriticalFlowsTests
     {
         await using var environment = new E2EEnvironment();
         await environment.StartAsync();
-
         using var playwright = await Playwright.CreateAsync();
-        await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
-        {
-            Headless = true
-        });
+        await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = true });
         var page = await browser.NewPageAsync();
-
         await page.GotoAsync($"{environment.AdminUrl}/login");
         await page.GetByLabel("E-mail").FillAsync(environment.OwnerEmail);
         await page.GetByLabel("Senha").FillAsync(environment.OwnerPassword);
         await page.GetByRole(AriaRole.Button, new() { Name = "Entrar" }).ClickAsync();
         await page.WaitForFunctionAsync("() => window.location.pathname === '/'");
-
         await CreateModalityAsync(page, environment.AdminUrl, "Artes marciais E2E", "martial_art");
         await CreateModalityAsync(page, environment.AdminUrl, "Fitness E2E", "fitness");
         await page.GotoAsync($"{environment.AdminUrl}/");
         await page.ReloadAsync();
         await page.WaitForFunctionAsync("() => window.location.pathname === '/'");
-
         var martialArtsSection = page.GetByRole(AriaRole.Button, new() { Name = "Artes marciais" });
         var fitnessSection = page.GetByRole(AriaRole.Button, new() { Name = "Musculação e Fitness" });
         await martialArtsSection.WaitForAsync();
         await fitnessSection.WaitForAsync();
-
         var martialArtsExpanded = await martialArtsSection.GetAttributeAsync("aria-expanded");
         var fitnessExpanded = await fitnessSection.GetAttributeAsync("aria-expanded");
         Assert.Equal("true", martialArtsExpanded);
         Assert.Equal("true", fitnessExpanded);
-
         await martialArtsSection.ClickAsync();
         await WaitForSectionExpandedAsync(page, "menu-section-martialarts", false);
         Assert.Equal("false", await martialArtsSection.GetAttributeAsync("aria-expanded"));
         Assert.Equal("true", await fitnessSection.GetAttributeAsync("aria-expanded"));
         Assert.False(await page.Locator("#menu-section-martialarts").IsVisibleAsync());
-
         await fitnessSection.ClickAsync();
         await WaitForSectionExpandedAsync(page, "menu-section-fitness", false);
         Assert.Equal("false", await fitnessSection.GetAttributeAsync("aria-expanded"));
@@ -91,25 +75,18 @@ public sealed class AdminCriticalFlowsTests
     {
         await using var environment = new E2EEnvironment();
         await environment.StartAsync();
-
         using var playwright = await Playwright.CreateAsync();
-        await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
-        {
-            Headless = true
-        });
+        await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = true });
         var page = await browser.NewPageAsync();
-
         await page.GotoAsync($"{environment.AdminUrl}/login");
         await page.GetByLabel("E-mail").FillAsync(environment.OwnerEmail);
         await page.GetByLabel("Senha").FillAsync(environment.OwnerPassword);
         await page.GetByRole(AriaRole.Button, new() { Name = "Entrar" }).ClickAsync();
         await page.WaitForFunctionAsync("() => window.location.pathname === '/'");
-
         const string modalityName = "Jiu-Jitsu Jornada E2E";
         const string clientName = "Aluno Jornada E2E";
         const string clientEmail = "journey-client@example.test";
         await CreateModalityAsync(page, environment.AdminUrl, modalityName, "martial_art");
-
         await page.GotoAsync($"{environment.AdminUrl}/clients");
         await page.GetByRole(AriaRole.Button, new() { Name = "Novo aluno" }).ClickAsync();
         await page.GetByLabel("Nome completo").FillAsync(clientName);
@@ -120,11 +97,11 @@ public sealed class AdminCriticalFlowsTests
         await page.GetByLabel("Modalidades do aluno").ClickAsync();
         await page.GetByRole(AriaRole.Button, new() { Name = "Salvar" }).ClickAsync();
         await page.GetByText(clientName, new() { Exact = true }).WaitForAsync();
-
         await page.GotoAsync($"{environment.AdminUrl}/graduation");
         await page.GetByRole(AriaRole.Combobox, new() { Name = "Modalidade" }).ClickAsync();
         await page.GetByText(modalityName, new() { Exact = true }).Last.ClickAsync();
         await page.GetByLabel("Nome do sistema").FillAsync("Sistema Jornada E2E");
+        await page.GetByLabel("Nome do sistema").PressAsync("Tab");
         await page.GetByRole(AriaRole.Button, new() { Name = "Criar sistema" }).ClickAsync();
         await page.GetByText("Faixas e graus — Sistema Jornada E2E", new() { Exact = true }).WaitForAsync();
         await page.GetByLabel("Nome da faixa").FillAsync("Branca");
@@ -135,7 +112,6 @@ public sealed class AdminCriticalFlowsTests
         await page.GetByLabel("Aulas para o próximo grau").FillAsync("0");
         await page.GetByRole(AriaRole.Button, new() { Name = "Adicionar grau" }).ClickAsync();
         await page.GetByRole(AriaRole.Row).Filter(new() { HasText = "1º grau" }).WaitForAsync();
-
         await page.GetByRole(AriaRole.Combobox, new() { Name = "Aluno" }).ClickAsync();
         await page.GetByText(clientName, new() { Exact = true }).Last.ClickAsync();
         await page.GetByRole(AriaRole.Combobox, new() { Name = "Nível inicial" }).ClickAsync();
@@ -146,7 +122,6 @@ public sealed class AdminCriticalFlowsTests
         await eligibleClient.GetByRole(AriaRole.Button, new() { Name = "Registrar graduação" }).ClickAsync();
         await page.GetByRole(AriaRole.Dialog).GetByRole(AriaRole.Button, new() { Name = "Confirmar graduação" }).ClickAsync();
         await page.GetByRole(AriaRole.Row).Filter(new() { HasText = clientName }).GetByText("1º grau").WaitForAsync();
-
         await page.GotoAsync($"{environment.AdminUrl}/fitness");
         await page.GetByRole(AriaRole.Button, new() { Name = "Nova meta" }).ClickAsync();
         var goalDialog = page.GetByRole(AriaRole.Dialog);
@@ -163,35 +138,30 @@ public sealed class AdminCriticalFlowsTests
         }
         catch (TimeoutException exception)
         {
-            throw new InvalidOperationException(
-                $"Fitness goal was not listed after creation.{Environment.NewLine}{await page.Locator("body").InnerTextAsync()}{Environment.NewLine}{environment.ProcessOutput}",
-                exception);
+            throw new InvalidOperationException($"Fitness goal was not listed after creation.{Environment.NewLine}{await page.Locator("body").InnerTextAsync()}{Environment.NewLine}{environment.ProcessOutput}", exception);
         }
+
         await goalRow.GetByRole(AriaRole.Button, new() { Name = "Registrar progresso" }).ClickAsync();
         var progressDialog = page.GetByRole(AriaRole.Dialog);
         await progressDialog.GetByLabel("Novo progresso").FillAsync("3");
         await progressDialog.GetByRole(AriaRole.Button, new() { Name = "Registrar progresso" }).ClickAsync();
         try
         {
-            await goalRow.GetByText("Concluída", new() { Exact = true })
-                .WaitForAsync(new LocatorWaitForOptions { Timeout = 10_000 });
+            await goalRow.GetByText("Concluída", new() { Exact = true }).WaitForAsync(new LocatorWaitForOptions { Timeout = 10_000 });
         }
         catch (TimeoutException exception)
         {
-            throw new InvalidOperationException(
-                $"Fitness goal did not reach the target after recording progress.{Environment.NewLine}{await page.Locator("body").InnerTextAsync()}{Environment.NewLine}{environment.ProcessOutput}",
-                exception);
+            throw new InvalidOperationException($"Fitness goal did not reach the target after recording progress.{Environment.NewLine}{await page.Locator("body").InnerTextAsync()}{Environment.NewLine}{environment.ProcessOutput}", exception);
         }
+
         await goalRow.GetByRole(AriaRole.Button, new() { Name = "Histórico de progresso" }).ClickAsync();
         await page.GetByRole(AriaRole.Dialog).GetByText("3,00", new() { Exact = false }).WaitForAsync();
         await page.GetByRole(AriaRole.Dialog).GetByRole(AriaRole.Button, new() { Name = "Fechar" }).ClickAsync();
-
         await page.GotoAsync($"{environment.AdminUrl}/rankings");
         var cycleName = page.GetByLabel("Nome do ciclo");
         await cycleName.FillAsync("Ciclo Jornada E2E");
         await cycleName.PressAsync("Tab");
-        await page.WaitForFunctionAsync(
-            "() => [...document.querySelectorAll('button')].some(button => button.textContent?.trim() === 'Criar ciclo' && !button.disabled)");
+        await page.WaitForFunctionAsync("() => [...document.querySelectorAll('button')].some(button => button.textContent?.trim() === 'Criar ciclo' && !button.disabled)");
         await page.GetByRole(AriaRole.Button, new() { Name = "Criar ciclo" }).ClickAsync();
         await page.GetByRole(AriaRole.Button, new() { Name = "Recalcular ranking" }).WaitForAsync();
         await page.GetByRole(AriaRole.Button, new() { Name = "Recalcular ranking" }).ClickAsync();
@@ -203,19 +173,15 @@ public sealed class AdminCriticalFlowsTests
         await page.GetByText("Medalha Jornada E2E", new() { Exact = true }).WaitForAsync();
         await page.GetByRole(AriaRole.Combobox, new() { Name = "Aluno" }).ClickAsync();
         await page.GetByRole(AriaRole.Option, new() { Name = clientName }).ClickAsync();
-        await page.WaitForFunctionAsync(
-            "name => document.querySelector('div[role=\"combobox\"][aria-label=\"Aluno\"]')?.textContent?.includes(name)",
-            clientName);
+        await page.WaitForFunctionAsync("name => document.querySelector('div[role=\"combobox\"][aria-label=\"Aluno\"]')?.textContent?.includes(name)", clientName);
         await page.GetByRole(AriaRole.Combobox, new() { Name = "Medalha" }).ClickAsync();
         await page.GetByRole(AriaRole.Option, new() { Name = "Medalha Jornada E2E" }).ClickAsync();
-        await page.WaitForFunctionAsync(
-            "() => document.querySelector('div[role=\"combobox\"][aria-label=\"Medalha\"]')?.textContent?.includes('Medalha Jornada E2E')");
+        await page.WaitForFunctionAsync("() => document.querySelector('div[role=\"combobox\"][aria-label=\"Medalha\"]')?.textContent?.includes('Medalha Jornada E2E')");
         Assert.Contains(clientName, await page.GetByRole(AriaRole.Combobox, new() { Name = "Aluno" }).InnerTextAsync());
         Assert.Contains("Medalha Jornada E2E", await page.GetByRole(AriaRole.Combobox, new() { Name = "Medalha" }).InnerTextAsync());
         await page.GetByLabel("Motivo (opcional)").FillAsync("Participação na jornada.");
         await page.GetByRole(AriaRole.Button, new() { Name = "Conceder" }).ClickAsync();
         await page.GetByText("Participação na jornada.", new() { Exact = true }).WaitForAsync();
-
         await page.GotoAsync($"{environment.AdminUrl}/notifications");
         await page.GetByRole(AriaRole.Combobox, new() { Name = "Aluno" }).ClickAsync();
         await page.GetByText(clientName, new() { Exact = true }).Last.ClickAsync();
@@ -223,21 +189,26 @@ public sealed class AdminCriticalFlowsTests
         await page.GetByLabel("Mensagem").FillAsync("Mensagem entregue na caixa do aluno.");
         await page.GetByRole(AriaRole.Button, new() { Name = "Registrar comunicado" }).ClickAsync();
         await page.GetByRole(AriaRole.Row).Filter(new() { HasText = "Comunicado Jornada E2E" }).WaitForAsync();
-
         await page.GotoAsync($"{environment.AdminUrl}/audit");
         await page.GetByRole(AriaRole.Heading, new() { Name = "Auditoria" }).WaitForAsync();
         await page.GetByText("Criou/registrou", new() { Exact = true }).First.WaitForAsync();
-
         await page.SetViewportSizeAsync(390, 844);
-        foreach (var route in new[] { "graduation", "fitness", "rankings", "notifications", "audit" })
+        foreach (var route in new[]
+        {
+            "graduation",
+            "fitness",
+            "rankings",
+            "notifications",
+            "audit"
+        }
+
+        )
         {
             await page.GotoAsync($"{environment.AdminUrl}/{route}");
             await page.Locator("h4").First.WaitForAsync();
             var documentWidth = await page.EvaluateAsync<int>("() => document.documentElement.scrollWidth");
             var viewportWidth = await page.EvaluateAsync<int>("() => document.documentElement.clientWidth");
-            Assert.True(
-                documentWidth <= viewportWidth,
-                $"The /{route} page overflows horizontally on a {viewportWidth}px viewport ({documentWidth}px document width).");
+            Assert.True(documentWidth <= viewportWidth, $"The /{route} page overflows horizontally on a {viewportWidth}px viewport ({documentWidth}px document width).");
         }
     }
 
@@ -246,14 +217,9 @@ public sealed class AdminCriticalFlowsTests
     {
         await using var environment = new E2EEnvironment();
         await environment.StartAsync();
-
         using var playwright = await Playwright.CreateAsync();
-        await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
-        {
-            Headless = true
-        });
+        await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = true });
         var page = await browser.NewPageAsync();
-
         await page.GotoAsync($"{environment.AdminUrl}/login");
         await page.GetByLabel("E-mail").FillAsync(environment.OwnerEmail);
         await page.GetByLabel("Senha").FillAsync(environment.OwnerPassword);
@@ -265,22 +231,18 @@ public sealed class AdminCriticalFlowsTests
         catch (TimeoutException exception)
         {
             var body = await page.Locator("body").InnerTextAsync();
-            throw new InvalidOperationException(
-                $"Admin login did not complete. URL: {page.Url}{Environment.NewLine}Page: {body}{Environment.NewLine}{environment.ProcessOutput}",
-                exception);
+            throw new InvalidOperationException($"Admin login did not complete. URL: {page.Url}{Environment.NewLine}Page: {body}{Environment.NewLine}{environment.ProcessOutput}", exception);
         }
 
         const string modalityName = "Modalidade E2E";
         const string clientName = "Aluno E2E";
         var originalEmail = environment.ClientEmail;
         var updatedEmail = environment.UpdatedClientEmail;
-
         await page.GotoAsync($"{environment.AdminUrl}/modalities");
         await page.GetByRole(AriaRole.Button, new() { Name = "Nova modalidade" }).ClickAsync();
         await page.GetByLabel("Nome", new() { Exact = true }).FillAsync(modalityName);
         await page.GetByRole(AriaRole.Button, new() { Name = "Salvar" }).ClickAsync();
         await page.GetByText(modalityName, new() { Exact = true }).WaitForAsync();
-
         const string teacherName = "Professor Jornada E2E";
         await page.GotoAsync($"{environment.AdminUrl}/teachers");
         await page.GetByRole(AriaRole.Button, new() { Name = "Novo professor" }).ClickAsync();
@@ -298,7 +260,6 @@ public sealed class AdminCriticalFlowsTests
         await teacherJourney.GetByRole(AriaRole.Button, new() { Name = "Associar horário" }).ClickAsync();
         await teacherJourney.GetByText(modalityName, new() { Exact = true }).WaitForAsync();
         await teacherJourney.GetByRole(AriaRole.Button, new() { Name = "Fechar" }).ClickAsync();
-
         await page.GotoAsync($"{environment.AdminUrl}/clients");
         await page.GetByRole(AriaRole.Button, new() { Name = "Novo aluno" }).ClickAsync();
         await page.GetByLabel("Nome completo").FillAsync(clientName);
@@ -309,13 +270,11 @@ public sealed class AdminCriticalFlowsTests
         await page.GetByLabel("Modalidades do aluno").ClickAsync();
         await page.GetByRole(AriaRole.Button, new() { Name = "Salvar" }).ClickAsync();
         await page.GetByText(clientName, new() { Exact = true }).WaitForAsync();
-
         var clientRow = page.GetByRole(AriaRole.Row).Filter(new() { HasText = clientName });
         await clientRow.GetByRole(AriaRole.Button, new() { Name = "Editar" }).ClickAsync();
         await page.GetByLabel("Email", new() { Exact = true }).FillAsync(updatedEmail);
         await page.GetByRole(AriaRole.Button, new() { Name = "Salvar" }).ClickAsync();
         await page.GetByText(updatedEmail, new() { Exact = true }).WaitForAsync();
-
         var client = await environment.GetClientAsync(updatedEmail);
         var lessonId = await CreateLessonAsync(page, environment, modalityName);
         await page.GotoAsync($"{environment.AdminUrl}/teachers");
@@ -325,19 +284,15 @@ public sealed class AdminCriticalFlowsTests
         await teacherJourney.GetByRole(AriaRole.Tab, new() { Name = "Agenda de aulas" }).ClickAsync();
         await teacherJourney.GetByText(modalityName, new() { Exact = true }).WaitForAsync();
         await teacherJourney.GetByRole(AriaRole.Button, new() { Name = "Fechar" }).ClickAsync();
-
         await environment.CreateClientLoginAsync(client.PersonId, updatedEmail);
         await environment.EnableClientCheckInAsync();
-
         var checkIn = await environment.CheckInAsync(updatedEmail, lessonId);
         Assert.Equal("pending_confirmation", checkIn.Status);
-
         await page.GotoAsync($"{environment.AdminUrl}/lessons/{lessonId}/attendance");
         await page.GetByRole(AriaRole.Row).Filter(new() { HasText = clientName }).First.WaitForAsync();
         await page.GetByRole(AriaRole.Button, new() { Name = "Confirmar presença" }).ClickAsync();
         await page.GetByText("Nenhum check-in aguardando validação.").WaitForAsync();
         Assert.Equal(1, await environment.CountValidatedAttendanceAsync(lessonId));
-
         await page.GotoAsync($"{environment.AdminUrl}/billing");
         await page.GetByRole(AriaRole.Tab, new() { Name = "Planos" }).ClickAsync();
         await page.GetByRole(AriaRole.Button, new() { Name = "Novo plano" }).ClickAsync();
@@ -346,7 +301,6 @@ public sealed class AdminCriticalFlowsTests
         await page.GetByLabel("Dia do vencimento").FillAsync("10");
         await page.GetByRole(AriaRole.Button, new() { Name = "Salvar plano" }).ClickAsync();
         await page.GetByText("Plano E2E", new() { Exact = true }).WaitForAsync();
-
         await page.GetByRole(AriaRole.Tab, new() { Name = "Assinaturas" }).ClickAsync();
         await page.GetByRole(AriaRole.Button, new() { Name = "Nova assinatura" }).ClickAsync();
         await page.GetByLabel("Aluno").ClickAsync();
@@ -355,7 +309,6 @@ public sealed class AdminCriticalFlowsTests
         await page.GetByText("Plano E2E", new() { Exact = false }).Last.ClickAsync();
         await page.GetByRole(AriaRole.Button, new() { Name = "Assinar plano" }).ClickAsync();
         await page.GetByText(clientName, new() { Exact = true }).WaitForAsync();
-
         await page.GetByRole(AriaRole.Tab, new() { Name = "Faturas" }).ClickAsync();
         await page.GetByRole(AriaRole.Button, new() { Name = "Gerar faturas" }).ClickAsync();
         var invoiceRow = page.GetByRole(AriaRole.Row).Filter(new() { HasText = clientName });
@@ -364,11 +317,9 @@ public sealed class AdminCriticalFlowsTests
         var paymentDialog = page.GetByRole(AriaRole.Dialog);
         await paymentDialog.GetByRole(AriaRole.Button, new() { Name = "Registrar pagamento" }).ClickAsync();
         await invoiceRow.GetByText("Paga", new() { Exact = true }).WaitForAsync();
-
         await page.GetByRole(AriaRole.Tab, new() { Name = "Pagamentos" }).ClickAsync();
         await page.GetByText(clientName, new() { Exact = true }).WaitForAsync();
         Assert.Equal(1, await environment.CountPaymentsAsync(client.ClientId));
-
         await page.GotoAsync($"{environment.AdminUrl}/clients");
         clientRow = page.GetByRole(AriaRole.Row).Filter(new() { HasText = clientName });
         await clientRow.GetByRole(AriaRole.Button, new() { Name = "Jornada do aluno" }).ClickAsync();
@@ -388,17 +339,14 @@ public sealed class AdminCriticalFlowsTests
         await page.GotoAsync($"{environment.AdminUrl}/modalities");
         var modalityRow = page.GetByRole(AriaRole.Row).Filter(new() { HasText = modalityName });
         await modalityRow.GetByRole(AriaRole.Button, new() { Name = "Gerenciar horários da modalidade" }).ClickAsync();
-
         await page.GetByLabel("Início").FillAsync("00:00");
         await page.GetByLabel("Término").FillAsync("23:59");
         await page.GetByRole(AriaRole.Button, new() { Name = "Adicionar horário" }).ClickAsync();
         await page.GetByText("Horário adicionado com sucesso.").WaitForAsync();
         await page.GetByRole(AriaRole.Button, new() { Name = "Gerar agenda" }).ClickAsync();
-
         var lessons = await environment.WaitForGeneratedLessonsAsync(page);
         Assert.NotEmpty(lessons);
-
-        return lessons[0];
+        return await environment.FirstFutureLessonAsync();
     }
 
     private static async Task CreateModalityAsync(IPage page, string adminUrl, string name, string type)
@@ -416,25 +364,18 @@ public sealed class AdminCriticalFlowsTests
         await page.GetByText(name, new() { Exact = true }).WaitForAsync();
     }
 
-    private static Task WaitForSectionExpandedAsync(IPage page, string sectionId, bool expanded) =>
-        page.WaitForFunctionAsync(
-            "(args) => document.querySelector(`[aria-controls='${args.id}']`)?.getAttribute('aria-expanded') === String(args.expanded)",
-            new { id = sectionId, expanded });
+    private static Task WaitForSectionExpandedAsync(IPage page, string sectionId, bool expanded) => page.WaitForFunctionAsync("(args) => document.querySelector(`[aria-controls='${args.id}']`)?.getAttribute('aria-expanded') === String(args.expanded)", new { id = sectionId, expanded });
 }
 
 internal sealed class E2EEnvironment : IAsyncDisposable
 {
-    private const string OwnerPasswordValue = "Owner!E2E123456";
-    private const string OwnerPasswordAfterFirstLogin = "Owner!Final123456";
+    private const string OwnerPasswordValue = "Aa!bcd";
+    private const string OwnerPasswordAfterFirstLogin = "Ab!cde";
     private const string PlatformOwnerEmailValue = "platform-owner@example.test";
-    private const string PlatformOwnerPasswordValue = "Platform!Temp12345";
-    private const string PlatformOwnerPasswordAfterFirstLogin = "Platform!Final12345";
+    private const string PlatformOwnerPasswordValue = "Pp!abc";
+    private const string PlatformOwnerPasswordAfterFirstLogin = "Pp!def";
     private const string ClientPassword = "Client!E2E123456";
-    private readonly PostgreSqlContainer _database = new PostgreSqlBuilder("postgres:17-alpine")
-        .WithDatabase("kiai_e2e")
-        .WithUsername("postgres")
-        .WithPassword("postgres")
-        .Build();
+    private readonly PostgreSqlContainer _database = new PostgreSqlBuilder("postgres:17-alpine").WithDatabase("kiai_e2e").WithUsername("postgres").WithPassword("postgres").Build();
     private readonly ConcurrentQueue<string> _apiOutput = new();
     private readonly ConcurrentQueue<string> _adminOutput = new();
     private Process? _apiProcess;
@@ -442,7 +383,6 @@ internal sealed class E2EEnvironment : IAsyncDisposable
     private int _apiPort;
     private int _adminPort;
     private Guid _organizationId;
-
     public string OwnerEmail { get; private set; } = $"owner-{Guid.NewGuid():N}@example.test";
     public string OwnerPassword { get; private set; } = OwnerPasswordValue;
     public string ClientEmail { get; } = $"client-{Guid.NewGuid():N}@example.test";
@@ -453,7 +393,7 @@ internal sealed class E2EEnvironment : IAsyncDisposable
     public string ProcessOutput => $"API:{Environment.NewLine}{FormatOutput(_apiOutput)}{Environment.NewLine}Admin:{Environment.NewLine}{FormatOutput(_adminOutput)}";
     private string ConnectionString => _database.GetConnectionString();
 
-    public async Task StartAsync(bool seedAdmin = false)
+    public async Task StartAsync(bool seedAdmin = false, string timezone = "UTC")
     {
         await _database.StartAsync();
         if (seedAdmin)
@@ -477,9 +417,10 @@ internal sealed class E2EEnvironment : IAsyncDisposable
         {
             ["ASPNETCORE_ENVIRONMENT"] = "Development",
             ["ASPNETCORE_URLS"] = ApiUrl,
-            ["TZ"] = "UTC",
+            ["TZ"] = timezone,
             ["ConnectionStrings__PostgreSql"] = ConnectionString,
-            ["Cache__Provider"] = "Memory"
+            ["Cache__Provider"] = "Memory",
+            ["RateLimiting__AuthPermitLimit"] = "200"
         };
         if (!seedAdmin)
         {
@@ -488,91 +429,44 @@ internal sealed class E2EEnvironment : IAsyncDisposable
             apiEnvironment["PlatformOwner__Password"] = PlatformOwnerPasswordValue;
         }
 
-        _apiProcess = StartApplication(
-            Path.Combine(root, "backend", "kiai-control-api", "src", "KiaiControl.Api", "bin", configuration, "net10.0", "KiaiControl.Api.dll"),
-            Path.Combine(root, "backend", "kiai-control-api", "src", "KiaiControl.Api"),
-            _apiOutput,
-            apiEnvironment);
+        _apiProcess = StartApplication(Path.Combine(root, "backend", "kiai-control-api", "src", "KiaiControl.Api", "bin", configuration, "net10.0", "KiaiControl.Api.dll"), Path.Combine(root, "backend", "kiai-control-api", "src", "KiaiControl.Api"), _apiOutput, apiEnvironment);
         await WaitForHttpAsync($"{ApiUrl}/health/live", _apiProcess, _apiOutput);
-
         if (!seedAdmin)
         {
             await RegisterOrganizationAsPlatformOwnerAsync();
         }
 
-        await SetOrganizationTimezoneAsync();
-        _adminProcess = StartApplication(
-            Path.Combine(root, "frontend", "kiai-control-admin", "src", "KiaiControl.Admin", "bin", configuration, "net10.0", "KiaiControl.Admin.dll"),
-            Path.Combine(root, "frontend", "kiai-control-admin", "src", "KiaiControl.Admin"),
-            _adminOutput,
-            new Dictionary<string, string>
-            {
-                ["ASPNETCORE_ENVIRONMENT"] = "Development",
-                ["ASPNETCORE_URLS"] = AdminUrl,
-                ["TZ"] = "UTC",
-                ["Api__BaseUrl"] = ApiUrl
-            });
+        await SetOrganizationTimezoneAsync(timezone);
+        _adminProcess = StartApplication(Path.Combine(root, "frontend", "kiai-control-admin", "src", "KiaiControl.Admin", "bin", configuration, "net10.0", "KiaiControl.Admin.dll"), Path.Combine(root, "frontend", "kiai-control-admin", "src", "KiaiControl.Admin"), _adminOutput, new Dictionary<string, string> { ["ASPNETCORE_ENVIRONMENT"] = "Development", ["ASPNETCORE_URLS"] = AdminUrl, ["TZ"] = timezone, ["Api__BaseUrl"] = ApiUrl });
         await WaitForHttpAsync(AdminUrl, _adminProcess, _adminOutput);
     }
 
     private async Task RegisterOrganizationAsPlatformOwnerAsync()
     {
-        using var httpClient = new HttpClient { BaseAddress = new Uri($"{ApiUrl}/api/v1/") };
-        await SignInAndChangePasswordAsync(
-            httpClient,
-            PlatformOwnerEmailValue,
-            PlatformOwnerPasswordValue,
-            PlatformOwnerPasswordAfterFirstLogin);
-        await SignInAndChangePasswordAsync(
-            httpClient,
-            PlatformOwnerEmailValue,
-            PlatformOwnerPasswordAfterFirstLogin,
-            PlatformOwnerPasswordAfterFirstLogin);
-
-        using var registrationResponse = await httpClient.PostAsJsonAsync("platform/organizations", new
+        using var httpClient = new HttpClient
         {
-            name = $"E2E Academy {Guid.NewGuid():N}",
-            ownerFullName = "E2E Owner",
-            ownerEmail = OwnerEmail,
-            ownerPassword = OwnerPasswordValue
-        });
+            BaseAddress = new Uri($"{ApiUrl}/api/v1/")
+        };
+        await SignInAndChangePasswordAsync(httpClient, PlatformOwnerEmailValue, PlatformOwnerPasswordValue, PlatformOwnerPasswordAfterFirstLogin);
+        await SignInAndChangePasswordAsync(httpClient, PlatformOwnerEmailValue, PlatformOwnerPasswordAfterFirstLogin, PlatformOwnerPasswordAfterFirstLogin);
+        using var registrationResponse = await httpClient.PostAsJsonAsync("platform/organizations", new { name = $"E2E Academy {Guid.NewGuid():N}", ownerFullName = "E2E Owner", ownerEmail = OwnerEmail, ownerPassword = OwnerPasswordValue });
         registrationResponse.EnsureSuccessStatusCode();
         using var registration = JsonDocument.Parse(await registrationResponse.Content.ReadAsStringAsync());
         _organizationId = registration.RootElement.GetProperty("organization").GetProperty("id").GetGuid();
-
-        await SignInAndChangePasswordAsync(
-            httpClient,
-            OwnerEmail,
-            OwnerPasswordValue,
-            OwnerPasswordAfterFirstLogin);
+        await SignInAndChangePasswordAsync(httpClient, OwnerEmail, OwnerPasswordValue, OwnerPasswordAfterFirstLogin);
         OwnerPassword = OwnerPasswordAfterFirstLogin;
     }
 
-    private static async Task SignInAndChangePasswordAsync(
-        HttpClient httpClient,
-        string email,
-        string currentPassword,
-        string newPassword)
+    private static async Task SignInAndChangePasswordAsync(HttpClient httpClient, string email, string currentPassword, string newPassword)
     {
         httpClient.DefaultRequestHeaders.Authorization = null;
-        using var loginResponse = await httpClient.PostAsJsonAsync("auth/login", new
-        {
-            email,
-            password = currentPassword
-        });
+        using var loginResponse = await httpClient.PostAsJsonAsync("auth/login", new { email, password = currentPassword });
         loginResponse.EnsureSuccessStatusCode();
         using var login = JsonDocument.Parse(await loginResponse.Content.ReadAsStringAsync());
-
-        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
-            "Bearer",
-            login.RootElement.GetProperty("accessToken").GetString());
+        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", login.RootElement.GetProperty("accessToken").GetString());
         if (!string.Equals(currentPassword, newPassword, StringComparison.Ordinal))
         {
-            using var changePasswordResponse = await httpClient.PostAsJsonAsync("auth/change-password", new
-            {
-                currentPassword,
-                newPassword
-            });
+            using var changePasswordResponse = await httpClient.PostAsJsonAsync("auth/change-password", new { currentPassword, newPassword });
             changePasswordResponse.EnsureSuccessStatusCode();
         }
     }
@@ -581,8 +475,7 @@ internal sealed class E2EEnvironment : IAsyncDisposable
     {
         await using var connection = new NpgsqlConnection(ConnectionString);
         await connection.OpenAsync();
-        await using var command = new NpgsqlCommand(
-            """
+        await using var command = new NpgsqlCommand("""
             select
                 exists (
                     select 1 from schema_migrations
@@ -593,8 +486,7 @@ internal sealed class E2EEnvironment : IAsyncDisposable
                 and to_regclass('public.modality_schedules') is not null
                 and to_regclass('public.graduation_belts') is not null
                 and to_regclass('public.class_groups') is null
-            """,
-            connection);
+            """, connection);
         command.Parameters.AddWithValue("OrganizationId", _organizationId);
         Assert.True((bool)(await command.ExecuteScalarAsync())!);
     }
@@ -603,14 +495,12 @@ internal sealed class E2EEnvironment : IAsyncDisposable
     {
         await using var connection = new NpgsqlConnection(ConnectionString);
         await connection.OpenAsync();
-        await using var command = new NpgsqlCommand(
-            """
+        await using var command = new NpgsqlCommand("""
             select client.id, person.id
             from clients client
             join persons person on person.id = client.person_id
             where client.organization_id = @OrganizationId and person.email = @Email
-            """,
-            connection);
+            """, connection);
         command.Parameters.AddWithValue("OrganizationId", _organizationId);
         command.Parameters.AddWithValue("Email", email);
         await using var reader = await command.ExecuteReaderAsync();
@@ -623,15 +513,13 @@ internal sealed class E2EEnvironment : IAsyncDisposable
         var hash = new Pbkdf2PasswordHasher().Hash(ClientPassword);
         await using var connection = new NpgsqlConnection(ConnectionString);
         await connection.OpenAsync();
-        await using var command = new NpgsqlCommand(
-            """
+        await using var command = new NpgsqlCommand("""
             insert into user_accounts (id, person_id, email, password_hash)
             values (@UserId, @PersonId, @Email, @PasswordHash);
             insert into person_roles (person_id, role_id)
             select @PersonId, id from roles where code = 'client'
             on conflict (person_id, role_id) do nothing;
-            """,
-            connection);
+            """, connection);
         command.Parameters.AddWithValue("UserId", Guid.NewGuid());
         command.Parameters.AddWithValue("PersonId", personId);
         command.Parameters.AddWithValue("Email", email);
@@ -639,32 +527,40 @@ internal sealed class E2EEnvironment : IAsyncDisposable
         await command.ExecuteNonQueryAsync();
     }
 
+    public async Task RemoveOrganizationSettingsAsync()
+    {
+        await using var connection = new NpgsqlConnection(ConnectionString);
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand("delete from organization_settings where organization_id = @OrganizationId", connection);
+        command.Parameters.AddWithValue("OrganizationId", _organizationId);
+        await command.ExecuteNonQueryAsync();
+    }
+
     public async Task EnableClientCheckInAsync()
     {
         await using var connection = new NpgsqlConnection(ConnectionString);
         await connection.OpenAsync();
-        await using var command = new NpgsqlCommand(
-            "update organization_settings set allow_client_checkin = true where organization_id = @OrganizationId",
-            connection);
+        await using var command = new NpgsqlCommand("update organization_settings set allow_client_checkin = true where organization_id = @OrganizationId", connection);
         command.Parameters.AddWithValue("OrganizationId", _organizationId);
         await command.ExecuteNonQueryAsync();
     }
 
     public async Task<AttendanceRecord> CheckInAsync(string email, Guid lessonId)
     {
-        using var httpClient = new HttpClient { BaseAddress = new Uri($"{ApiUrl}/api/v1/") };
+        using var httpClient = new HttpClient
+        {
+            BaseAddress = new Uri($"{ApiUrl}/api/v1/")
+        };
         var loginResponse = await httpClient.PostAsJsonAsync("auth/login", new { email, password = ClientPassword });
         loginResponse.EnsureSuccessStatusCode();
         using var login = JsonDocument.Parse(await loginResponse.Content.ReadAsStringAsync());
-        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
-            "Bearer", login.RootElement.GetProperty("accessToken").GetString());
+        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", login.RootElement.GetProperty("accessToken").GetString());
         httpClient.DefaultRequestHeaders.Add("X-Organization-Id", _organizationId.ToString());
         var response = await httpClient.PostAsJsonAsync("attendance/check-in", new { lessonId });
         if (!response.IsSuccessStatusCode)
         {
             var responseBody = await response.Content.ReadAsStringAsync();
-            throw new HttpRequestException(
-                $"Client check-in returned {(int)response.StatusCode}: {responseBody}{Environment.NewLine}{await GetCheckInDiagnosticsAsync(lessonId, email)}");
+            throw new HttpRequestException($"Client check-in returned {(int)response.StatusCode}: {responseBody}{Environment.NewLine}{await GetCheckInDiagnosticsAsync(lessonId, email)}");
         }
 
         return (await response.Content.ReadFromJsonAsync<AttendanceRecord>())!;
@@ -674,8 +570,7 @@ internal sealed class E2EEnvironment : IAsyncDisposable
     {
         await using var connection = new NpgsqlConnection(ConnectionString);
         await connection.OpenAsync();
-        await using var command = new NpgsqlCommand(
-            """
+        await using var command = new NpgsqlCommand("""
             select lesson.starts_at, lesson.ends_at, now(), current_date,
                 client.current_status::text,
                 exists (
@@ -686,8 +581,7 @@ internal sealed class E2EEnvironment : IAsyncDisposable
             join clients client on client.organization_id = lesson.organization_id
             join persons person on person.id = client.person_id
             where lesson.id = @LessonId and person.email = @Email
-            """,
-            connection);
+            """, connection);
         command.Parameters.AddWithValue("LessonId", lessonId);
         command.Parameters.AddWithValue("Email", email);
         await using var reader = await command.ExecuteReaderAsync();
@@ -696,17 +590,36 @@ internal sealed class E2EEnvironment : IAsyncDisposable
             return "The lesson/client pair was not found in the test database.";
         }
 
-        return $"Lesson {reader.GetDateTime(0):O}..{reader.GetDateTime(1):O}; database now {reader.GetDateTime(2):O}; "
-            + $"database date {reader.GetDateTime(3):yyyy-MM-dd}; client status {reader.GetString(4)}; modality linked {reader.GetBoolean(5)}.";
+        return $"Lesson {reader.GetDateTime(0):O}..{reader.GetDateTime(1):O}; database now {reader.GetDateTime(2):O}; " + $"database date {reader.GetDateTime(3):yyyy-MM-dd}; client status {reader.GetString(4)}; modality linked {reader.GetBoolean(5)}.";
+    }
+
+    public async Task<string> IssuePasswordResetTokenAsync(string email)
+    {
+        var token = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(48));
+        var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(token)));
+        await using var c = new NpgsqlConnection(ConnectionString);
+        await c.OpenAsync();
+        await using var command = new NpgsqlCommand("insert into password_reset_tokens(id,user_account_id,token_hash,expires_at) select gen_random_uuid(),id,@hash,now()+interval '30 minutes' from user_accounts where email=@email", c);
+        command.Parameters.AddWithValue("hash", hash);
+        command.Parameters.AddWithValue("email", email);
+        await command.ExecuteNonQueryAsync();
+        return token;
+    }
+
+    public async Task<Guid> FirstFutureLessonAsync()
+    {
+        await using var c = new NpgsqlConnection(ConnectionString);
+        await c.OpenAsync();
+        await using var command = new NpgsqlCommand("select id from lessons where organization_id=@org and starts_at>now() order by starts_at limit 1", c);
+        command.Parameters.AddWithValue("org", _organizationId);
+        return (Guid)(await command.ExecuteScalarAsync())!;
     }
 
     public async Task<IReadOnlyList<Guid>> ListLessonsAsync()
     {
         await using var connection = new NpgsqlConnection(ConnectionString);
         await connection.OpenAsync();
-        await using var command = new NpgsqlCommand(
-            "select id from lessons where organization_id = @OrganizationId order by starts_at",
-            connection);
+        await using var command = new NpgsqlCommand("select id from lessons where organization_id = @OrganizationId order by starts_at", connection);
         command.Parameters.AddWithValue("OrganizationId", _organizationId);
         var lessonIds = new List<Guid>();
         await using var reader = await command.ExecuteReaderAsync();
@@ -732,17 +645,14 @@ internal sealed class E2EEnvironment : IAsyncDisposable
             await Task.Delay(250);
         }
 
-        throw new TimeoutException(
-            $"The schedule generation did not persist any lesson.{Environment.NewLine}Page: {await page.Locator("body").InnerTextAsync()}{Environment.NewLine}{ProcessOutput}");
+        throw new TimeoutException($"The schedule generation did not persist any lesson.{Environment.NewLine}Page: {await page.Locator("body").InnerTextAsync()}{Environment.NewLine}{ProcessOutput}");
     }
 
     public async Task<int> CountValidatedAttendanceAsync(Guid lessonId)
     {
         await using var connection = new NpgsqlConnection(ConnectionString);
         await connection.OpenAsync();
-        await using var command = new NpgsqlCommand(
-            "select count(*) from attendances where lesson_id = @LessonId and status = 'present' and validated_at is not null",
-            connection);
+        await using var command = new NpgsqlCommand("select count(*) from attendances where lesson_id = @LessonId and status = 'present' and validated_at is not null", connection);
         command.Parameters.AddWithValue("LessonId", lessonId);
         return Convert.ToInt32(await command.ExecuteScalarAsync());
     }
@@ -751,14 +661,12 @@ internal sealed class E2EEnvironment : IAsyncDisposable
     {
         await using var connection = new NpgsqlConnection(ConnectionString);
         await connection.OpenAsync();
-        await using var command = new NpgsqlCommand(
-            """
+        await using var command = new NpgsqlCommand("""
             select count(*)
             from payments payment
             join invoices invoice on invoice.id = payment.invoice_id
             where invoice.organization_id = @OrganizationId and invoice.client_id = @ClientId
-            """,
-            connection);
+            """, connection);
         command.Parameters.AddWithValue("OrganizationId", _organizationId);
         command.Parameters.AddWithValue("ClientId", clientId);
         return Convert.ToInt32(await command.ExecuteScalarAsync());
@@ -775,14 +683,12 @@ internal sealed class E2EEnvironment : IAsyncDisposable
     {
         await using var connection = new NpgsqlConnection(ConnectionString);
         await connection.OpenAsync();
-        await using (var ledger = new NpgsqlCommand(
-            """
+        await using (var ledger = new NpgsqlCommand("""
             create table schema_migrations (
                 migration_name varchar(255) primary key,
                 applied_at timestamptz not null default now()
             )
-            """,
-            connection))
+            """, connection))
         {
             await ledger.ExecuteNonQueryAsync();
         }
@@ -792,9 +698,7 @@ internal sealed class E2EEnvironment : IAsyncDisposable
         {
             await using var command = new NpgsqlCommand(await File.ReadAllTextAsync(migrationPath), connection);
             await command.ExecuteNonQueryAsync();
-            await using var record = new NpgsqlCommand(
-                "insert into schema_migrations (migration_name) values (@MigrationName)",
-                connection);
+            await using var record = new NpgsqlCommand("insert into schema_migrations (migration_name) values (@MigrationName)", connection);
             record.Parameters.AddWithValue("MigrationName", Path.GetFileName(migrationPath));
             await record.ExecuteNonQueryAsync();
         }
@@ -814,15 +718,13 @@ internal sealed class E2EEnvironment : IAsyncDisposable
                 UseShellExecute = false
             }
         };
-        process.StartInfo.ArgumentList.Add(
-            Path.Combine(root, "database", "kiai-control-database", "scripts", "create_database.sh"));
+        process.StartInfo.ArgumentList.Add(Path.Combine(root, "database", "kiai-control-database", "scripts", "create_database.sh"));
         process.StartInfo.Environment["PGHOST"] = connection.Host;
         process.StartInfo.Environment["PGPORT"] = connection.Port.ToString();
         process.StartInfo.Environment["PGUSER"] = connection.Username;
         process.StartInfo.Environment["PGPASSWORD"] = connection.Password;
         process.StartInfo.Environment["DB_NAME"] = connection.Database;
         process.StartInfo.Environment["PG_CONTAINER_NAME"] = _database.Id;
-
         if (!process.Start())
         {
             throw new InvalidOperationException("Could not start the database bootstrap script.");
@@ -835,8 +737,7 @@ internal sealed class E2EEnvironment : IAsyncDisposable
         var error = await standardError;
         if (process.ExitCode != 0)
         {
-            throw new InvalidOperationException(
-                $"The database bootstrap script failed with exit code {process.ExitCode}.{Environment.NewLine}{output}{Environment.NewLine}{error}");
+            throw new InvalidOperationException($"The database bootstrap script failed with exit code {process.ExitCode}.{Environment.NewLine}{output}{Environment.NewLine}{error}");
         }
     }
 
@@ -844,29 +745,21 @@ internal sealed class E2EEnvironment : IAsyncDisposable
     {
         await using var connection = new NpgsqlConnection(ConnectionString);
         await connection.OpenAsync();
-        await using var command = new NpgsqlCommand(
-            "select id from organizations where email = 'admin@kiai.local'",
-            connection);
-        _organizationId = (Guid)(await command.ExecuteScalarAsync()
-            ?? throw new InvalidOperationException("The admin seed did not create its organization."));
+        await using var command = new NpgsqlCommand("select id from organizations where email = 'admin@kiai.local'", connection);
+        _organizationId = (Guid)(await command.ExecuteScalarAsync() ?? throw new InvalidOperationException("The admin seed did not create its organization."));
     }
 
-    private async Task SetOrganizationTimezoneAsync()
+    private async Task SetOrganizationTimezoneAsync(string timezone)
     {
         await using var connection = new NpgsqlConnection(ConnectionString);
         await connection.OpenAsync();
-        await using var command = new NpgsqlCommand(
-            "update organization_settings set timezone = 'UTC' where organization_id = @OrganizationId",
-            connection);
+        await using var command = new NpgsqlCommand("update organization_settings set timezone = @Timezone where organization_id = @OrganizationId", connection);
+        command.Parameters.AddWithValue("Timezone", timezone);
         command.Parameters.AddWithValue("OrganizationId", _organizationId);
         await command.ExecuteNonQueryAsync();
     }
 
-    private static Process StartApplication(
-        string assemblyPath,
-        string workingDirectory,
-        ConcurrentQueue<string> output,
-        IReadOnlyDictionary<string, string> environment)
+    private static Process StartApplication(string assemblyPath, string workingDirectory, ConcurrentQueue<string> output, IReadOnlyDictionary<string, string> environment)
     {
         if (!File.Exists(assemblyPath))
         {
@@ -887,7 +780,11 @@ internal sealed class E2EEnvironment : IAsyncDisposable
             startInfo.Environment[variable.Key] = variable.Value;
         }
 
-        var process = new Process { StartInfo = startInfo, EnableRaisingEvents = true };
+        var process = new Process
+        {
+            StartInfo = startInfo,
+            EnableRaisingEvents = true
+        };
         process.OutputDataReceived += (_, eventArgs) => AddOutput(output, eventArgs.Data);
         process.ErrorDataReceived += (_, eventArgs) => AddOutput(output, eventArgs.Data);
         if (!process.Start())
@@ -902,7 +799,10 @@ internal sealed class E2EEnvironment : IAsyncDisposable
 
     private static async Task WaitForHttpAsync(string url, Process process, ConcurrentQueue<string> output)
     {
-        using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
+        using var httpClient = new HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(2)
+        };
         var deadline = DateTime.UtcNow.AddSeconds(60);
         while (DateTime.UtcNow < deadline)
         {
@@ -952,7 +852,6 @@ internal sealed class E2EEnvironment : IAsyncDisposable
     }
 
     private static string FormatOutput(ConcurrentQueue<string> output) => string.Join(Environment.NewLine, output);
-
     private static async Task StopProcessAsync(Process? process)
     {
         if (process is null)

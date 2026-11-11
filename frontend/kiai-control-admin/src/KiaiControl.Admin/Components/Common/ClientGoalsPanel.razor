@@ -1,0 +1,26 @@
+@inject AdminApiClient Api
+<MudStack Spacing="3">
+<div class="progress-section gym">
+<MudIcon Icon="@Icons.Material.Filled.FitnessCenter" />
+<div>
+<strong>Metas e evolução no Gym</strong>
+<p>Acompanhe os objetivos e os registros feitos pela academia.</p>
+</div>
+</div>
+    @if(_error is not null){<MudAlert Severity="Severity.Error">@_error <MudButton OnClick="LoadAsync">Tentar novamente</MudButton>
+</MudAlert>}
+    @if(_busy){<MudProgressLinear Indeterminate="true" />}
+    @if(_goals.Count==0&&!_busy){<MudPaper Class="pa-5" Outlined="true">
+<MudText>Nenhuma meta registrada para este aluno.</MudText>
+</MudPaper>}
+    <MudExpansionPanels>@foreach(var goal in _goals){<MudExpansionPanel @key="goal.Id" Text="@($"{goal.Title} · {goal.CurrentValue:0.##}/{goal.TargetValue:0.##} {goal.Unit}")">
+<MudStack Spacing="2">
+<MudText>@goal.Description</MudText>
+<MudText Typo="Typo.caption">Prazo: @goal.DueDate.ToString("dd/MM/yyyy") · @Status(goal.Status)</MudText>
+<MudProgressLinear Value="@FitnessProgress.Percentage(goal)" Color="Color.Success" />
+<FitnessHistoryPanel GoalId="goal.Id" Personal="@(ClientId is null)" />
+</MudStack>
+</MudExpansionPanel>}</MudExpansionPanels>
+    @if(ClientId is not null){<MudButton Href="@($"/fitness?clientId={ClientId}")" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add">Gerenciar metas do aluno</MudButton>}
+<PageControls Page="_page" HasNext="@(_goals.Count==20)" Busy="_busy" Changed="PageAsync" />
+</MudStack>

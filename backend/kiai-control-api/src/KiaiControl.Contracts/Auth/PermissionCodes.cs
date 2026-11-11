@@ -1,7 +1,17 @@
 namespace KiaiControl.Contracts.Auth;
-
 public static class PermissionCodes
 {
+    public const string ClientsRead = "clients.read";
+    public const string TeachersRead = "teachers.read";
+    public const string BranchesRead = "branches.read";
+    public const string ModalitiesRead = "modalities.read";
+    public static readonly IReadOnlyDictionary<string, string> ReadPermissions = new Dictionary<string, string>
+    {
+        [ClientsManage] = ClientsRead,
+        [TeachersManage] = TeachersRead,
+        [BranchesManage] = BranchesRead,
+        [ModalitiesManage] = ModalitiesRead
+    };
     public const string ClaimType = "permission";
     public const string AccessManage = "access.manage";
     public const string AccessPermissionsManage = "access.permissions.manage";
@@ -21,26 +31,5 @@ public static class PermissionCodes
     public const string RankingManage = "ranking.manage";
     public const string ReportsRead = "reports.read";
     public const string TeachersManage = "teachers.manage";
-
-    public static readonly string[] All =
-    [
-        AccessManage,
-        AccessPermissionsManage,
-        AuditRead,
-        AttendanceCheckIn,
-        AttendanceManage,
-        BillingManage,
-        BranchesManage,
-        ClientsManage,
-        FitnessManage,
-        GraduationManage,
-        LessonsManage,
-        ModalitiesManage,
-        NotificationsRead,
-        NotificationsManage,
-        OrganizationsManage,
-        RankingManage,
-        ReportsRead,
-        TeachersManage
-    ];
+    public static readonly string[] All = [ClientsRead, TeachersRead, BranchesRead, ModalitiesRead, AccessManage, AccessPermissionsManage, AuditRead, AttendanceCheckIn, AttendanceManage, BillingManage, BranchesManage, ClientsManage, FitnessManage, GraduationManage, LessonsManage, ModalitiesManage, NotificationsRead, NotificationsManage, OrganizationsManage, RankingManage, ReportsRead, TeachersManage];
 }

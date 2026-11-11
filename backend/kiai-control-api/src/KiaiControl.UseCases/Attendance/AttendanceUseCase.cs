@@ -3,50 +3,21 @@ using KiaiControl.Core.Entities;
 using KiaiControl.Core.Interfaces;
 
 namespace KiaiControl.UseCases.Attendance;
-
 public sealed class AttendanceUseCase(IAttendanceRepository attendanceRepository)
 {
     private static readonly string[] AllowedStatuses = ["present", "absent", "justified_absence", "late"];
-
-    public async Task<AttendanceRecordResponse?> CreateAsync(
-        CreateAttendanceRequest request,
-        Guid validatorPersonId,
-        CancellationToken cancellationToken)
+    public async Task<AttendanceRecordResponse?> CreateAsync(CreateAttendanceRequest request, Guid validatorPersonId, CancellationToken cancellationToken)
     {
         Validate(request.OrganizationId, request.ClientId, request.LessonId, request.Status);
         ValidateValidator(validatorPersonId);
-        var saved = await attendanceRepository.SaveLessonCallAsync(
-            request.OrganizationId,
-            request.LessonId,
-            validatorPersonId,
-            [new AttendanceRecord
-            {
-                ClientId = request.ClientId,
-                AttendanceDate = request.AttendanceDate,
-                Status = request.Status.Trim().ToLowerInvariant()
-            }],
-            cancellationToken);
-        return saved?.FirstOrDefault() is { } record ? ToResponse(record) : null;
+        var saved = await attendanceRepository.SaveLessonCallAsync(request.OrganizationId, request.LessonId, validatorPersonId, [new AttendanceRecord { ClientId = request.ClientId, AttendanceDate = request.AttendanceDate, Status = request.Status.Trim().ToLowerInvariant() }], cancellationToken);
+        return saved?.FirstOrDefault()is { } record ? ToResponse(record) : null;
     }
 
     public async Task<IReadOnlyList<AttendanceRecordResponse>> ListAsync(Guid organizationId, int page, int pageSize, CancellationToken cancellationToken)
     {
         var attendance = await attendanceRepository.ListByOrganizationAsync(organizationId, page, pageSize, cancellationToken);
-
-        return attendance.Select(record => new AttendanceRecordResponse
-        {
-            Id = record.Id,
-            OrganizationId = record.OrganizationId,
-            LessonId = record.LessonId,
-            ClientId = record.ClientId,
-            ClientName = record.ClientName,
-            AttendanceDate = record.AttendanceDate,
-            Status = record.Status,
-            ValidatedAt = record.ValidatedAt,
-            ValidatedByPersonId = record.ValidatedByPersonId,
-            CreatedAt = record.CreatedAt,
-            UpdatedAt = record.UpdatedAt
-        }).ToList();
+        return attendance.Select(record => new AttendanceRecordResponse { Id = record.Id, OrganizationId = record.OrganizationId, LessonId = record.LessonId, ClientId = record.ClientId, ClientName = record.ClientName, AttendanceDate = record.AttendanceDate, Status = record.Status, ValidatedAt = record.ValidatedAt, ValidatedByPersonId = record.ValidatedByPersonId, CreatedAt = record.CreatedAt, UpdatedAt = record.UpdatedAt }).ToList();
     }
 
     public async Task<AttendanceRecordResponse?> GetByIdAsync(Guid organizationId, Guid id, CancellationToken cancellationToken)
@@ -73,17 +44,11 @@ public sealed class AttendanceUseCase(IAttendanceRepository attendanceRepository
         };
     }
 
-    public async Task<AttendanceRecordResponse?> UpdateAsync(
-        Guid organizationId,
-        Guid id,
-        UpdateAttendanceRequest request,
-        Guid validatorPersonId,
-        CancellationToken cancellationToken)
+    public async Task<AttendanceRecordResponse?> UpdateAsync(Guid organizationId, Guid id, UpdateAttendanceRequest request, Guid validatorPersonId, CancellationToken cancellationToken)
     {
         Validate(organizationId, request.ClientId, request.LessonId, request.Status);
         ValidateValidator(validatorPersonId);
         var validatedAt = DateTimeOffset.UtcNow;
-
         var attendance = new AttendanceRecord
         {
             Id = id,
@@ -95,7 +60,6 @@ public sealed class AttendanceUseCase(IAttendanceRepository attendanceRepository
             ValidatedAt = validatedAt,
             ValidatedByPersonId = validatorPersonId
         };
-
         var updated = await attendanceRepository.UpdateAsync(attendance, cancellationToken);
         if (updated is null)
         {
@@ -123,10 +87,7 @@ public sealed class AttendanceUseCase(IAttendanceRepository attendanceRepository
         return attendanceRepository.DeleteAsync(organizationId, id, cancellationToken);
     }
 
-    public async Task<IReadOnlyList<AttendanceRecordResponse>> ListByLessonAsync(
-        Guid organizationId,
-        Guid lessonId,
-        CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<AttendanceRecordResponse>> ListByLessonAsync(Guid organizationId, Guid lessonId, CancellationToken cancellationToken)
     {
         if (organizationId == Guid.Empty || lessonId == Guid.Empty)
         {
@@ -137,31 +98,18 @@ public sealed class AttendanceUseCase(IAttendanceRepository attendanceRepository
         return records.Select(ToResponse).ToList();
     }
 
-    public async Task<IReadOnlyList<EligibleAttendanceClientResponse>> ListEligibleClientsByLessonAsync(
-        Guid organizationId,
-        Guid lessonId,
-        CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<EligibleAttendanceClientResponse>> ListEligibleClientsByLessonAsync(Guid organizationId, Guid lessonId, CancellationToken cancellationToken)
     {
         if (organizationId == Guid.Empty || lessonId == Guid.Empty)
         {
             throw new ArgumentException(SystemMessages.OrganizationIdAndLessonIdAreRequired);
         }
 
-        var clients = await attendanceRepository.ListEligibleClientsByLessonAsync(
-            organizationId, lessonId, cancellationToken);
-        return clients.Select(client => new EligibleAttendanceClientResponse
-        {
-            ClientId = client.ClientId,
-            ClientName = client.ClientName
-        }).ToList();
+        var clients = await attendanceRepository.ListEligibleClientsByLessonAsync(organizationId, lessonId, cancellationToken);
+        return clients.Select(client => new EligibleAttendanceClientResponse { ClientId = client.ClientId, ClientName = client.ClientName }).ToList();
     }
 
-    public async Task<AttendanceRecordResponse?> CheckInAsync(
-        Guid organizationId,
-        Guid personId,
-        Guid lessonId,
-        DateTimeOffset checkedInAt,
-        CancellationToken cancellationToken)
+    public async Task<AttendanceRecordResponse?> CheckInAsync(Guid organizationId, Guid personId, Guid lessonId, DateTimeOffset checkedInAt, CancellationToken cancellationToken)
     {
         if (organizationId == Guid.Empty || personId == Guid.Empty || lessonId == Guid.Empty)
         {
@@ -172,60 +120,38 @@ public sealed class AttendanceUseCase(IAttendanceRepository attendanceRepository
         return record is null ? null : ToResponse(record);
     }
 
-    public async Task<IReadOnlyList<AttendanceRecord>> ListClientCheckInsAsync(
-        Guid organizationId,
-        Guid clientId,
-        DateTimeOffset from,
-        DateTimeOffset to,
-        CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<AttendanceRecord>> ListClientCheckInsAsync(Guid organizationId, Guid clientId, DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken)
     {
         if (organizationId == Guid.Empty || clientId == Guid.Empty || from >= to)
         {
             throw new ArgumentException(SystemMessages.OrganizationIdClientIdAndValidDateRangeAreRequired);
         }
 
-        return await attendanceRepository.ListClientCheckInsAsync(
-            organizationId, clientId, from, to, cancellationToken);
+        return await attendanceRepository.ListClientCheckInsAsync(organizationId, clientId, from, to, cancellationToken);
     }
 
-    public Task<bool> CancelClientCheckInAsync(
-        Guid organizationId,
-        Guid personId,
-        Guid lessonId,
-        DateTimeOffset cancelledAt,
-        CancellationToken cancellationToken)
+    public Task<bool> CancelClientCheckInAsync(Guid organizationId, Guid personId, Guid lessonId, DateTimeOffset cancelledAt, CancellationToken cancellationToken)
     {
         if (organizationId == Guid.Empty || personId == Guid.Empty || lessonId == Guid.Empty)
         {
             throw new ArgumentException(SystemMessages.OrganizationIdPersonIdAndLessonIdAreRequired);
         }
 
-        return attendanceRepository.CancelClientCheckInAsync(
-            organizationId, personId, lessonId, cancelledAt, cancellationToken);
+        return attendanceRepository.CancelClientCheckInAsync(organizationId, personId, lessonId, cancelledAt, cancellationToken);
     }
 
-    public async Task<IReadOnlyList<AttendanceRecordResponse>> ListPendingAsync(
-        Guid organizationId,
-        int page,
-        int pageSize,
-        CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<AttendanceRecordResponse>> ListPendingAsync(Guid organizationId, int page, int pageSize, CancellationToken cancellationToken, Guid? teacherId = null)
     {
         if (organizationId == Guid.Empty)
         {
             throw new ArgumentException(SystemMessages.OrganizationIdIsRequired);
         }
 
-        var records = await attendanceRepository.ListPendingByOrganizationAsync(organizationId, page, pageSize, cancellationToken);
+        var records = await attendanceRepository.ListPendingByOrganizationAsync(organizationId, page, pageSize, cancellationToken, teacherId);
         return records.Select(ToResponse).ToList();
     }
 
-    public async Task<AttendanceRecordResponse?> ValidateCheckInAsync(
-        Guid organizationId,
-        Guid attendanceId,
-        Guid validatorPersonId,
-        string status,
-        DateTimeOffset validatedAt,
-        CancellationToken cancellationToken)
+    public async Task<AttendanceRecordResponse?> ValidateCheckInAsync(Guid organizationId, Guid attendanceId, Guid validatorPersonId, string status, DateTimeOffset validatedAt, CancellationToken cancellationToken)
     {
         if (organizationId == Guid.Empty || attendanceId == Guid.Empty)
         {
@@ -240,17 +166,11 @@ public sealed class AttendanceUseCase(IAttendanceRepository attendanceRepository
             throw new ArgumentException(SystemMessages.ACheckInMustBeConfirmedAsPresentOrLateOrRejectedAsAbsent);
         }
 
-        var record = await attendanceRepository.ValidateCheckInAsync(
-            organizationId, attendanceId, validatorPersonId, finalStatus, validatedAt, cancellationToken);
+        var record = await attendanceRepository.ValidateCheckInAsync(organizationId, attendanceId, validatorPersonId, finalStatus, validatedAt, cancellationToken);
         return record is null ? null : ToResponse(record);
     }
 
-    public async Task<IReadOnlyList<AttendanceRecordResponse>?> SaveLessonCallAsync(
-        Guid organizationId,
-        Guid lessonId,
-        Guid validatorPersonId,
-        SaveAttendanceCallRequest request,
-        CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<AttendanceRecordResponse>?> SaveLessonCallAsync(Guid organizationId, Guid lessonId, Guid validatorPersonId, SaveAttendanceCallRequest request, CancellationToken cancellationToken)
     {
         if (organizationId == Guid.Empty || lessonId == Guid.Empty)
         {
@@ -258,7 +178,6 @@ public sealed class AttendanceUseCase(IAttendanceRepository attendanceRepository
         }
 
         ValidateValidator(validatorPersonId);
-
         if (request.Entries.Count == 0)
         {
             throw new ArgumentException(SystemMessages.AtLeastOneAttendanceEntryIsRequired);
@@ -279,17 +198,8 @@ public sealed class AttendanceUseCase(IAttendanceRepository attendanceRepository
             ValidateStatus(entry.Status);
         }
 
-        var records = request.Entries.Select(entry => new AttendanceRecord
-        {
-            ClientId = entry.ClientId,
-            AttendanceDate = entry.AttendanceDate,
-            Status = entry.Status.Trim().ToLowerInvariant(),
-            ValidatedAt = DateTimeOffset.UtcNow,
-            ValidatedByPersonId = validatorPersonId
-        }).ToList();
-
-        var saved = await attendanceRepository.SaveLessonCallAsync(
-            organizationId, lessonId, validatorPersonId, records, cancellationToken);
+        var records = request.Entries.Select(entry => new AttendanceRecord { ClientId = entry.ClientId, AttendanceDate = entry.AttendanceDate, Status = entry.Status.Trim().ToLowerInvariant(), ValidatedAt = DateTimeOffset.UtcNow, ValidatedByPersonId = validatorPersonId }).ToList();
+        var saved = await attendanceRepository.SaveLessonCallAsync(organizationId, lessonId, validatorPersonId, records, cancellationToken);
         return saved?.Select(ToResponse).ToList();
     }
 

@@ -1,0 +1,48 @@
+@page "/people"
+@inject AdminApiClient Api
+@inject AdminSession Session
+@inject IDialogService Dialogs
+@inject ISnackbar Snackbar
+<PageTitle>Pessoas e equipe | Kiai Control</PageTitle>
+<MudStack Spacing="3">
+    <div class="page-heading">
+<div>
+<span class="eyebrow">Administração · equipe</span>
+<MudText Typo="Typo.h4">Pessoas e acessos</MudText>
+<MudText Color="Color.Secondary">Um cadastro por pessoa. Combine os papéis e mantenha os acessos sob controle.</MudText>
+</div>
+<MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PersonAdd" OnClick="()=>EditAsync(null)">Nova pessoa</MudButton>
+</div>
+    <MudAlert Severity="Severity.Info" Dense="true">Alunos, professores e equipe compartilham este cadastro. Os vínculos de aluno e professor preservam a mesma pessoa.</MudAlert>
+    @if(_error is not null){<MudAlert Severity="Severity.Error">@_error</MudAlert>}
+    <MudTable T="DirectoryPersonResponse" @ref="_table" ServerData="LoadAsync" RowsPerPage="25" Hover="true" Breakpoint="Breakpoint.Sm">
+        <ToolBarContent>
+<MudTextField T="string" Value="_search" ValueChanged="SearchAsync" DebounceInterval="300" Label="Buscar pessoa ou e-mail" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
+</ToolBarContent>
+        <HeaderContent>
+<MudTh>Pessoa</MudTh>
+<MudTh>Papéis</MudTh>
+<MudTh>Acesso</MudTh>
+<MudTh>Ações</MudTh>
+</HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Pessoa">
+<MudText>@context.FullName</MudText>
+<MudText Typo="Typo.caption">@context.Email</MudText>
+</MudTd>
+            <MudTd DataLabel="Papéis">@foreach(var role in context.Roles){<MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@AdminNavigation.RoleLabel(role)</MudChip>}</MudTd>
+            <MudTd DataLabel="Acesso">
+<MudChip T="string" Size="Size.Small" Color="@(context.UserId is null?Color.Default:context.IsActive?Color.Success:Color.Error)">@(context.UserId is null?"Sem conta":context.IsActive?"Ativo":"Bloqueado")</MudChip>@if(context.MustChangePassword){<MudText Typo="Typo.caption">Troca de senha pendente</MudText>}</MudTd>
+            <MudTd DataLabel="Ações">
+<MudIconButton Icon="@Icons.Material.Filled.Edit" aria-label="Editar pessoa" OnClick="()=>EditAsync(context)" />
+<MudButton Size="Size.Small" StartIcon="@Icons.Material.Filled.ManageAccounts" OnClick="()=>AccessAsync(context)">Gerenciar</MudButton>
+</MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+<MudText Class="pa-4">Nenhuma pessoa encontrada. Cadastre a equipe ou ajuste a busca.</MudText>
+</NoRecordsContent>
+        <PagerContent>
+<MudTablePager PageSizeOptions="new int[]{10,25,50,100}" RowsPerPageString="Registros por página" />
+</PagerContent>
+    </MudTable>
+</MudStack>

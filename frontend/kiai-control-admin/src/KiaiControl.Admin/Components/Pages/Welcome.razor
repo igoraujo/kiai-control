@@ -1,0 +1,4 @@
+@page "/welcome"
+@inject AdminSession Session
+<PageTitle>Minha área | Kiai Control</PageTitle>
+<MudStack Spacing="3"><MudText Typo="Typo.h4">Bem-vindo à sua academia</MudText><MudText>Escolha uma área disponível para seu perfil. O responsável pela academia pode ajustar seus acessos.</MudText><div class="workspace-grid"><WorkspaceCard Href="/account" Title="Minha conta" Description="Consulte seu perfil e altere sua senha." Icon="@Icons.Material.Filled.Person" />@if(AdminNavigation.CanUse(Session.Current?.User,PermissionCodes.NotificationsRead)){<WorkspaceCard Href="/notifications" Title="Meus comunicados" Description="Leia os avisos enviados para você." Icon="@Icons.Material.Filled.Notifications" />}</div></MudStack>

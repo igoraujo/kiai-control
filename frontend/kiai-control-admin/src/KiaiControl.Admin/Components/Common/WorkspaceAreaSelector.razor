@@ -1,0 +1,22 @@
+<nav class="area-filter" aria-label="Visão da área">
+    @foreach (var area in new[] { AcademyArea.General, AcademyArea.Fight, AcademyArea.Gym })
+    {
+        <a href="@AdminNavigation.InArea(Path, area)" class="area-filter-option @area @(Value == area ? "selected" : "")"
+           aria-current="@(Value == area ? "page" : null)">
+            <MudIcon Icon="@Icon(area)" Size="Size.Small" />
+            <span>@AcademyArea.Label(area)</span>
+        </a>
+    }
+</nav>
+
+@code {
+    [Parameter, EditorRequired] public string Path { get; set; } = "";
+    [Parameter] public string Value { get; set; } = AcademyArea.General;
+
+    private static string Icon(string area) => area switch
+    {
+        AcademyArea.Fight => Icons.Material.Filled.SportsMartialArts,
+        AcademyArea.Gym => Icons.Material.Filled.FitnessCenter,
+        _ => Icons.Material.Filled.Apps
+    };
+}

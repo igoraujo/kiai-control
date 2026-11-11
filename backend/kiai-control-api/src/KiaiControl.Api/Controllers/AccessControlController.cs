@@ -7,14 +7,11 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace KiaiControl.Api.Controllers;
-
 [ApiController]
 [Authorize(Roles = "owner,admin")]
 [Authorize(Policy = PermissionCodes.AccessManage)]
 [Route("api/v1/access")]
-public sealed class AccessControlController(
-    OrganizationContext organizationContext,
-    AccessControlUseCase accessControlUseCase) : ControllerBase
+public sealed class AccessControlController(OrganizationContext organizationContext, AccessControlUseCase accessControlUseCase) : ControllerBase
 {
     [HttpGet("roles")]
     public async Task<ActionResult<IReadOnlyList<RoleResponse>>> ListRolesAsync(CancellationToken cancellationToken)
@@ -23,8 +20,7 @@ public sealed class AccessControlController(
     }
 
     [HttpGet("people/without-account")]
-    public async Task<ActionResult<IReadOnlyList<UserAccountCandidateResponse>>> ListPeopleWithoutAccountsAsync(
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<IReadOnlyList<UserAccountCandidateResponse>>> ListPeopleWithoutAccountsAsync(CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
@@ -35,10 +31,7 @@ public sealed class AccessControlController(
     }
 
     [HttpPost("people/{personId:guid}/account")]
-    public async Task<ActionResult<UserAccountResponse>> CreateUserAccountAsync(
-        Guid personId,
-        [FromBody] CreateUserAccountRequest request,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<UserAccountResponse>> CreateUserAccountAsync(Guid personId, [FromBody] CreateUserAccountRequest request, CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId || !TryGetUserId(out var actorUserId))
         {
@@ -47,16 +40,8 @@ public sealed class AccessControlController(
 
         try
         {
-            var account = await accessControlUseCase.CreateUserAccountAsync(
-                organizationId,
-                personId,
-                actorUserId,
-                request,
-                User.IsInRole("owner"),
-                cancellationToken);
-            return account is null
-                ? Conflict(KiaiControl.UseCases.Common.SystemMessages.PersonAlreadyHasAnAccountOrEmailIsAlreadyInUse)
-                : StatusCode(StatusCodes.Status201Created, account);
+            var account = await accessControlUseCase.CreateUserAccountAsync(organizationId, personId, actorUserId, request, User.IsInRole("owner"), cancellationToken);
+            return account is null ? Conflict(KiaiControl.UseCases.Common.SystemMessages.PersonAlreadyHasAnAccountOrEmailIsAlreadyInUse) : StatusCode(StatusCodes.Status201Created, account);
         }
         catch (UnauthorizedAccessException)
         {
@@ -95,10 +80,7 @@ public sealed class AccessControlController(
     }
 
     [HttpPut("people/{personId:guid}/roles")]
-    public async Task<IActionResult> AssignRoleAsync(
-        Guid personId,
-        [FromBody] AssignRoleRequest request,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> AssignRoleAsync(Guid personId, [FromBody] AssignRoleRequest request, CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId || !TryGetUserId(out var actorUserId))
         {
@@ -107,19 +89,19 @@ public sealed class AccessControlController(
 
         try
         {
-            var assigned = await accessControlUseCase.AssignPersonRoleAsync(
-                organizationId,
-                personId,
-                actorUserId,
-                request.RoleCode,
-                User.IsInRole("owner"),
-                cancellationToken);
+            if (User.FindFirstValue("person_id") == personId.ToString())
+                return Conflict("Gerencie a própria conta na área Minha conta. Outro responsável pode ajustar seus papéis.");
+            var targetRoles = await accessControlUseCase.ListPersonRolesAsync(organizationId, personId, cancellationToken);
+            if (!User.IsInRole("owner") && targetRoles.Any(r => r is "owner" or "admin"))
+                return Forbid();
+            var assigned = await accessControlUseCase.AssignPersonRoleAsync(organizationId, personId, actorUserId, request.RoleCode, User.IsInRole("owner"), cancellationToken);
             return assigned ? NoContent() : NotFound(SystemMessages.PersonOrRoleWasNotFoundInThisOrganization);
         }
         catch (UnauthorizedAccessException)
         {
             return Forbid();
         }
+        catch (KeyNotFoundException exception) { return NotFound(exception.Message); }
         catch (ArgumentException exception)
         {
             return BadRequest(exception.Message);
@@ -136,18 +118,19 @@ public sealed class AccessControlController(
 
         try
         {
-            var revoked = await accessControlUseCase.RevokePersonRoleAsync(
-                organizationId,
-                personId,
-                roleCode,
-                User.IsInRole("owner"),
-                cancellationToken);
+            if (User.FindFirstValue("person_id") == personId.ToString())
+                return Conflict("Outro responsável deve ajustar seus papéis para preservar o acesso à academia.");
+            var targetRoles = await accessControlUseCase.ListPersonRolesAsync(organizationId, personId, cancellationToken);
+            if (!User.IsInRole("owner") && targetRoles.Any(r => r is "owner" or "admin"))
+                return Forbid();
+            var revoked = await accessControlUseCase.RevokePersonRoleAsync(organizationId, personId, roleCode, User.IsInRole("owner"), cancellationToken);
             return revoked ? NoContent() : NotFound();
         }
         catch (UnauthorizedAccessException)
         {
             return Forbid();
         }
+        catch (KeyNotFoundException exception) { return NotFound(exception.Message); }
         catch (ArgumentException exception)
         {
             return BadRequest(exception.Message);
@@ -181,10 +164,7 @@ public sealed class AccessControlController(
     [HttpPut("roles/{roleCode}/permissions")]
     [Authorize(Roles = "owner")]
     [Authorize(Policy = PermissionCodes.AccessPermissionsManage)]
-    public async Task<IActionResult> GrantPermissionAsync(
-        string roleCode,
-        [FromBody] SetRolePermissionRequest request,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> GrantPermissionAsync(string roleCode, [FromBody] SetRolePermissionRequest request, CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId || !TryGetUserId(out var actorUserId))
         {
@@ -193,8 +173,7 @@ public sealed class AccessControlController(
 
         try
         {
-            var granted = await accessControlUseCase.GrantRolePermissionAsync(
-                organizationId, roleCode, request.PermissionCode, actorUserId, cancellationToken);
+            var granted = await accessControlUseCase.GrantRolePermissionAsync(organizationId, roleCode, request.PermissionCode, actorUserId, cancellationToken);
             return granted ? NoContent() : NotFound(SystemMessages.RoleOrPermissionCodeWasNotFound);
         }
         catch (ArgumentException exception)
@@ -215,8 +194,7 @@ public sealed class AccessControlController(
 
         try
         {
-            var revoked = await accessControlUseCase.RevokeRolePermissionAsync(
-                organizationId, roleCode, permissionCode, actorUserId, cancellationToken);
+            var revoked = await accessControlUseCase.RevokeRolePermissionAsync(organizationId, roleCode, permissionCode, actorUserId, cancellationToken);
             return revoked ? NoContent() : NotFound();
         }
         catch (ArgumentException exception)
@@ -227,7 +205,6 @@ public sealed class AccessControlController(
 
     private bool TryGetUserId(out Guid userId)
     {
-        return Guid.TryParse(User.FindFirstValue(JwtRegisteredClaimNames.Sub)
-            ?? User.FindFirstValue(ClaimTypes.NameIdentifier), out userId);
+        return Guid.TryParse(User.FindFirstValue(JwtRegisteredClaimNames.Sub) ?? User.FindFirstValue(ClaimTypes.NameIdentifier), out userId);
     }
 }

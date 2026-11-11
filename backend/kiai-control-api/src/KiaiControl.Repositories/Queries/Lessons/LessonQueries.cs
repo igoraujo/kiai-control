@@ -36,14 +36,25 @@ public static class LessonQueries
             modality.name as ModalityName,
             branch.name as BranchName
         from lessons
-        left join modalities modality on modality.id = lessons.modality_id and modality.organization_id = lessons.organization_id
+        left join modalities modality on modality.id = lessons.modality_id
+            and modality.organization_id = lessons.organization_id
         left join modality_schedules modality_schedule on modality_schedule.id = lessons.modality_schedule_id
             and modality_schedule.organization_id = lessons.organization_id
-        left join branches branch on branch.id = modality_schedule.branch_id and branch.organization_id = lessons.organization_id
+        left join branches branch on branch.id = modality_schedule.branch_id
+            and branch.organization_id = lessons.organization_id
         where lessons.organization_id = @OrganizationId
-          and (@TeacherId is null or modality_schedule.teacher_id = @TeacherId)
-          and (@From is null or lessons.starts_at >= @From)
-          and (@To is null or lessons.starts_at < @To)
+            and (@TeacherId is null
+                or modality_schedule.teacher_id = @TeacherId
+                or exists (
+                    select 1
+                    from lesson_instructors instructor
+                    where instructor.lesson_id = lessons.id
+                        and instructor.teacher_id = @TeacherId
+                ))
+            and (@From is null
+                or lessons.starts_at >= @From)
+            and (@To is null
+                or lessons.starts_at < @To)
         order by lessons.starts_at desc
         offset @Offset rows fetch next @PageSize rows only;
         ";
@@ -85,18 +96,21 @@ public static class LessonQueries
             modality.name as ModalityName,
             branch.name as BranchName
         from lessons
-        join modality_schedules modality_schedule
-            on modality_schedule.id = lessons.modality_schedule_id
+        join modality_schedules modality_schedule on modality_schedule.id = lessons.modality_schedule_id
             and modality_schedule.organization_id = lessons.organization_id
-            and modality_schedule.teacher_id = @TeacherId
-        left join modalities modality
-            on modality.id = lessons.modality_id
+        and (modality_schedule.teacher_id = @TeacherId
+            or exists (
+                select 1
+                from lesson_instructors instructor
+                where instructor.lesson_id = lessons.id
+                    and instructor.teacher_id = @TeacherId
+            ))
+        left join modalities modality on modality.id = lessons.modality_id
             and modality.organization_id = lessons.organization_id
-        left join branches branch
-            on branch.id = modality_schedule.branch_id
+        left join branches branch on branch.id = modality_schedule.branch_id
             and branch.organization_id = lessons.organization_id
         where lessons.organization_id = @OrganizationId
-          and lessons.id = @Id;
+            and lessons.id = @Id;
         ";
 
     public const string Update = @"

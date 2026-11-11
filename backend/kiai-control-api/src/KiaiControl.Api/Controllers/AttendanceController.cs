@@ -8,11 +8,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace KiaiControl.Api.Controllers;
-
 [ApiController]
 [Authorize]
 [Route("api/v1/attendance")]
-public sealed class AttendanceController(OrganizationContext organizationContext, AttendanceUseCase attendanceUseCase) : ControllerBase
+public sealed class AttendanceController(OrganizationContext organizationContext, AttendanceUseCase attendanceUseCase, KiaiControl.UseCases.Teachers.TeacherUseCase teachers) : ControllerBase
 {
     [AllowAnonymous]
     [HttpGet("status")]
@@ -37,7 +36,6 @@ public sealed class AttendanceController(OrganizationContext organizationContext
         }
 
         request.OrganizationId = organizationId;
-
         if (request.ClientId == Guid.Empty || request.LessonId == Guid.Empty)
         {
             return BadRequest(SystemMessages.ClientIdAndLessonIdAreRequired);
@@ -51,9 +49,7 @@ public sealed class AttendanceController(OrganizationContext organizationContext
             }
 
             var created = await attendanceUseCase.CreateAsync(request, validatorPersonId, cancellationToken);
-            return created is null
-                ? Conflict(SystemMessages.AAulaOAlunoOuAMatriculaAtivaNaoEstaDisponivelNestaOrganizacao)
-                : CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+            return created is null ? Conflict(SystemMessages.AAulaOAlunoOuAMatriculaAtivaNaoEstaDisponivelNestaOrganizacao) : CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
         }
         catch (ArgumentException exception)
         {
@@ -64,9 +60,7 @@ public sealed class AttendanceController(OrganizationContext organizationContext
     [Authorize(Roles = "client")]
     [Authorize(Policy = PermissionCodes.AttendanceCheckIn)]
     [HttpPost("check-in")]
-    public async Task<ActionResult<AttendanceRecordResponse>> CheckInAsync(
-        [FromBody] CheckInRequest request,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<AttendanceRecordResponse>> CheckInAsync([FromBody] CheckInRequest request, CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId || !TryGetPersonId(out var personId))
         {
@@ -76,11 +70,8 @@ public sealed class AttendanceController(OrganizationContext organizationContext
         try
         {
             var checkedInAt = DateTimeOffset.UtcNow;
-            var record = await attendanceUseCase.CheckInAsync(
-                organizationId, personId, request.LessonId, checkedInAt, cancellationToken);
-            return record is null
-                ? Conflict(SystemMessages.CheckInIndisponivelConfirmeSuaMatriculaOHorarioDaAulaOuSeJaRealizouOCheckIn)
-                : StatusCode(StatusCodes.Status201Created, record);
+            var record = await attendanceUseCase.CheckInAsync(organizationId, personId, request.LessonId, checkedInAt, cancellationToken);
+            return record is null ? Conflict(SystemMessages.CheckInIndisponivelConfirmeSuaMatriculaOHorarioDaAulaOuSeJaRealizouOCheckIn) : StatusCode(StatusCodes.Status201Created, record);
         }
         catch (ArgumentException exception)
         {
@@ -91,9 +82,7 @@ public sealed class AttendanceController(OrganizationContext organizationContext
     [Authorize(Roles = "client")]
     [Authorize(Policy = PermissionCodes.AttendanceCheckIn)]
     [HttpDelete("check-in/{lessonId:guid}")]
-    public async Task<IActionResult> CancelClientCheckInAsync(
-        Guid lessonId,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> CancelClientCheckInAsync(Guid lessonId, CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId || !TryGetPersonId(out var personId))
         {
@@ -102,11 +91,8 @@ public sealed class AttendanceController(OrganizationContext organizationContext
 
         try
         {
-            var cancelled = await attendanceUseCase.CancelClientCheckInAsync(
-                organizationId, personId, lessonId, DateTimeOffset.UtcNow, cancellationToken);
-            return cancelled
-                ? NoContent()
-                : Conflict(KiaiControl.Api.Common.SystemMessages.CancelamentoDoCheckInDisponivelSomenteAteOInicioDaAula);
+            var cancelled = await attendanceUseCase.CancelClientCheckInAsync(organizationId, personId, lessonId, DateTimeOffset.UtcNow, cancellationToken);
+            return cancelled ? NoContent() : Conflict(KiaiControl.Api.Common.SystemMessages.CancelamentoDoCheckInDisponivelSomenteAteOInicioDaAula);
         }
         catch (ArgumentException exception)
         {
@@ -117,10 +103,7 @@ public sealed class AttendanceController(OrganizationContext organizationContext
     [Authorize(Roles = "owner,admin,teacher,reception")]
     [Authorize(Policy = PermissionCodes.AttendanceManage)]
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<AttendanceRecordResponse>>> ListAsync(
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 50,
-        CancellationToken cancellationToken = default)
+    public async Task<ActionResult<IReadOnlyList<AttendanceRecordResponse>>> ListAsync([FromQuery] int page = 1, [FromQuery] int pageSize = 50, CancellationToken cancellationToken = default)
     {
         if (organizationContext.OrganizationId is null)
         {
@@ -134,26 +117,31 @@ public sealed class AttendanceController(OrganizationContext organizationContext
     [Authorize(Roles = "owner,admin,teacher,reception")]
     [Authorize(Policy = PermissionCodes.AttendanceManage)]
     [HttpGet("pending")]
-    public async Task<ActionResult<IReadOnlyList<AttendanceRecordResponse>>> ListPendingAsync(
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 50,
-        CancellationToken cancellationToken = default)
+    public async Task<ActionResult<IReadOnlyList<AttendanceRecordResponse>>> ListPendingAsync([FromQuery] int page = 1, [FromQuery] int pageSize = 50, CancellationToken cancellationToken = default)
     {
         if (organizationContext.OrganizationId is not Guid organizationId)
         {
             return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
-        return Ok(await attendanceUseCase.ListPendingAsync(organizationId, page, pageSize, cancellationToken));
+        Guid? teacherId = null;
+        if (User.IsInRole("teacher") && !User.IsInRole("owner") && !User.IsInRole("admin") && !User.IsInRole("reception"))
+        {
+            if (!Guid.TryParse(User.FindFirstValue("person_id"), out var person))
+                return Unauthorized();
+            var teacher = await teachers.GetByPersonIdAsync(organizationId, person, cancellationToken);
+            if (teacher is null || teacher.Status != "active")
+                return NotFound();
+            teacherId = teacher.Id;
+        }
+
+        return Ok(await attendanceUseCase.ListPendingAsync(organizationId, page, pageSize, cancellationToken, teacherId));
     }
 
     [Authorize(Roles = "owner,admin,teacher,reception")]
     [Authorize(Policy = PermissionCodes.AttendanceManage)]
     [HttpPatch("{id:guid}/validate")]
-    public async Task<ActionResult<AttendanceRecordResponse>> ValidateCheckInAsync(
-        Guid id,
-        [FromBody] ValidateCheckInRequest request,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<AttendanceRecordResponse>> ValidateCheckInAsync(Guid id, [FromBody] ValidateCheckInRequest request, CancellationToken cancellationToken)
     {
         if (organizationContext.OrganizationId is not Guid organizationId || !TryGetPersonId(out var validatorPersonId))
         {
@@ -162,8 +150,7 @@ public sealed class AttendanceController(OrganizationContext organizationContext
 
         try
         {
-            var record = await attendanceUseCase.ValidateCheckInAsync(
-                organizationId, id, validatorPersonId, request.Status, DateTimeOffset.UtcNow, cancellationToken);
+            var record = await attendanceUseCase.ValidateCheckInAsync(organizationId, id, validatorPersonId, request.Status, DateTimeOffset.UtcNow, cancellationToken);
             return record is null ? Conflict(SystemMessages.EsteCheckInJaFoiValidadoOuNaoEstaMaisDisponivel) : Ok(record);
         }
         catch (ArgumentException exception)
@@ -203,8 +190,7 @@ public sealed class AttendanceController(OrganizationContext organizationContext
                 return Unauthorized();
             }
 
-            var updated = await attendanceUseCase.UpdateAsync(
-                organizationContext.OrganizationId.Value, id, request, validatorPersonId, cancellationToken);
+            var updated = await attendanceUseCase.UpdateAsync(organizationContext.OrganizationId.Value, id, request, validatorPersonId, cancellationToken);
             return updated is null ? NotFound() : Ok(updated);
         }
         catch (ArgumentException exception)
@@ -227,6 +213,5 @@ public sealed class AttendanceController(OrganizationContext organizationContext
         return deleted ? NoContent() : NotFound();
     }
 
-    private bool TryGetPersonId(out Guid personId) =>
-        Guid.TryParse(User.FindFirstValue("person_id"), out personId);
+    private bool TryGetPersonId(out Guid personId) => Guid.TryParse(User.FindFirstValue("person_id"), out personId);
 }

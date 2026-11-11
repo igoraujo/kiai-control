@@ -2,13 +2,10 @@ using KiaiControl.Core.Entities;
 using KiaiControl.Core.Interfaces;
 
 namespace KiaiControl.Repositories.Implementations;
-
 public sealed class InMemoryBranchRepository : IBranchRepository
 {
     private readonly List<Branch> _branches = [];
-
     public void Add(Branch branch) => _branches.Add(branch);
-
     public Task<Branch?> CreateAsync(Branch branch, CancellationToken cancellationToken = default)
     {
         branch.Id = Guid.NewGuid();
@@ -43,7 +40,6 @@ public sealed class InMemoryBranchRepository : IBranchRepository
 public sealed class InMemoryClientRepository : IClientRepository
 {
     private readonly List<Client> _clients = [];
-
     public Task<Client> CreateAsync(Client client, CancellationToken cancellationToken = default)
     {
         client.Id = Guid.NewGuid();
@@ -57,12 +53,7 @@ public sealed class InMemoryClientRepository : IClientRepository
     {
         var safePage = page < 1 ? 1 : page;
         var safePageSize = pageSize is < 1 or > 200 ? 50 : pageSize;
-        var items = _clients
-            .Where(client => client.OrganizationId == organizationId && client.DeletedAt is null)
-            .OrderByDescending(client => client.CreatedAt)
-            .Skip((safePage - 1) * safePageSize)
-            .Take(safePageSize)
-            .ToList();
+        var items = _clients.Where(client => client.OrganizationId == organizationId && client.DeletedAt is null).OrderByDescending(client => client.CreatedAt).Skip((safePage - 1) * safePageSize).Take(safePageSize).ToList();
         return Task.FromResult<IReadOnlyList<Client>>(items);
     }
 
@@ -74,10 +65,7 @@ public sealed class InMemoryClientRepository : IClientRepository
 
     public Task<Client?> GetByPersonIdAsync(Guid organizationId, Guid personId, CancellationToken cancellationToken = default)
     {
-        var client = _clients.FirstOrDefault(item =>
-            item.OrganizationId == organizationId
-            && item.PersonId == personId
-            && item.DeletedAt is null);
+        var client = _clients.FirstOrDefault(item => item.OrganizationId == organizationId && item.PersonId == personId && item.DeletedAt is null);
         return Task.FromResult(client);
     }
 
@@ -125,7 +113,6 @@ public sealed class InMemoryClientRepository : IClientRepository
 public sealed class InMemoryTeacherRepository : ITeacherRepository
 {
     private readonly List<Teacher> _teachers = [];
-
     public Task<Teacher> CreateAsync(Teacher teacher, CancellationToken cancellationToken = default)
     {
         teacher.Id = Guid.NewGuid();
@@ -139,12 +126,7 @@ public sealed class InMemoryTeacherRepository : ITeacherRepository
     {
         var safePage = page < 1 ? 1 : page;
         var safePageSize = pageSize is < 1 or > 200 ? 50 : pageSize;
-        var items = _teachers
-            .Where(teacher => teacher.OrganizationId == organizationId && teacher.DeletedAt is null)
-            .OrderByDescending(teacher => teacher.CreatedAt)
-            .Skip((safePage - 1) * safePageSize)
-            .Take(safePageSize)
-            .ToList();
+        var items = _teachers.Where(teacher => teacher.OrganizationId == organizationId && teacher.DeletedAt is null).OrderByDescending(teacher => teacher.CreatedAt).Skip((safePage - 1) * safePageSize).Take(safePageSize).ToList();
         return Task.FromResult<IReadOnlyList<Teacher>>(items);
     }
 
@@ -156,8 +138,7 @@ public sealed class InMemoryTeacherRepository : ITeacherRepository
 
     public Task<Teacher?> GetByPersonIdAsync(Guid organizationId, Guid personId, CancellationToken cancellationToken = default)
     {
-        var teacher = _teachers.FirstOrDefault(item =>
-            item.OrganizationId == organizationId && item.PersonId == personId && item.DeletedAt is null);
+        var teacher = _teachers.FirstOrDefault(item => item.OrganizationId == organizationId && item.PersonId == personId && item.DeletedAt is null);
         return Task.FromResult(teacher);
     }
 
@@ -206,7 +187,6 @@ public sealed class InMemoryModalityRepository : IModalityRepository
 {
     private readonly List<Modality> _modalities = [];
     private readonly HashSet<(Guid OrganizationId, Guid ClientId, Guid ModalityId)> _clientModalities = [];
-
     public Task<Modality> CreateAsync(Modality modality, CancellationToken cancellationToken = default)
     {
         modality.Id = Guid.NewGuid();
@@ -215,32 +195,17 @@ public sealed class InMemoryModalityRepository : IModalityRepository
         return Task.FromResult(modality);
     }
 
-    public Task<IReadOnlyList<Modality>> ListByOrganizationAsync(
-        Guid organizationId,
-        int page,
-        int pageSize,
-        CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<Modality>> ListByOrganizationAsync(Guid organizationId, int page, int pageSize, CancellationToken cancellationToken = default)
     {
         var safePage = page < 1 ? 1 : page;
         var safePageSize = pageSize is < 1 or > 200 ? 50 : pageSize;
-        var modalities = _modalities
-            .Where(item => item.OrganizationId == organizationId)
-            .OrderBy(item => item.Name)
-            .Skip((safePage - 1) * safePageSize)
-            .Take(safePageSize)
-            .ToList();
+        var modalities = _modalities.Where(item => item.OrganizationId == organizationId).OrderBy(item => item.Name).Skip((safePage - 1) * safePageSize).Take(safePageSize).ToList();
         return Task.FromResult<IReadOnlyList<Modality>>(modalities);
     }
 
-    public Task<IReadOnlyList<string>> ListActiveTypesAsync(
-        Guid organizationId,
-        CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<string>> ListActiveTypesAsync(Guid organizationId, CancellationToken cancellationToken = default)
     {
-        var types = _modalities
-            .Where(item => item.OrganizationId == organizationId && item.IsActive)
-            .Select(item => item.Type)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        var types = _modalities.Where(item => item.OrganizationId == organizationId && item.IsActive).Select(item => item.Type).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         return Task.FromResult<IReadOnlyList<string>>(types);
     }
 
@@ -281,32 +246,17 @@ public sealed class InMemoryModalityRepository : IModalityRepository
 
     public Task<IReadOnlyList<Modality>> ListClientModalitiesAsync(Guid organizationId, Guid clientId, CancellationToken cancellationToken = default)
     {
-        IReadOnlyList<Modality> modalities = _clientModalities
-            .Where(link => link.OrganizationId == organizationId && link.ClientId == clientId)
-            .Select(link => _modalities.FirstOrDefault(modality => modality.OrganizationId == organizationId && modality.Id == link.ModalityId))
-            .Where(modality => modality is not null)
-            .Cast<Modality>()
-            .OrderBy(modality => modality.Name)
-            .ToList();
+        IReadOnlyList<Modality> modalities = _clientModalities.Where(link => link.OrganizationId == organizationId && link.ClientId == clientId).Select(link => _modalities.FirstOrDefault(modality => modality.OrganizationId == organizationId && modality.Id == link.ModalityId)).Where(modality => modality is not null).Cast<Modality>().OrderBy(modality => modality.Name).ToList();
         return Task.FromResult(modalities);
     }
 
-    public Task<bool> LinkClientAsync(
-        Guid organizationId,
-        Guid clientId,
-        Guid modalityId,
-        CancellationToken cancellationToken = default)
+    public Task<bool> LinkClientAsync(Guid organizationId, Guid clientId, Guid modalityId, CancellationToken cancellationToken = default)
     {
-        var modality = _modalities.FirstOrDefault(item => item.OrganizationId == organizationId
-            && item.Id == modalityId && item.IsActive);
+        var modality = _modalities.FirstOrDefault(item => item.OrganizationId == organizationId && item.Id == modalityId && item.IsActive);
         return Task.FromResult(modality is not null && _clientModalities.Add((organizationId, clientId, modalityId)));
     }
 
-    public Task<bool> UnlinkClientAsync(
-        Guid organizationId,
-        Guid clientId,
-        Guid modalityId,
-        CancellationToken cancellationToken = default)
+    public Task<bool> UnlinkClientAsync(Guid organizationId, Guid clientId, Guid modalityId, CancellationToken cancellationToken = default)
     {
         return Task.FromResult(_clientModalities.Remove((organizationId, clientId, modalityId)));
     }
@@ -315,7 +265,6 @@ public sealed class InMemoryModalityRepository : IModalityRepository
 public sealed class InMemoryLessonRepository : ILessonRepository
 {
     private readonly List<Lesson> _lessons = [];
-
     public Task<Lesson?> CreateAsync(Lesson lesson, CancellationToken cancellationToken = default)
     {
         lesson.Id = Guid.NewGuid();
@@ -324,26 +273,11 @@ public sealed class InMemoryLessonRepository : ILessonRepository
         return Task.FromResult<Lesson?>(lesson);
     }
 
-    public Task<IReadOnlyList<Lesson>> ListByOrganizationAsync(
-        Guid organizationId,
-        int page,
-        int pageSize,
-        CancellationToken cancellationToken = default,
-        Guid? teacherId = null,
-        DateTimeOffset? from = null,
-        DateTimeOffset? to = null)
+    public Task<IReadOnlyList<Lesson>> ListByOrganizationAsync(Guid organizationId, int page, int pageSize, CancellationToken cancellationToken = default, Guid? teacherId = null, DateTimeOffset? from = null, DateTimeOffset? to = null)
     {
         var safePage = page < 1 ? 1 : page;
         var safePageSize = pageSize is < 1 or > 200 ? 50 : pageSize;
-        var lessons = _lessons
-            .Where(item => item.OrganizationId == organizationId
-                && (teacherId is null || item.ModalityScheduleId is not null)
-                && (from is null || item.StartsAt >= from)
-                && (to is null || item.StartsAt < to))
-            .OrderByDescending(item => item.StartsAt)
-            .Skip((safePage - 1) * safePageSize)
-            .Take(safePageSize)
-            .ToList();
+        var lessons = _lessons.Where(item => item.OrganizationId == organizationId && (teacherId is null || item.ModalityScheduleId is not null) && (from is null || item.StartsAt >= from) && (to is null || item.StartsAt < to)).OrderByDescending(item => item.StartsAt).Skip((safePage - 1) * safePageSize).Take(safePageSize).ToList();
         return Task.FromResult<IReadOnlyList<Lesson>>(lessons);
     }
 
@@ -353,23 +287,15 @@ public sealed class InMemoryLessonRepository : ILessonRepository
         return Task.FromResult(lesson);
     }
 
-    public Task<Lesson?> GetByIdForTeacherAsync(
-        Guid organizationId,
-        Guid id,
-        Guid teacherId,
-        CancellationToken cancellationToken = default)
+    public Task<Lesson?> GetByIdForTeacherAsync(Guid organizationId, Guid id, Guid teacherId, CancellationToken cancellationToken = default)
     {
-        var lesson = _lessons.FirstOrDefault(item =>
-            item.OrganizationId == organizationId
-            && item.Id == id
-            && item.ModalityScheduleId is not null);
+        var lesson = _lessons.FirstOrDefault(item => item.OrganizationId == organizationId && item.Id == id && item.ModalityScheduleId is not null);
         return Task.FromResult(lesson);
     }
 
     public Task<Lesson?> UpdateAsync(Lesson lesson, CancellationToken cancellationToken = default)
     {
-        var current = _lessons.FirstOrDefault(item => item.OrganizationId == lesson.OrganizationId && item.Id == lesson.Id
-            && item.Status is "scheduled" or "rescheduled");
+        var current = _lessons.FirstOrDefault(item => item.OrganizationId == lesson.OrganizationId && item.Id == lesson.Id && item.Status is "scheduled" or "rescheduled");
         if (current is null)
         {
             return Task.FromResult<Lesson?>(null);
@@ -381,14 +307,9 @@ public sealed class InMemoryLessonRepository : ILessonRepository
         return Task.FromResult<Lesson?>(current);
     }
 
-    public Task<Lesson?> CancelAsync(
-        Guid organizationId,
-        Guid id,
-        string? reason,
-        CancellationToken cancellationToken = default)
+    public Task<Lesson?> CancelAsync(Guid organizationId, Guid id, string? reason, CancellationToken cancellationToken = default)
     {
-        var lesson = _lessons.FirstOrDefault(item => item.OrganizationId == organizationId && item.Id == id
-            && item.Status is "scheduled" or "rescheduled");
+        var lesson = _lessons.FirstOrDefault(item => item.OrganizationId == organizationId && item.Id == id && item.Status is "scheduled" or "rescheduled");
         if (lesson is null)
         {
             return Task.FromResult<Lesson?>(null);
@@ -400,15 +321,9 @@ public sealed class InMemoryLessonRepository : ILessonRepository
         return Task.FromResult<Lesson?>(lesson);
     }
 
-    public Task<Lesson?> RescheduleAsync(
-        Guid organizationId,
-        Guid id,
-        DateTimeOffset startsAt,
-        DateTimeOffset endsAt,
-        CancellationToken cancellationToken = default)
+    public Task<Lesson?> RescheduleAsync(Guid organizationId, Guid id, DateTimeOffset startsAt, DateTimeOffset endsAt, CancellationToken cancellationToken = default)
     {
-        var lesson = _lessons.FirstOrDefault(item => item.OrganizationId == organizationId && item.Id == id
-            && item.Status is "scheduled" or "rescheduled");
+        var lesson = _lessons.FirstOrDefault(item => item.OrganizationId == organizationId && item.Id == id && item.Status is "scheduled" or "rescheduled");
         if (lesson is null)
         {
             return Task.FromResult<Lesson?>(null);
@@ -421,12 +336,7 @@ public sealed class InMemoryLessonRepository : ILessonRepository
         return Task.FromResult<Lesson?>(lesson);
     }
 
-    public Task<IReadOnlyList<Lesson>?> GenerateFromModalitySchedulesAsync(
-        Guid organizationId,
-        Guid modalityId,
-        DateOnly startDate,
-        DateOnly endDate,
-        CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<Lesson>?> GenerateFromModalitySchedulesAsync(Guid organizationId, Guid modalityId, DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken = default)
     {
         var modalityExists = _lessons.Any(item => item.OrganizationId == organizationId && item.ModalityId == modalityId);
         return Task.FromResult<IReadOnlyList<Lesson>?>(modalityExists ? [] : null);
@@ -436,7 +346,6 @@ public sealed class InMemoryLessonRepository : ILessonRepository
 public sealed class InMemoryAttendanceRepository : IAttendanceRepository
 {
     private readonly List<AttendanceRecord> _attendance = [];
-
     public Task<AttendanceRecord> CreateAsync(AttendanceRecord attendance, CancellationToken cancellationToken = default)
     {
         attendance.Id = Guid.NewGuid();
@@ -445,16 +354,9 @@ public sealed class InMemoryAttendanceRepository : IAttendanceRepository
         return Task.FromResult(attendance);
     }
 
-    public Task<AttendanceRecord?> CreateCheckInAsync(
-        Guid organizationId,
-        Guid personId,
-        Guid lessonId,
-        DateTimeOffset checkedInAt,
-        CancellationToken cancellationToken = default)
+    public Task<AttendanceRecord?> CreateCheckInAsync(Guid organizationId, Guid personId, Guid lessonId, DateTimeOffset checkedInAt, CancellationToken cancellationToken = default)
     {
-        if (_attendance.Any(record => record.OrganizationId == organizationId
-            && record.LessonId == lessonId
-            && record.ClientId == personId))
+        if (_attendance.Any(record => record.OrganizationId == organizationId && record.LessonId == lessonId && record.ClientId == personId))
         {
             return Task.FromResult<AttendanceRecord?>(null);
         }
@@ -473,34 +375,15 @@ public sealed class InMemoryAttendanceRepository : IAttendanceRepository
         return Task.FromResult<AttendanceRecord?>(record);
     }
 
-    public Task<IReadOnlyList<AttendanceRecord>> ListClientCheckInsAsync(
-        Guid organizationId,
-        Guid clientId,
-        DateTimeOffset from,
-        DateTimeOffset to,
-        CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<AttendanceRecord>> ListClientCheckInsAsync(Guid organizationId, Guid clientId, DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default)
     {
-        IReadOnlyList<AttendanceRecord> records = _attendance
-            .Where(record => record.OrganizationId == organizationId
-                && record.ClientId == clientId
-                && record.AttendanceDate >= from
-                && record.AttendanceDate < to)
-            .ToList();
+        IReadOnlyList<AttendanceRecord> records = _attendance.Where(record => record.OrganizationId == organizationId && record.ClientId == clientId && record.AttendanceDate >= from && record.AttendanceDate < to).ToList();
         return Task.FromResult(records);
     }
 
-    public Task<bool> CancelClientCheckInAsync(
-        Guid organizationId,
-        Guid personId,
-        Guid lessonId,
-        DateTimeOffset cancelledAt,
-        CancellationToken cancellationToken = default)
+    public Task<bool> CancelClientCheckInAsync(Guid organizationId, Guid personId, Guid lessonId, DateTimeOffset cancelledAt, CancellationToken cancellationToken = default)
     {
-        var removed = _attendance.RemoveAll(record =>
-            record.OrganizationId == organizationId
-            && record.ClientId == personId
-            && record.LessonId == lessonId
-            && record.Status == "pending_confirmation") > 0;
+        var removed = _attendance.RemoveAll(record => record.OrganizationId == organizationId && record.ClientId == personId && record.LessonId == lessonId && record.Status == "pending_confirmation") > 0;
         return Task.FromResult(removed);
     }
 
@@ -508,12 +391,7 @@ public sealed class InMemoryAttendanceRepository : IAttendanceRepository
     {
         var safePage = page < 1 ? 1 : page;
         var safePageSize = pageSize is < 1 or > 200 ? 50 : pageSize;
-        var items = _attendance
-            .Where(record => record.OrganizationId == organizationId)
-            .OrderByDescending(record => record.CreatedAt)
-            .Skip((safePage - 1) * safePageSize)
-            .Take(safePageSize)
-            .ToList();
+        var items = _attendance.Where(record => record.OrganizationId == organizationId).OrderByDescending(record => record.CreatedAt).Skip((safePage - 1) * safePageSize).Take(safePageSize).ToList();
         return Task.FromResult<IReadOnlyList<AttendanceRecord>>(items);
     }
 
@@ -546,52 +424,24 @@ public sealed class InMemoryAttendanceRepository : IAttendanceRepository
         return Task.FromResult(removed);
     }
 
-    public Task<IReadOnlyList<AttendanceRecord>> ListByLessonAsync(
-        Guid organizationId,
-        Guid lessonId,
-        CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<AttendanceRecord>> ListByLessonAsync(Guid organizationId, Guid lessonId, CancellationToken cancellationToken = default)
     {
-        IReadOnlyList<AttendanceRecord> items = _attendance
-            .Where(item => item.OrganizationId == organizationId && item.LessonId == lessonId)
-            .OrderBy(item => item.CreatedAt)
-            .ToList();
+        IReadOnlyList<AttendanceRecord> items = _attendance.Where(item => item.OrganizationId == organizationId && item.LessonId == lessonId).OrderBy(item => item.CreatedAt).ToList();
         return Task.FromResult(items);
     }
 
-    public Task<IReadOnlyList<EligibleAttendanceClient>> ListEligibleClientsByLessonAsync(
-        Guid organizationId,
-        Guid lessonId,
-        CancellationToken cancellationToken = default) =>
-        Task.FromResult<IReadOnlyList<EligibleAttendanceClient>>([]);
-
-    public Task<IReadOnlyList<AttendanceRecord>> ListPendingByOrganizationAsync(
-        Guid organizationId,
-        int page,
-        int pageSize,
-        CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<EligibleAttendanceClient>> ListEligibleClientsByLessonAsync(Guid organizationId, Guid lessonId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<EligibleAttendanceClient>>([]);
+    public Task<IReadOnlyList<AttendanceRecord>> ListPendingByOrganizationAsync(Guid organizationId, int page, int pageSize, CancellationToken cancellationToken = default, Guid? teacherId = null)
     {
         var safePage = page < 1 ? 1 : page;
         var safePageSize = pageSize is < 1 or > 200 ? 50 : pageSize;
-        var items = _attendance
-            .Where(record => record.OrganizationId == organizationId && record.Status == "pending_confirmation")
-            .OrderBy(record => record.AttendanceDate)
-            .Skip((safePage - 1) * safePageSize)
-            .Take(safePageSize)
-            .ToList();
+        var items = _attendance.Where(record => record.OrganizationId == organizationId && record.Status == "pending_confirmation").OrderBy(record => record.AttendanceDate).Skip((safePage - 1) * safePageSize).Take(safePageSize).ToList();
         return Task.FromResult<IReadOnlyList<AttendanceRecord>>(items);
     }
 
-    public Task<AttendanceRecord?> ValidateCheckInAsync(
-        Guid organizationId,
-        Guid attendanceId,
-        Guid validatorPersonId,
-        string status,
-        DateTimeOffset validatedAt,
-        CancellationToken cancellationToken = default)
+    public Task<AttendanceRecord?> ValidateCheckInAsync(Guid organizationId, Guid attendanceId, Guid validatorPersonId, string status, DateTimeOffset validatedAt, CancellationToken cancellationToken = default)
     {
-        var record = _attendance.FirstOrDefault(item => item.OrganizationId == organizationId
-            && item.Id == attendanceId
-            && item.Status == "pending_confirmation");
+        var record = _attendance.FirstOrDefault(item => item.OrganizationId == organizationId && item.Id == attendanceId && item.Status == "pending_confirmation");
         if (record is null)
         {
             return Task.FromResult<AttendanceRecord?>(null);
@@ -604,18 +454,12 @@ public sealed class InMemoryAttendanceRepository : IAttendanceRepository
         return Task.FromResult<AttendanceRecord?>(record);
     }
 
-    public Task<IReadOnlyList<AttendanceRecord>?> SaveLessonCallAsync(
-        Guid organizationId,
-        Guid lessonId,
-        Guid validatorPersonId,
-        IReadOnlyList<AttendanceRecord> entries,
-        CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<AttendanceRecord>?> SaveLessonCallAsync(Guid organizationId, Guid lessonId, Guid validatorPersonId, IReadOnlyList<AttendanceRecord> entries, CancellationToken cancellationToken = default)
     {
         var savedEntries = new List<AttendanceRecord>(entries.Count);
         foreach (var entry in entries)
         {
-            var existing = _attendance.FirstOrDefault(item => item.OrganizationId == organizationId
-                && item.LessonId == lessonId && item.ClientId == entry.ClientId);
+            var existing = _attendance.FirstOrDefault(item => item.OrganizationId == organizationId && item.LessonId == lessonId && item.ClientId == entry.ClientId);
             if (existing is null)
             {
                 entry.Id = Guid.NewGuid();
@@ -645,7 +489,6 @@ public sealed class InMemoryBillingRepository : IBillingRepository
 {
     private readonly List<Billing> _billing = [];
     private readonly List<Payment> _payments = [];
-
     public Task<Billing> CreateAsync(Billing billing, CancellationToken cancellationToken = default)
     {
         billing.Id = Guid.NewGuid();
@@ -654,21 +497,11 @@ public sealed class InMemoryBillingRepository : IBillingRepository
         return Task.FromResult(billing);
     }
 
-    public Task<IReadOnlyList<Billing>> ListByOrganizationAsync(
-        Guid organizationId,
-        int page,
-        int pageSize,
-        CancellationToken cancellationToken = default,
-        Guid? clientId = null)
+    public Task<IReadOnlyList<Billing>> ListByOrganizationAsync(Guid organizationId, int page, int pageSize, CancellationToken cancellationToken = default, Guid? clientId = null, string? search = null)
     {
         var safePage = page < 1 ? 1 : page;
         var safePageSize = pageSize is < 1 or > 200 ? 50 : pageSize;
-        var items = _billing
-            .Where(record => record.OrganizationId == organizationId && (clientId is null || record.ClientId == clientId))
-            .OrderByDescending(record => record.CreatedAt)
-            .Skip((safePage - 1) * safePageSize)
-            .Take(safePageSize)
-            .ToList();
+        var items = _billing.Where(record => record.OrganizationId == organizationId && (clientId is null || record.ClientId == clientId)).OrderByDescending(record => record.CreatedAt).Skip((safePage - 1) * safePageSize).Take(safePageSize).ToList();
         return Task.FromResult<IReadOnlyList<Billing>>(items);
     }
 
@@ -702,11 +535,7 @@ public sealed class InMemoryBillingRepository : IBillingRepository
         return Task.FromResult(removed);
     }
 
-    public Task<Payment?> RegisterPaymentAsync(
-        Guid organizationId,
-        Guid invoiceId,
-        Payment payment,
-        CancellationToken cancellationToken = default)
+    public Task<Payment?> RegisterPaymentAsync(Guid organizationId, Guid invoiceId, Payment payment, CancellationToken cancellationToken = default)
     {
         var invoice = _billing.FirstOrDefault(item => item.OrganizationId == organizationId && item.Id == invoiceId);
         if (invoice is null || invoice.Status is "canceled" or "exempt" || payment.Amount > invoice.Amount - invoice.PaidAmount)
@@ -725,35 +554,17 @@ public sealed class InMemoryBillingRepository : IBillingRepository
         return Task.FromResult<Payment?>(payment);
     }
 
-    public Task<IReadOnlyList<Payment>> ListPaymentsByOrganizationAsync(
-        Guid organizationId,
-        int page,
-        int pageSize,
-        CancellationToken cancellationToken = default,
-        Guid? clientId = null)
+    public Task<IReadOnlyList<Payment>> ListPaymentsByOrganizationAsync(Guid organizationId, int page, int pageSize, CancellationToken cancellationToken = default, Guid? clientId = null)
     {
         var safePage = page < 1 ? 1 : page;
         var safePageSize = pageSize is < 1 or > 200 ? 50 : pageSize;
-        IReadOnlyList<Payment> items = _payments
-            .Where(item => item.OrganizationId == organizationId
-                && (clientId is null || _billing.Any(invoice => invoice.OrganizationId == organizationId
-                    && invoice.Id == item.InvoiceId && invoice.ClientId == clientId)))
-            .OrderByDescending(item => item.PaidAt)
-            .Skip((safePage - 1) * safePageSize)
-            .Take(safePageSize)
-            .ToList();
+        IReadOnlyList<Payment> items = _payments.Where(item => item.OrganizationId == organizationId && (clientId is null || _billing.Any(invoice => invoice.OrganizationId == organizationId && invoice.Id == item.InvoiceId && invoice.ClientId == clientId))).OrderByDescending(item => item.PaidAt).Skip((safePage - 1) * safePageSize).Take(safePageSize).ToList();
         return Task.FromResult(items);
     }
 
-    public Task<IReadOnlyList<Payment>> ListPaymentsByInvoiceAsync(
-        Guid organizationId,
-        Guid invoiceId,
-        CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<Payment>> ListPaymentsByInvoiceAsync(Guid organizationId, Guid invoiceId, CancellationToken cancellationToken = default)
     {
-        IReadOnlyList<Payment> items = _payments
-            .Where(item => item.OrganizationId == organizationId && item.InvoiceId == invoiceId)
-            .OrderByDescending(item => item.PaidAt)
-            .ToList();
+        IReadOnlyList<Payment> items = _payments.Where(item => item.OrganizationId == organizationId && item.InvoiceId == invoiceId).OrderByDescending(item => item.PaidAt).ToList();
         return Task.FromResult(items);
     }
 }
@@ -763,7 +574,6 @@ public sealed class InMemoryBillingCatalogRepository : IBillingCatalogRepository
     private readonly List<BillingPlan> _plans = [];
     private readonly List<ClientPlanSubscription> _subscriptions = [];
     private readonly List<Billing> _invoices = [];
-
     public Task<BillingPlan> CreatePlanAsync(BillingPlan plan, CancellationToken cancellationToken = default)
     {
         plan.Id = Guid.NewGuid();
@@ -776,12 +586,7 @@ public sealed class InMemoryBillingCatalogRepository : IBillingCatalogRepository
     {
         var safePage = page < 1 ? 1 : page;
         var safePageSize = pageSize is < 1 or > 200 ? 50 : pageSize;
-        IReadOnlyList<BillingPlan> plans = _plans
-            .Where(item => item.OrganizationId == organizationId)
-            .OrderBy(item => item.Name)
-            .Skip((safePage - 1) * safePageSize)
-            .Take(safePageSize)
-            .ToList();
+        IReadOnlyList<BillingPlan> plans = _plans.Where(item => item.OrganizationId == organizationId).OrderBy(item => item.Name).Skip((safePage - 1) * safePageSize).Take(safePageSize).ToList();
         return Task.FromResult(plans);
     }
 
@@ -817,8 +622,7 @@ public sealed class InMemoryBillingCatalogRepository : IBillingCatalogRepository
 
     public Task<ClientPlanSubscription?> CreateSubscriptionAsync(ClientPlanSubscription subscription, CancellationToken cancellationToken = default)
     {
-        if (!_plans.Any(item => item.OrganizationId == subscription.OrganizationId && item.Id == subscription.PlanId && item.IsActive)
-            || _subscriptions.Any(item => item.OrganizationId == subscription.OrganizationId && item.ClientId == subscription.ClientId && item.IsActive))
+        if (!_plans.Any(item => item.OrganizationId == subscription.OrganizationId && item.Id == subscription.PlanId && item.IsActive) || _subscriptions.Any(item => item.OrganizationId == subscription.OrganizationId && item.ClientId == subscription.ClientId && item.IsActive))
         {
             return Task.FromResult<ClientPlanSubscription?>(null);
         }
@@ -829,29 +633,17 @@ public sealed class InMemoryBillingCatalogRepository : IBillingCatalogRepository
         return Task.FromResult<ClientPlanSubscription?>(subscription);
     }
 
-    public Task<IReadOnlyList<ClientPlanSubscription>> ListSubscriptionsAsync(
-        Guid organizationId,
-        int page,
-        int pageSize,
-        CancellationToken cancellationToken = default,
-        Guid? clientId = null)
+    public Task<IReadOnlyList<ClientPlanSubscription>> ListSubscriptionsAsync(Guid organizationId, int page, int pageSize, CancellationToken cancellationToken = default, Guid? clientId = null)
     {
         var safePage = page < 1 ? 1 : page;
         var safePageSize = pageSize is < 1 or > 200 ? 50 : pageSize;
-        IReadOnlyList<ClientPlanSubscription> subscriptions = _subscriptions
-            .Where(item => item.OrganizationId == organizationId && (clientId is null || item.ClientId == clientId))
-            .OrderByDescending(item => item.IsActive)
-            .ThenByDescending(item => item.StartsAt)
-            .Skip((safePage - 1) * safePageSize)
-            .Take(safePageSize)
-            .ToList();
+        IReadOnlyList<ClientPlanSubscription> subscriptions = _subscriptions.Where(item => item.OrganizationId == organizationId && (clientId is null || item.ClientId == clientId)).OrderByDescending(item => item.IsActive).ThenByDescending(item => item.StartsAt).Skip((safePage - 1) * safePageSize).Take(safePageSize).ToList();
         return Task.FromResult(subscriptions);
     }
 
     public Task<ClientPlanSubscription?> CancelSubscriptionAsync(Guid organizationId, Guid subscriptionId, DateOnly endsAt, CancellationToken cancellationToken = default)
     {
-        var subscription = _subscriptions.FirstOrDefault(item => item.OrganizationId == organizationId && item.Id == subscriptionId
-            && item.IsActive && endsAt >= item.StartsAt);
+        var subscription = _subscriptions.FirstOrDefault(item => item.OrganizationId == organizationId && item.Id == subscriptionId && item.IsActive && endsAt >= item.StartsAt);
         if (subscription is null)
         {
             return Task.FromResult<ClientPlanSubscription?>(null);
@@ -865,8 +657,7 @@ public sealed class InMemoryBillingCatalogRepository : IBillingCatalogRepository
 
     public Task<IReadOnlyList<Billing>?> GenerateInvoicesAsync(Guid organizationId, DateOnly referenceMonth, CancellationToken cancellationToken = default)
     {
-        var monthSubscriptions = _subscriptions.Where(item => item.OrganizationId == organizationId && item.IsActive
-            && item.StartsAt < referenceMonth.AddMonths(1) && (item.EndsAt is null || item.EndsAt >= referenceMonth));
+        var monthSubscriptions = _subscriptions.Where(item => item.OrganizationId == organizationId && item.IsActive && item.StartsAt < referenceMonth.AddMonths(1) && (item.EndsAt is null || item.EndsAt >= referenceMonth));
         var invoices = new List<Billing>();
         foreach (var subscription in monthSubscriptions)
         {

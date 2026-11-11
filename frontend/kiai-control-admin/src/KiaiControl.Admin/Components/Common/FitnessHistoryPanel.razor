@@ -1,0 +1,18 @@
+@inject AdminApiClient Api
+@if(_error is not null){<MudAlert Severity="Severity.Error">@_error</MudAlert>}
+<MudTable Items="_records" Dense="true">
+<HeaderContent>
+<MudTh>Data</MudTh>
+<MudTh>Registro</MudTh>
+<MudTh>Observação</MudTh>
+</HeaderContent>
+<RowTemplate>
+<MudTd>@context.RecordedAt.ToLocalTime().ToString("dd/MM/yyyy")</MudTd>
+<MudTd>@context.RecordedValue.ToString("0.##")</MudTd>
+<MudTd>@context.Notes</MudTd>
+</RowTemplate>
+<NoRecordsContent>
+<MudText Class="pa-3">Ainda não há registros de progresso.</MudText>
+</NoRecordsContent>
+</MudTable>
+<PageControls Page="_page" HasNext="@(_records.Count==20)" Changed="PageAsync" />

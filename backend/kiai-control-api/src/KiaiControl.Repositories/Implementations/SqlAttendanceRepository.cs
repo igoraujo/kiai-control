@@ -4,67 +4,34 @@ using KiaiControl.Core.Interfaces;
 using KiaiControl.Repositories.Queries.Attendance;
 
 namespace KiaiControl.Repositories.Implementations;
-
 public sealed class SqlAttendanceRepository(IDbConnectionFactory dbConnectionFactory) : IAttendanceRepository
 {
     public async Task<AttendanceRecord> CreateAsync(AttendanceRecord attendance, CancellationToken cancellationToken = default)
     {
         attendance.Id = Guid.NewGuid();
         attendance.CreatedAt = DateTimeOffset.UtcNow;
-
         using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
         var created = await connection.QuerySingleAsync<AttendanceRecord>(AttendanceQueries.Insert, attendance);
         return created;
     }
 
-    public async Task<AttendanceRecord?> CreateCheckInAsync(
-        Guid organizationId,
-        Guid personId,
-        Guid lessonId,
-        DateTimeOffset checkedInAt,
-        CancellationToken cancellationToken = default)
+    public async Task<AttendanceRecord?> CreateCheckInAsync(Guid organizationId, Guid personId, Guid lessonId, DateTimeOffset checkedInAt, CancellationToken cancellationToken = default)
     {
         using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
-        return await connection.QuerySingleOrDefaultAsync<AttendanceRecord>(AttendanceQueries.CreateCheckIn, new
-        {
-            Id = Guid.NewGuid(),
-            OrganizationId = organizationId,
-            PersonId = personId,
-            LessonId = lessonId,
-            CheckedInAt = checkedInAt,
-            CreatedAt = checkedInAt
-        });
+        return await connection.QuerySingleOrDefaultAsync<AttendanceRecord>(AttendanceQueries.CreateCheckIn, new { Id = Guid.NewGuid(), OrganizationId = organizationId, PersonId = personId, LessonId = lessonId, CheckedInAt = checkedInAt, CreatedAt = checkedInAt });
     }
 
-    public async Task<IReadOnlyList<AttendanceRecord>> ListClientCheckInsAsync(
-        Guid organizationId,
-        Guid clientId,
-        DateTimeOffset from,
-        DateTimeOffset to,
-        CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<AttendanceRecord>> ListClientCheckInsAsync(Guid organizationId, Guid clientId, DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default)
     {
         using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
-        var records = await connection.QueryAsync<AttendanceRecord>(
-            AttendanceQueries.ListClientCheckIns,
-            new { OrganizationId = organizationId, ClientId = clientId, From = from, To = to });
+        var records = await connection.QueryAsync<AttendanceRecord>(AttendanceQueries.ListClientCheckIns, new { OrganizationId = organizationId, ClientId = clientId, From = from, To = to });
         return records.ToList();
     }
 
-    public async Task<bool> CancelClientCheckInAsync(
-        Guid organizationId,
-        Guid personId,
-        Guid lessonId,
-        DateTimeOffset cancelledAt,
-        CancellationToken cancellationToken = default)
+    public async Task<bool> CancelClientCheckInAsync(Guid organizationId, Guid personId, Guid lessonId, DateTimeOffset cancelledAt, CancellationToken cancellationToken = default)
     {
         using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
-        var affected = await connection.ExecuteAsync(AttendanceQueries.CancelClientCheckIn, new
-        {
-            OrganizationId = organizationId,
-            PersonId = personId,
-            LessonId = lessonId,
-            CancelledAt = cancelledAt
-        });
+        var affected = await connection.ExecuteAsync(AttendanceQueries.CancelClientCheckIn, new { OrganizationId = organizationId, PersonId = personId, LessonId = lessonId, CancelledAt = cancelledAt });
         return affected > 0;
     }
 
@@ -78,7 +45,6 @@ public sealed class SqlAttendanceRepository(IDbConnectionFactory dbConnectionFac
             Offset = (safePage - 1) * safePageSize,
             PageSize = safePageSize
         };
-
         using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
         var items = await connection.QueryAsync<AttendanceRecord>(AttendanceQueries.ListByOrganization, parameters);
         return items.ToList();
@@ -93,7 +59,6 @@ public sealed class SqlAttendanceRepository(IDbConnectionFactory dbConnectionFac
     public async Task<AttendanceRecord?> UpdateAsync(AttendanceRecord attendance, CancellationToken cancellationToken = default)
     {
         attendance.UpdatedAt = DateTimeOffset.UtcNow;
-
         using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
         return await connection.QuerySingleOrDefaultAsync<AttendanceRecord>(AttendanceQueries.Update, attendance);
     }
@@ -105,81 +70,40 @@ public sealed class SqlAttendanceRepository(IDbConnectionFactory dbConnectionFac
         return affected > 0;
     }
 
-    public async Task<IReadOnlyList<AttendanceRecord>> ListByLessonAsync(
-        Guid organizationId,
-        Guid lessonId,
-        CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<AttendanceRecord>> ListByLessonAsync(Guid organizationId, Guid lessonId, CancellationToken cancellationToken = default)
     {
         using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
-        var entries = await connection.QueryAsync<AttendanceRecord>(
-            AttendanceQueries.ListByLesson,
-            new { OrganizationId = organizationId, LessonId = lessonId });
+        var entries = await connection.QueryAsync<AttendanceRecord>(AttendanceQueries.ListByLesson, new { OrganizationId = organizationId, LessonId = lessonId });
         return entries.ToList();
     }
 
-    public async Task<IReadOnlyList<EligibleAttendanceClient>> ListEligibleClientsByLessonAsync(
-        Guid organizationId,
-        Guid lessonId,
-        CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<EligibleAttendanceClient>> ListEligibleClientsByLessonAsync(Guid organizationId, Guid lessonId, CancellationToken cancellationToken = default)
     {
         using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
-        var clients = await connection.QueryAsync<EligibleAttendanceClient>(
-            AttendanceQueries.ListEligibleClientsByLesson,
-            new { OrganizationId = organizationId, LessonId = lessonId });
+        var clients = await connection.QueryAsync<EligibleAttendanceClient>(AttendanceQueries.ListEligibleClientsByLesson, new { OrganizationId = organizationId, LessonId = lessonId });
         return clients.ToList();
     }
 
-    public async Task<IReadOnlyList<AttendanceRecord>> ListPendingByOrganizationAsync(
-        Guid organizationId,
-        int page,
-        int pageSize,
-        CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<AttendanceRecord>> ListPendingByOrganizationAsync(Guid organizationId, int page, int pageSize, CancellationToken cancellationToken = default, Guid? teacherId = null)
     {
         var safePage = page < 1 ? 1 : page;
         var safePageSize = pageSize is < 1 or > 200 ? 50 : pageSize;
         using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
-        var entries = await connection.QueryAsync<AttendanceRecord>(AttendanceQueries.ListPendingByOrganization, new
-        {
-            OrganizationId = organizationId,
-            Offset = (safePage - 1) * safePageSize,
-            PageSize = safePageSize
-        });
+        var entries = await connection.QueryAsync<AttendanceRecord>(AttendanceQueries.ListPendingByOrganization, new { OrganizationId = organizationId, TeacherId = teacherId, Offset = (safePage - 1) * safePageSize, PageSize = safePageSize });
         return entries.ToList();
     }
 
-    public async Task<AttendanceRecord?> ValidateCheckInAsync(
-        Guid organizationId,
-        Guid attendanceId,
-        Guid validatorPersonId,
-        string status,
-        DateTimeOffset validatedAt,
-        CancellationToken cancellationToken = default)
+    public async Task<AttendanceRecord?> ValidateCheckInAsync(Guid organizationId, Guid attendanceId, Guid validatorPersonId, string status, DateTimeOffset validatedAt, CancellationToken cancellationToken = default)
     {
         using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
-        return await connection.QuerySingleOrDefaultAsync<AttendanceRecord>(AttendanceQueries.ValidateCheckIn, new
-        {
-            OrganizationId = organizationId,
-            AttendanceId = attendanceId,
-            ValidatedByPersonId = validatorPersonId,
-            Status = status,
-            ValidatedAt = validatedAt
-        });
+        return await connection.QuerySingleOrDefaultAsync<AttendanceRecord>(AttendanceQueries.ValidateCheckIn, new { OrganizationId = organizationId, AttendanceId = attendanceId, ValidatedByPersonId = validatorPersonId, Status = status, ValidatedAt = validatedAt });
     }
 
-    public async Task<IReadOnlyList<AttendanceRecord>?> SaveLessonCallAsync(
-        Guid organizationId,
-        Guid lessonId,
-        Guid validatorPersonId,
-        IReadOnlyList<AttendanceRecord> entries,
-        CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<AttendanceRecord>?> SaveLessonCallAsync(Guid organizationId, Guid lessonId, Guid validatorPersonId, IReadOnlyList<AttendanceRecord> entries, CancellationToken cancellationToken = default)
     {
         using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
         using var transaction = connection.BeginTransaction();
-
-        var classGroupId = await connection.QuerySingleOrDefaultAsync<Guid?>(
-            AttendanceQueries.LockLessonForCall,
-            new { OrganizationId = organizationId, LessonId = lessonId },
-            transaction);
+        var classGroupId = await connection.QuerySingleOrDefaultAsync<Guid?>(AttendanceQueries.LockLessonForCall, new { OrganizationId = organizationId, LessonId = lessonId }, transaction);
         if (classGroupId is null)
         {
             return null;
@@ -194,11 +118,7 @@ public sealed class SqlAttendanceRepository(IDbConnectionFactory dbConnectionFac
             entry.CreatedAt = DateTimeOffset.UtcNow;
             entry.ValidatedAt = entry.CreatedAt;
             entry.ValidatedByPersonId = validatorPersonId;
-
-            var saved = await connection.QuerySingleOrDefaultAsync<AttendanceRecord>(
-                AttendanceQueries.UpsertCallEntry,
-                entry,
-                transaction);
+            var saved = await connection.QuerySingleOrDefaultAsync<AttendanceRecord>(AttendanceQueries.UpsertCallEntry, entry, transaction);
             if (saved is null)
             {
                 return null;

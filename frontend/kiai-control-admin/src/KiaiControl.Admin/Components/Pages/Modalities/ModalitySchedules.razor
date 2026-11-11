@@ -147,8 +147,8 @@
         {
             var modalityTask = Api.GetAsync<ModalityResponse>($"modalities/{ModalityId}");
             var schedulesTask = Api.GetAsync<List<ModalityScheduleResponse>>($"modalities/{ModalityId}/schedules");
-            var branchesTask = Api.ListAsync<BranchResponse>("branches", pageSize: 200);
-            var teachersTask = Api.ListAsync<TeacherResponse>("teachers", pageSize: 200);
+            var branchesTask = Api.AllAsync<BranchResponse>("branches");
+            var teachersTask = Api.AllAsync<TeacherResponse>("teachers");
             await Task.WhenAll(modalityTask, schedulesTask, branchesTask, teachersTask);
             _modality = await modalityTask;
             _schedules = await schedulesTask;

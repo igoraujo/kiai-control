@@ -9,18 +9,19 @@
             <MudText Typo="Typo.h4">Professores</MudText>
             <MudText Typo="Typo.body2" Color="Color.Secondary">Cadastro de professores e instrutores</MudText>
         </div>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="() => EditAsync(null)">Novo professor</MudButton>
+        @if(CanManage){<MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="() => EditAsync(null)">Novo professor</MudButton>}
     </MudStack>
+
+    <WorkspaceAreaSelector Path="/teachers" Value="@SelectedArea" />
 
     @if (ErrorMessage is not null)
     {
-        <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">@ErrorMessage</MudAlert>
+        <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">@ErrorMessage <MudButton OnClick="LoadAsync" Size="Size.Small">Tentar novamente</MudButton></MudAlert>
     }
 
-    <MudTable Items="Items" Loading="IsLoading" Hover="true" Dense="true"
-              Filter="@(new Func<TeacherResponse, bool>(MatchesSearch))">
+    <MudTable @ref="Table" ServerData="LoadServerData" RowsPerPage="25" Hover="true" Dense="true" Breakpoint="Breakpoint.Sm">
         <ToolBarContent>
-            <MudTextField @bind-Value="Search" Placeholder="Nome, email, documento ou telefone" Adornment="Adornment.Start"
+            <MudTextField T="string" Value="Search" ValueChanged="SearchAsync" DebounceInterval="300" Placeholder="Nome, email, documento ou telefone" Adornment="Adornment.Start"
                           AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Margin="Margin.Dense" />
         </ToolBarContent>
         <HeaderContent>
@@ -32,30 +33,31 @@
             <MudTh Style="text-align:right">Ações</MudTh>
         </HeaderContent>
         <RowTemplate>
-            <MudTd>
+            <MudTd DataLabel="Nome">
                 <MudText Typo="Typo.body2">@context.FullName</MudText>
                 @if (!string.IsNullOrWhiteSpace(context.PreferredName))
                 {
                     <MudText Typo="Typo.caption" Color="Color.Secondary">@context.PreferredName</MudText>
                 }
             </MudTd>
-            <MudTd>
+            <MudTd DataLabel="Contato">
                 <MudText Typo="Typo.body2">@context.Email</MudText>
                 <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Phone</MudText>
             </MudTd>
-            <MudTd>@_branches.FirstOrDefault(b => b.Id == context.BranchId)?.Name</MudTd>
-            <MudTd><MudChip T="string" Size="Size.Small" Color="PersonStatus.Color(context.Status)">@PersonStatus.Label(context.Status)</MudChip></MudTd>
-            <MudTd>@(context.ActiveFrom?.ToString("dd/MM/yyyy") ?? "-")</MudTd>
-            <MudTd Style="text-align:right">
-                <MudIconButton Icon="@Icons.Material.Filled.CalendarMonth" Size="Size.Small"
-                               aria-label="Agenda e horários do professor" OnClick="() => OpenJourneyAsync(context)" />
-                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" aria-label="Editar" OnClick="() => EditAsync(context)" />
-                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" aria-label="Excluir" OnClick="() => DeleteAsync(context.Id, context.FullName)" />
+            <MudTd DataLabel="Unidade">@_branches.FirstOrDefault(b => b.Id == context.BranchId)?.Name</MudTd>
+            <MudTd DataLabel="Situação"><MudChip T="string" Size="Size.Small" Color="PersonStatus.Color(context.Status)">@PersonStatus.Label(context.Status)</MudChip></MudTd>
+            <MudTd DataLabel="Atuação">@(context.ActiveFrom?.ToString("dd/MM/yyyy") ?? "-")</MudTd>
+            <MudTd DataLabel="Ações" Style="text-align:right">
+                @if(CanManage){<MudIconButton Icon="@Icons.Material.Filled.CalendarMonth" Size="Size.Small"
+                               aria-label="Agenda e horários do professor" OnClick="() => OpenJourneyAsync(context)" />}
+                @if(CanManage){<MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" aria-label="Editar" OnClick="() => EditAsync(context)" />}
+                @if(CanManage){<MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" aria-label="Excluir" OnClick="() => DeleteAsync(context.Id, context.FullName)" />}
             </MudTd>
         </RowTemplate>
         <NoRecordsContent>
             <MudText>Nenhum professor encontrado.</MudText>
         </NoRecordsContent>
+        <PagerContent><MudTablePager PageSizeOptions="new int[] { 10, 25, 50, 100 }" RowsPerPageString="Registros por página" InfoFormat="{first_item}-{last_item} de {all_items}" /></PagerContent>
     </MudTable>
 </MudStack>
 
@@ -68,7 +70,7 @@
     {
         try
         {
-            _branches = await Api.ListAsync<BranchResponse>("branches");
+            _branches = await Api.BranchOptionsAsync("teachers");
         }
         catch (UnauthorizedAccessException)
         {
@@ -104,7 +106,7 @@
     {
         try
         {
-            var modalities = await Api.ListAsync<ModalityResponse>("modalities", pageSize: 200);
+            var modalities = await Api.AllAsync<ModalityResponse>("modalities");
             await DialogService.ShowAsync<TeacherJourneyDialog>(
                 $"Jornada de {teacher.FullName}",
                 new DialogParameters<TeacherJourneyDialog>

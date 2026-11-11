@@ -1,5 +1,6 @@
 using System.Net.Mail;
 using KiaiControl.Contracts.Organizations;
+using KiaiControl.Contracts.Auth;
 using KiaiControl.Core.Entities;
 using KiaiControl.Core.Interfaces;
 
@@ -15,9 +16,9 @@ public sealed class OrganizationUseCase(IOrganizationRepository organizationRepo
         ValidatePersonName(request.OwnerFullName);
         ValidateEmail(request.OwnerEmail, "OwnerEmail");
 
-        if (request.OwnerPassword.Length < 12)
+        if (!PasswordPolicy.IsValid(request.OwnerPassword))
         {
-            throw new ArgumentException(SystemMessages.OwnerPasswordMustHaveAtLeast12Characters);
+            throw new ArgumentException(PasswordPolicy.Requirements);
         }
 
         var organization = await organizationRepository.RegisterAsync(

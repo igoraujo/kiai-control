@@ -5,14 +5,9 @@ using KiaiControl.Core.Entities;
 using KiaiControl.Core.Interfaces;
 
 namespace KiaiControl.UseCases.Auth;
-
-public sealed class AuthUseCase(
-    IAuthRepository authRepository,
-    IPasswordHasher passwordHasher,
-    IAuthTokenService authTokenService)
+public sealed class AuthUseCase(IAuthRepository authRepository, IPasswordHasher passwordHasher, IAuthTokenService authTokenService, IPasswordRecoveryDelivery? recoveryDelivery = null)
 {
     private const int PasswordResetExpirationMinutes = 30;
-
     public async Task<SessionTokenResponse> LoginAsync(LoginRequest request, string? ipAddress, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
@@ -45,7 +40,6 @@ public sealed class AuthUseCase(
         var now = DateTimeOffset.UtcNow;
         var refreshTokenHash = ComputeSha256(refreshToken);
         var currentSession = await authRepository.GetSessionByTokenHashAsync(refreshTokenHash, cancellationToken);
-
         if (currentSession is null || currentSession.RevokedAt.HasValue || currentSession.ExpiresAt <= now)
         {
             throw new UnauthorizedAccessException(SystemMessages.InvalidRefreshToken);
@@ -59,7 +53,6 @@ public sealed class AuthUseCase(
 
         var refreshedSession = await IssueSessionAsync(user, ipAddress, cancellationToken);
         await authRepository.ReplaceSessionAsync(currentSession.Id, refreshedSession.SessionId, now, cancellationToken);
-
         return refreshedSession.Response;
     }
 
@@ -86,9 +79,9 @@ public sealed class AuthUseCase(
             throw new ArgumentException(SystemMessages.CurrentPasswordAndNewPasswordAreRequired);
         }
 
-        if (request.NewPassword.Length < 8)
+        if (!PasswordPolicy.IsValid(request.NewPassword))
         {
-            throw new ArgumentException(SystemMessages.NewPasswordMustHaveAtLeast8Characters);
+            throw new ArgumentException(PasswordPolicy.Requirements);
         }
 
         var user = await authRepository.GetByIdAsync(userId, cancellationToken);
@@ -105,7 +98,6 @@ public sealed class AuthUseCase(
         var now = DateTimeOffset.UtcNow;
         var newPasswordHash = passwordHasher.Hash(request.NewPassword);
         var updated = await authRepository.UpdatePasswordHashAsync(userId, newPasswordHash, now, cancellationToken);
-
         if (!updated)
         {
             throw new InvalidOperationException(SystemMessages.CouldNotUpdatePassword);
@@ -153,7 +145,7 @@ public sealed class AuthUseCase(
         {
             return new ForgotPasswordResponse
             {
-                Message = "If the e-mail exists, recovery instructions will be sent."
+                Message = "Se o e-mail estiver cadastrado e a entrega estiver habilitada, você receberá as instruções. Você também pode solicitar uma nova senha à academia."
             };
         }
 
@@ -161,19 +153,12 @@ public sealed class AuthUseCase(
         var rawToken = authTokenService.CreateRefreshToken();
         var tokenHash = ComputeSha256(rawToken);
         var expiresAt = now.AddMinutes(PasswordResetExpirationMinutes);
-
-        await authRepository.CreatePasswordResetTokenAsync(new AuthPasswordResetToken
-        {
-            UserId = user.Id,
-            TokenHash = tokenHash,
-            ExpiresAt = expiresAt,
-            CreatedAt = now,
-            CreatedByIp = ipAddress
-        }, cancellationToken);
-
+        await authRepository.CreatePasswordResetTokenAsync(new AuthPasswordResetToken { UserId = user.Id, TokenHash = tokenHash, ExpiresAt = expiresAt, CreatedAt = now, CreatedByIp = ipAddress }, cancellationToken);
+        if (recoveryDelivery?.IsConfigured == true)
+            await recoveryDelivery.SendAsync(user.Email, rawToken, cancellationToken);
         return new ForgotPasswordResponse
         {
-            Message = "If the e-mail exists, recovery instructions will be sent."
+            Message = "Se o e-mail estiver cadastrado e a entrega estiver habilitada, você receberá as instruções. Você também pode solicitar uma nova senha à academia."
         };
     }
 
@@ -184,15 +169,14 @@ public sealed class AuthUseCase(
             throw new ArgumentException(SystemMessages.TokenAndNewPasswordAreRequired);
         }
 
-        if (request.NewPassword.Length < 8)
+        if (!PasswordPolicy.IsValid(request.NewPassword))
         {
-            throw new ArgumentException(SystemMessages.NewPasswordMustHaveAtLeast8Characters);
+            throw new ArgumentException(PasswordPolicy.Requirements);
         }
 
         var now = DateTimeOffset.UtcNow;
         var tokenHash = ComputeSha256(request.Token);
         var resetToken = await authRepository.GetPasswordResetTokenByTokenHashAsync(tokenHash, cancellationToken);
-
         if (resetToken is null || resetToken.RevokedAt.HasValue || resetToken.UsedAt.HasValue || resetToken.ExpiresAt <= now)
         {
             throw new UnauthorizedAccessException(SystemMessages.InvalidResetToken);
@@ -206,7 +190,6 @@ public sealed class AuthUseCase(
 
         var newPasswordHash = passwordHasher.Hash(request.NewPassword);
         var updated = await authRepository.UpdatePasswordHashAsync(user.Id, newPasswordHash, now, cancellationToken);
-
         if (!updated)
         {
             throw new InvalidOperationException(SystemMessages.CouldNotUpdatePassword);
@@ -215,7 +198,6 @@ public sealed class AuthUseCase(
         _ = await authRepository.MarkPasswordResetTokenAsUsedAsync(resetToken.Id, now, cancellationToken);
         _ = await authRepository.RevokePasswordResetTokensByUserIdAsync(user.Id, now, cancellationToken);
         _ = await authRepository.RevokeSessionsByUserIdAsync(user.Id, now, cancellationToken);
-
         return new SimpleMessageResponse
         {
             Message = "Password changed successfully."
@@ -226,11 +208,9 @@ public sealed class AuthUseCase(
     {
         var now = DateTimeOffset.UtcNow;
         var accessToken = authTokenService.CreateAccessToken(user, now);
-
         var refreshToken = authTokenService.CreateRefreshToken();
         var refreshTokenHash = ComputeSha256(refreshToken);
         var refreshTokenExpiresAt = authTokenService.GetRefreshTokenExpiration(now);
-
         var session = new AuthSession
         {
             UserId = user.Id,
@@ -239,9 +219,7 @@ public sealed class AuthUseCase(
             CreatedAt = now,
             CreatedByIp = ipAddress
         };
-
         var createdSession = await authRepository.CreateSessionAsync(session, cancellationToken);
-
         var response = new SessionTokenResponse
         {
             AccessToken = accessToken.Token,
@@ -259,7 +237,6 @@ public sealed class AuthUseCase(
                 MustChangePassword = user.MustChangePassword
             }
         };
-
         return (response, createdSession.Id);
     }
 

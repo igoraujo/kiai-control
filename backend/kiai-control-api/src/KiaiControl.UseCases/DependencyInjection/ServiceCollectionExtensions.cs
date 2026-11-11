@@ -16,14 +16,16 @@ using KiaiControl.UseCases.Teachers;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace KiaiControl.UseCases.DependencyInjection;
-
 public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddKiaiUseCases(this IServiceCollection services)
     {
         services.AddScoped<AuthUseCase>();
+        services.AddScoped<KiaiControl.UseCases.Administration.AdministrationUseCase>();
+        services.AddScoped<KiaiControl.UseCases.Catalog.CatalogUseCase>();
         services.AddScoped<AccessControlUseCase>();
         services.AddScoped<ClientUseCase>();
+        services.AddScoped<ClientJourneyUseCase>();
         services.AddScoped<TeacherUseCase>();
         services.AddScoped<ModalityUseCase>();
         services.AddScoped<ModalityScheduleUseCase>();
@@ -39,7 +41,6 @@ public static class ServiceCollectionExtensions
         services.AddScoped<FitnessUseCase>();
         services.AddScoped<RankingUseCase>();
         services.AddScoped<ReportUseCase>();
-
         return services;
     }
 }

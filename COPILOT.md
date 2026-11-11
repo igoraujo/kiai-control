@@ -51,6 +51,8 @@ Evitar DTOs genéricos desnecessários.
 
 - Utilizar Dapper
 - SQL explícito
+- Queries completas em `const string`, com indentação no padrão de `BranchQueries`.
+- Valores de busca, filtros e paginação devem ser enviados separadamente por parâmetros nomeados do Dapper; não montar SQL com concatenação, interpolação, `Replace` ou `Split`.
 - Sem Entity Framework
 
 ## Entidades

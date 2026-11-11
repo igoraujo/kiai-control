@@ -3,82 +3,48 @@ using KiaiControl.Core.Entities;
 using KiaiControl.Core.Interfaces;
 
 namespace KiaiControl.UseCases.Fitness;
-
 public sealed class FitnessUseCase(IProgressionRepository repository)
 {
     private static readonly string[] AllowedTypes = ["training_days", "attendance_rate", "load", "body_measurement", "weight", "conditioning", "score", "category", "custom"];
-
-    public async Task<FitnessGoalResponse?> CreateAsync(
-        Guid organizationId,
-        CreateFitnessGoalRequest request,
-        CancellationToken cancellationToken)
+    public async Task<FitnessGoalResponse?> CreateAsync(Guid organizationId, CreateFitnessGoalRequest request, CancellationToken cancellationToken)
     {
         if (organizationId == Guid.Empty || request.ClientId == Guid.Empty)
         {
             throw new ArgumentException(SystemMessages.OrganizationIdAndClientIdAreRequired);
         }
 
-        if (string.IsNullOrWhiteSpace(request.Title) || request.Title.Trim().Length > 160
-            || request.Description?.Length > 5000 || request.TargetValue <= 0
-            || request.StartsAt == default || request.DueDate < request.StartsAt
-            || request.Unit?.Length > 30)
+        if (string.IsNullOrWhiteSpace(request.Title) || request.Title.Trim().Length > 160 || request.Description?.Length > 5000 || request.TargetValue <= 0 || request.StartsAt == default || request.DueDate < request.StartsAt || request.Unit?.Length > 30)
         {
             throw new ArgumentException(SystemMessages.FitnessGoalFieldsAreInvalid);
         }
 
+        if (request.Direction is not ("increase" or "decrease") || request.InitialValue < 0 || (request.Direction == "decrease" && request.InitialValue <= request.TargetValue))
+            throw new ArgumentException("Para metas de redução, informe um valor inicial maior que o alvo.");
         var goalType = AllowedTypes.FirstOrDefault(type => string.Equals(type, request.GoalType.Trim(), StringComparison.OrdinalIgnoreCase));
         if (goalType is null)
         {
             throw new ArgumentException(SystemMessages.GoalTypeIsNotSupported);
         }
 
-        var goal = await repository.CreateFitnessGoalAsync(new FitnessGoal
-        {
-            OrganizationId = organizationId,
-            ClientId = request.ClientId,
-            ModalityId = request.ModalityId,
-            Title = request.Title.Trim(),
-            Description = Normalize(request.Description),
-            GoalType = goalType,
-            TargetValue = request.TargetValue,
-            Unit = Normalize(request.Unit),
-            StartsAt = request.StartsAt,
-            DueDate = request.DueDate
-        }, cancellationToken);
+        var goal = await repository.CreateFitnessGoalAsync(new FitnessGoal { OrganizationId = organizationId, ClientId = request.ClientId, ModalityId = request.ModalityId, Title = request.Title.Trim(), Description = Normalize(request.Description), GoalType = goalType, TargetValue = request.TargetValue, Direction = request.Direction, InitialValue = request.InitialValue, Unit = Normalize(request.Unit), StartsAt = request.StartsAt, DueDate = request.DueDate }, cancellationToken);
         return goal is null ? null : ToResponse(goal);
     }
 
-    public async Task<IReadOnlyList<FitnessGoalResponse>> ListAsync(
-        Guid organizationId,
-        Guid? clientId,
-        int page,
-        int pageSize,
-        CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<FitnessGoalResponse>> ListAsync(Guid organizationId, Guid? clientId, int page, int pageSize, CancellationToken cancellationToken, string? area = null)
     {
         EnsureOrganization(organizationId);
-        var goals = await repository.ListFitnessGoalsAsync(organizationId, clientId, page, pageSize, cancellationToken);
+        var goals = await repository.ListFitnessGoalsAsync(organizationId, clientId, page, pageSize, cancellationToken, KiaiControl.Contracts.Common.AcademyArea.Normalize(area));
         return goals.Select(ToResponse).ToList();
     }
 
-    public async Task<FitnessProgressResponse?> RecordProgressAsync(
-        Guid organizationId,
-        Guid goalId,
-        Guid? actorPersonId,
-        RecordFitnessProgressRequest request,
-        CancellationToken cancellationToken)
+    public async Task<FitnessProgressResponse?> RecordProgressAsync(Guid organizationId, Guid goalId, Guid? actorPersonId, RecordFitnessProgressRequest request, CancellationToken cancellationToken)
     {
         if (organizationId == Guid.Empty || goalId == Guid.Empty || request.RecordedValue < 0 || request.Notes?.Length > 255)
         {
             throw new ArgumentException(SystemMessages.ProgressRecordFieldsAreInvalid);
         }
 
-        var record = await repository.RecordFitnessProgressAsync(organizationId, new FitnessProgressRecord
-        {
-            FitnessGoalId = goalId,
-            RecordedValue = request.RecordedValue,
-            Notes = Normalize(request.Notes),
-            CreatedByPersonId = actorPersonId
-        }, cancellationToken);
+        var record = await repository.RecordFitnessProgressAsync(organizationId, new FitnessProgressRecord { FitnessGoalId = goalId, RecordedValue = request.RecordedValue, Notes = Normalize(request.Notes), CreatedByPersonId = actorPersonId }, cancellationToken);
         return record is null ? null : new FitnessProgressResponse
         {
             Id = record.Id,
@@ -90,29 +56,15 @@ public sealed class FitnessUseCase(IProgressionRepository repository)
         };
     }
 
-    public async Task<IReadOnlyList<FitnessProgressResponse>> ListProgressAsync(
-        Guid organizationId,
-        Guid goalId,
-        int page,
-        int pageSize,
-        CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<FitnessProgressResponse>> ListProgressAsync(Guid organizationId, Guid goalId, int page, int pageSize, CancellationToken cancellationToken)
     {
         if (organizationId == Guid.Empty || goalId == Guid.Empty)
         {
             throw new ArgumentException(SystemMessages.OrganizationIdAndGoalIdAreRequired);
         }
 
-        var records = await repository.ListFitnessProgressRecordsAsync(
-            organizationId, goalId, page, pageSize, cancellationToken);
-        return records.Select(record => new FitnessProgressResponse
-        {
-            Id = record.Id,
-            FitnessGoalId = record.FitnessGoalId,
-            RecordedValue = record.RecordedValue,
-            Notes = record.Notes,
-            RecordedAt = record.RecordedAt,
-            CreatedByTeacherId = record.CreatedByTeacherId
-        }).ToList();
+        var records = await repository.ListFitnessProgressRecordsAsync(organizationId, goalId, page, pageSize, cancellationToken);
+        return records.Select(record => new FitnessProgressResponse { Id = record.Id, FitnessGoalId = record.FitnessGoalId, RecordedValue = record.RecordedValue, Notes = record.Notes, RecordedAt = record.RecordedAt, CreatedByTeacherId = record.CreatedByTeacherId }).ToList();
     }
 
     public Task<bool> CancelAsync(Guid organizationId, Guid goalId, CancellationToken cancellationToken)
@@ -154,7 +106,6 @@ public sealed class FitnessUseCase(IProgressionRepository repository)
     }
 
     private static string? Normalize(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-
     private static FitnessGoalResponse ToResponse(FitnessGoal goal) => new()
     {
         Id = goal.Id,
@@ -165,6 +116,8 @@ public sealed class FitnessUseCase(IProgressionRepository repository)
         Description = goal.Description,
         GoalType = goal.GoalType,
         TargetValue = goal.TargetValue,
+        Direction = goal.Direction,
+        InitialValue = goal.InitialValue,
         CurrentValue = goal.CurrentValue,
         Unit = goal.Unit,
         StartsAt = goal.StartsAt,

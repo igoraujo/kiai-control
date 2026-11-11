@@ -9,21 +9,47 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace KiaiControl.Api.Controllers;
-
 [ApiController]
 [Authorize(Roles = "owner,admin,reception")]
 [Authorize(Policy = PermissionCodes.ClientsManage)]
 [Route("api/v1/clients")]
-public sealed class ClientsController(
-    OrganizationContext organizationContext,
-    ClientUseCase clientUseCase,
-    ModalityUseCase modalityUseCase) : ControllerBase
+public sealed class ClientsController(OrganizationContext organizationContext, ClientUseCase clientUseCase, ClientJourneyUseCase journeyUseCase, ModalityUseCase modalityUseCase, KiaiControl.UseCases.Administration.AdministrationUseCase administration) : ControllerBase
 {
+    [HttpGet("people")]
+    public async Task<IActionResult> ExistingPeople(CancellationToken ct)
+    {
+        if(organizationContext.OrganizationId is not Guid org)return Unauthorized();
+        return Ok(await administration.ProfileCandidatesAsync(org,"client",User.IsInRole("owner"),ct));
+    }
+    [HttpPost("people/{personId:guid}/profile")]
+    public async Task<IActionResult> LinkProfile(Guid personId,CancellationToken ct)
+    {
+        if(organizationContext.OrganizationId is not Guid org || !Guid.TryParse(User.FindFirst("sub")?.Value,out var actor))return Unauthorized();
+        if(!await administration.AddProfileAsync(org,personId,"client",actor,ct))return NotFound();
+        return Ok(await clientUseCase.GetByPersonIdAsync(org,personId,ct));
+    }
+
     [AllowAnonymous]
     [HttpGet("status")]
     public ActionResult<ContextStatusResponse> GetStatus()
     {
         return Ok(new ContextStatusResponse("clients", "ready", organizationContext.OrganizationId));
+    }
+
+    [HttpGet("{id:guid}/progress")]
+    public async Task<IActionResult> Progress(Guid id, int page = 1, int pageSize = 20, CancellationToken ct = default)
+    {
+        if (organizationContext.OrganizationId is not Guid org)
+            return Unauthorized();
+        try
+        {
+            var result = await journeyUseCase.GetAsync(org, id, page, pageSize, ct);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (ArgumentException e)
+        {
+            return BadRequest(e.Message);
+        }
     }
 
     [HttpPost]
@@ -40,7 +66,6 @@ public sealed class ClientsController(
         }
 
         request.OrganizationId = organizationId;
-
         try
         {
             var created = await clientUseCase.CreateAsync(request, cancellationToken);
@@ -57,10 +82,7 @@ public sealed class ClientsController(
     }
 
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<ClientResponse>>> ListAsync(
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 50,
-        CancellationToken cancellationToken = default)
+    public async Task<ActionResult<IReadOnlyList<ClientResponse>>> ListAsync([FromQuery] int page = 1, [FromQuery] int pageSize = 50, CancellationToken cancellationToken = default)
     {
         if (organizationContext.OrganizationId is null)
         {
@@ -80,7 +102,6 @@ public sealed class ClientsController(
         }
 
         var client = await clientUseCase.GetByIdAsync(organizationContext.OrganizationId.Value, id, cancellationToken);
-
         return client is null ? NotFound() : Ok(client);
     }
 
@@ -104,7 +125,7 @@ public sealed class ClientsController(
             return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
-        if (await clientUseCase.GetByIdAsync(organizationId, clientId, cancellationToken) is null)
+        if (await clientUseCase.GetByIdAsync(organizationId, clientId, cancellationToken)is null)
         {
             return NotFound();
         }

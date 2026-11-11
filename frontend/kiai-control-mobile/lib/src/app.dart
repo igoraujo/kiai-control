@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'api_client.dart';
 import 'models.dart';
+import 'password_policy.dart';
 
 class KiaiControlApp extends StatefulWidget {
   const KiaiControlApp({super.key});
@@ -1158,10 +1159,15 @@ class _AccountTabState extends State<_AccountTab> {
   }
 
   Future<void> _changePassword() async {
-    if (_currentPassword.text.isEmpty || _newPassword.text.length < 8) {
+    if (_currentPassword.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('A nova senha deve ter ao menos 8 caracteres.')),
+        const SnackBar(content: Text('Informe a senha atual.')),
+      );
+      return;
+    }
+    if (!PasswordPolicy.isValid(_newPassword.text)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text(PasswordPolicy.requirements)),
       );
       return;
     }
@@ -1226,7 +1232,11 @@ class _AccountTabState extends State<_AccountTab> {
               TextField(
                 controller: _newPassword,
                 obscureText: true,
-                decoration: const InputDecoration(labelText: 'Nova senha'),
+                decoration: const InputDecoration(
+                  labelText: 'Nova senha',
+                  helperText: PasswordPolicy.requirements,
+                  helperMaxLines: 4,
+                ),
               ),
               const SizedBox(height: 12),
               FilledButton.tonal(

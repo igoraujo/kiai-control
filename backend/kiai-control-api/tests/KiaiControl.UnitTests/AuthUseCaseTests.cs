@@ -96,11 +96,30 @@ public sealed class AuthUseCaseTests
         await useCase.ChangePasswordAsync(user.Id, new ChangePasswordRequest
         {
             CurrentPassword = "OldPass123",
-            NewPassword = "NewPass456"
+            NewPassword = "Aa!bcd"
         }, CancellationToken.None);
 
-        Assert.Equal("HASH:NewPass456", repository.LastUpdatedPasswordHash);
+        Assert.Equal("HASH:Aa!bcd", repository.LastUpdatedPasswordHash);
         Assert.Equal(user.Id, repository.LastRevokedSessionsUserId);
+    }
+
+    [Theory]
+    [InlineData("Aa!bc")]
+    [InlineData("abc!12")]
+    [InlineData("ABC!12")]
+    [InlineData("Aa1234")]
+    public async Task PasswordChangesAndRecovery_ShouldRejectIncompletePasswordsBeforeChangingCredentials(string password)
+    {
+        var repository = new FakeAuthRepository();
+        var useCase = new AuthUseCase(repository, new FakePasswordHasher(), new FakeAuthTokenService());
+        var changeError = await Assert.ThrowsAsync<ArgumentException>(() => useCase.ChangePasswordAsync(
+            Guid.NewGuid(), new() { CurrentPassword = "current", NewPassword = password }, default));
+        Assert.Equal(PasswordPolicy.Requirements, changeError.Message);
+        var resetError = await Assert.ThrowsAsync<ArgumentException>(() => useCase.ResetPasswordAsync(
+            new() { Token = "token", NewPassword = password }, default));
+        Assert.Equal(PasswordPolicy.Requirements, resetError.Message);
+        Assert.Null(repository.LastUpdatedPasswordHash);
+        Assert.Null(repository.LastRevokedSessionsUserId);
     }
 
     [Fact]

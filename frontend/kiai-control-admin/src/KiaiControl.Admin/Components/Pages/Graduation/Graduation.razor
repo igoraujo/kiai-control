@@ -354,7 +354,7 @@
         try
         {
             var systemsTask = Api.ListGraduationSystemsAsync();
-            var optionsTask = Api.GetGraduationOptionsAsync();
+            var optionsTask = Api.GetGraduationOptionsAsync("fight");
             await Task.WhenAll(systemsTask, optionsTask);
             _systems = await systemsTask;
             var options = await optionsTask;

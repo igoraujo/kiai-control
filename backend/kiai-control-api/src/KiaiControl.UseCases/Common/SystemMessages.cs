@@ -22,7 +22,6 @@ public static class SystemMessages
     public const string CurrentPasswordAndNewPasswordAreRequired = "CurrentPassword and NewPassword are required.";
     public const string CurrentPasswordIsInvalid = "Current password is invalid.";
     public const string AccountEmailIsInvalid = "O e-mail da conta é inválido.";
-    public const string AccountTemporaryPasswordMustHaveAtLeast12Characters = "A senha temporária deve ter pelo menos 12 caracteres.";
     public const string OrganizationIdPersonIdAndActorUserIdAreRequired = "OrganizationId, PersonId and ActorUserId are required.";
     public const string PersonAlreadyHasAnAccountOrEmailIsAlreadyInUse = "A pessoa selecionada já possui uma conta ou o e-mail informado está vinculado a outra conta. Se necessário, informe outro e-mail de acesso.";
     public const string DescriptionMustNotExceed255Characters = "Description must not exceed 255 characters.";
@@ -58,7 +57,6 @@ public static class SystemMessages
     public const string NameIsRequiredAndMustNotExceed120Characters = "Name is required and must not exceed 120 characters.";
     public const string NameIsRequiredAndMustNotExceed120CharactersDescriptionMustNotExceed5000Characters = "Name is required and must not exceed 120 characters; description must not exceed 5000 characters.";
     public const string NameIsRequiredAndMustNotExceed160Characters = "Name is required and must not exceed 160 characters.";
-    public const string NewPasswordMustHaveAtLeast8Characters = "NewPassword must have at least 8 characters.";
     public const string NotificationIdIsRequired = "NotificationId is required.";
     public const string OHorarioDeTerminoDeveSerPosteriorAoHorarioDeInicio = "O horário de término deve ser posterior ao horário de início.";
     public const string OneOrMoreBranchFieldsExceedTheirMaximumLength = "One or more branch fields exceed their maximum length.";
@@ -83,7 +81,6 @@ public static class SystemMessages
     public const string OsCriteriosDePromocaoDoGrauSaoInvalidos = "Os critérios de promoção do grau são inválidos.";
     public const string OsDadosDaFaixaSaoInvalidosInformeONomeAte99GrausECriteriosNaoNegativos = "Os dados da faixa são inválidos. Informe o nome, até 99 graus e critérios não negativos.";
     public const string OwnerFullNameIsRequiredAndMustNotExceed180Characters = "OwnerFullName is required and must not exceed 180 characters.";
-    public const string OwnerPasswordMustHaveAtLeast12Characters = "OwnerPassword must have at least 12 characters.";
     public const string PaidAtIsRequiredExternalReferenceAndNotesExceedTheirAllowedLengths = "PaidAt is required; external reference and notes exceed their allowed lengths.";
     public const string PaymentAmountMustBeGreaterThanZero = "Payment amount must be greater than zero.";
     public const string PaymentMethodIsNotSupported = "Payment method is not supported.";

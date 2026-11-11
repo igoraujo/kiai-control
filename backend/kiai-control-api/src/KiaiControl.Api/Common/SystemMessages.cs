@@ -4,7 +4,6 @@ public static class SystemMessages
 {
     public const string ChangeTemporaryPasswordBeforeProceeding = "Troque sua senha temporária para continuar.";
     public const string InitialPlatformOwnerNameMustNotExceed180Characters = "O nome do dono da plataforma não pode exceder 180 caracteres.";
-    public const string InitialPlatformOwnerPasswordMustHaveAtLeast12Characters = "A senha inicial do dono da plataforma deve ter pelo menos 12 caracteres.";
     public const string PlatformOwnerConfigurationMustBeComplete = "Configure e-mail, nome e senha do dono da plataforma em conjunto.";
     public const string PlatformOwnerEmailAlreadyBelongsToAnotherAccount = "O e-mail configurado para o dono da plataforma já pertence a outra conta.";
     public const string PlatformOwnerWasAlreadyProvisionedWithAnotherEmail = "O dono da plataforma já foi provisionado com outro e-mail; altere a conta por um procedimento administrativo seguro.";

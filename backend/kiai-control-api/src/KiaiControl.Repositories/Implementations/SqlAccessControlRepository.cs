@@ -80,7 +80,7 @@ public sealed class SqlAccessControlRepository(IDbConnectionFactory dbConnection
     {
         using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
         var exists = await connection.QuerySingleOrDefaultAsync<bool?>(
-            "select true from persons where id = @PersonId and organization_id = @OrganizationId and deleted_at is null;",
+            AccessControlQueries.PersonExists,
             new { OrganizationId = organizationId, PersonId = personId });
         if (exists is null)
         {
@@ -128,7 +128,7 @@ public sealed class SqlAccessControlRepository(IDbConnectionFactory dbConnection
     public async Task<IReadOnlyList<Permission>?> ListRolePermissionsAsync(Guid organizationId, string roleCode, CancellationToken cancellationToken = default)
     {
         using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
-        var exists = await connection.QuerySingleOrDefaultAsync<bool?>("select true from roles where code = @RoleCode::role_code;", new { RoleCode = roleCode });
+        var exists = await connection.QuerySingleOrDefaultAsync<bool?>(AccessControlQueries.RoleExists, new { RoleCode = roleCode });
         if (exists is null)
         {
             return null;

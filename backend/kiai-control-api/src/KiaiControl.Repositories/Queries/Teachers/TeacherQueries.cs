@@ -76,8 +76,11 @@ public static class TeacherQueries
             t.updated_at as UpdatedAt
         from teachers t
         join persons p on p.id = t.person_id
-        where t.organization_id = @OrganizationId and p.deleted_at is null
-        order by t.created_at desc
+        where t.organization_id = @OrganizationId
+            and p.deleted_at is null
+        order by
+            t.created_at desc,
+            t.id
         offset @Offset rows fetch next @PageSize rows only;
         ";
 

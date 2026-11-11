@@ -2,6 +2,27 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kiai_control_mobile/src/models.dart';
 
 void main() {
+  test('uses the academy check-in setting and server cancellation permission', () {
+    final now = DateTime.now().toUtc();
+    final lesson = ClientLesson.fromJson({
+      'id': 'lesson-policy',
+      'startsAt': now.add(const Duration(hours: 1)).toIso8601String(),
+      'endsAt': now.add(const Duration(hours: 2)).toIso8601String(),
+      'checkInStatus': 'present',
+      'allowCheckIn': false,
+      'canCancelCheckIn': true,
+    });
+    expect(lesson.canCheckIn, isFalse);
+    expect(lesson.canCancelCheckIn, isTrue);
+  });
+  test('measures a reducing fitness goal from its initial value', () {
+    final goal = FitnessGoal.fromJson({
+      'title': 'Peso', 'direction': 'decrease', 'initialValue': 80,
+      'currentValue': 75, 'targetValue': 70, 'status': 'active',
+    });
+    expect(goal.progress, .5);
+  });
+
   group('ClientProfile', () {
     test('parses API response and prefers preferred name for display', () {
       final profile = ClientProfile.fromJson({

@@ -165,11 +165,13 @@
                         }
                     </MudTabPanel>
                 }
+                <MudTabPanel Text="Presença e evolução"><ClientProgressPanel ClientId="Client.Id" /></MudTabPanel>
+                @if(AdminNavigation.CanUse(Session.Current?.User,PermissionCodes.FitnessManage)){<MudTabPanel Text="Gym · metas"><ClientGoalsPanel ClientId="Client.Id" /></MudTabPanel>}
             </MudTabs>
         </MudStack>
     </DialogContent>
     <DialogActions>
-        <MudButton OnClick="EditClient" Disabled="_isSaving">Editar cadastro</MudButton>
+        <MudButton Disabled="@(_isSaving || !AdminNavigation.CanUse(Session.Current?.User,PermissionCodes.ClientsManage))" OnClick="EditClient">Editar cadastro</MudButton>
         <MudButton OnClick="Close" Disabled="_isSaving">Fechar</MudButton>
     </DialogActions>
 </MudDialog>

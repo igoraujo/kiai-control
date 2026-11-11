@@ -17,37 +17,25 @@ using KiaiControl.Contracts.Reports;
 using KiaiControl.Contracts.Teachers;
 
 namespace KiaiControl.Admin.Services;
-
-public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSession session)
+public sealed partial class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSession session)
 {
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
-
     public async Task<SessionTokenResponse> LoginAsync(string email, string password)
     {
         var client = httpClientFactory.CreateClient("KiaiApi");
-        using var response = await client.PostAsJsonAsync("api/v1/auth/login", new LoginRequest
-        {
-            Email = email.Trim(),
-            Password = password
-        });
-
+        using var response = await client.PostAsJsonAsync("api/v1/auth/login", new LoginRequest { Email = email.Trim(), Password = password });
         if (response.StatusCode == HttpStatusCode.Unauthorized)
         {
             throw new UnauthorizedAccessException();
         }
 
         response.EnsureSuccessStatusCode();
-        return await response.Content.ReadFromJsonAsync<SessionTokenResponse>()
-            ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptySessionResponse);
+        return await response.Content.ReadFromJsonAsync<SessionTokenResponse>() ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptySessionResponse);
     }
 
     public async Task ChangePasswordAsync(string currentPassword, string newPassword)
     {
-        using var response = await SendAuthorizedAsync(HttpMethod.Post, "api/v1/auth/change-password", new ChangePasswordRequest
-        {
-            CurrentPassword = currentPassword,
-            NewPassword = newPassword
-        });
+        using var response = await SendAuthorizedAsync(HttpMethod.Post, "api/v1/auth/change-password", new ChangePasswordRequest { CurrentPassword = currentPassword, NewPassword = newPassword });
     }
 
     public async Task<IReadOnlyList<OrganizationResponse>> ListPlatformOrganizationsAsync()
@@ -59,8 +47,7 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
     public async Task<OrganizationRegistrationResponse> RegisterPlatformOrganizationAsync(RegisterOrganizationRequest request)
     {
         using var response = await SendAuthorizedAsync(HttpMethod.Post, "api/v1/platform/organizations", request);
-        return await response.Content.ReadFromJsonAsync<OrganizationRegistrationResponse>()
-            ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyResponse);
+        return await response.Content.ReadFromJsonAsync<OrganizationRegistrationResponse>() ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyResponse);
     }
 
     public async Task<bool> ValidateRestoredSessionAsync()
@@ -77,8 +64,7 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
             return false;
         }
 
-        if (currentSession.AccessTokenExpiresAt <= DateTimeOffset.UtcNow.AddSeconds(30)
-            && !await RefreshSessionAsync(currentSession))
+        if (currentSession.AccessTokenExpiresAt <= DateTimeOffset.UtcNow.AddSeconds(30) && !await RefreshSessionAsync(currentSession))
         {
             return false;
         }
@@ -89,154 +75,58 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
 
     public async Task<DashboardReportResponse> GetDashboardAsync(DateOnly from, DateOnly to)
     {
-        using var response = await SendAuthorizedAsync(HttpMethod.Get,
-            $"api/v1/reports/dashboard?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}");
-        return await response.Content.ReadFromJsonAsync<DashboardReportResponse>()
-            ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyDashboardResponse);
+        using var response = await SendAuthorizedAsync(HttpMethod.Get, $"api/v1/reports/dashboard?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}");
+        return await response.Content.ReadFromJsonAsync<DashboardReportResponse>() ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyDashboardResponse);
     }
 
-    public Task<IReadOnlyList<ModalityResponse>> ListReportModalitiesAsync() =>
-        GetListAsync<ModalityResponse>("api/v1/reports/modalities");
-
+    public Task<IReadOnlyList<ModalityResponse>> ListReportModalitiesAsync() => GetListAsync<ModalityResponse>("api/v1/reports/modalities");
     public async Task<WorkspaceCapabilitiesResponse> GetWorkspaceCapabilitiesAsync()
     {
         using var response = await SendAuthorizedAsync(HttpMethod.Get, "api/v1/workspace/capabilities");
-        return await response.Content.ReadFromJsonAsync<WorkspaceCapabilitiesResponse>()
-            ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyWorkspaceCapabilities);
+        return await response.Content.ReadFromJsonAsync<WorkspaceCapabilitiesResponse>() ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyWorkspaceCapabilities);
     }
 
-    public Task<IReadOnlyList<AttendanceReportRow>> GetAttendanceReportAsync(
-        DateOnly from,
-        DateOnly to,
-        Guid? modalityId) =>
-        GetListAsync<AttendanceReportRow>(
-            $"api/v1/reports/attendance?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}{ModalityQuery(modalityId)}");
-
+    public Task<IReadOnlyList<AttendanceReportRow>> GetAttendanceReportAsync(DateOnly from, DateOnly to, Guid? modalityId) => GetListAsync<AttendanceReportRow>($"api/v1/reports/attendance?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}{ModalityQuery(modalityId)}");
     public async Task<FinancialReportResponse> GetFinancialReportAsync(DateOnly from, DateOnly to)
     {
-        using var response = await SendAuthorizedAsync(HttpMethod.Get,
-            $"api/v1/reports/financial?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}");
-        return await response.Content.ReadFromJsonAsync<FinancialReportResponse>()
-            ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyFinancialReportResponse);
+        using var response = await SendAuthorizedAsync(HttpMethod.Get, $"api/v1/reports/financial?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}");
+        return await response.Content.ReadFromJsonAsync<FinancialReportResponse>() ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyFinancialReportResponse);
     }
 
-    public Task<IReadOnlyList<ClientPerformanceReportRow>> GetClientPerformanceReportAsync(
-        DateOnly from,
-        DateOnly to,
-        Guid? modalityId,
-        int page,
-        int pageSize) =>
-        GetListAsync<ClientPerformanceReportRow>(
-            $"api/v1/reports/client-performance?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}{ModalityQuery(modalityId)}&page={page}&pageSize={pageSize}");
-
-    public Task<IReadOnlyList<GraduationReportRow>> GetGraduationReportAsync(
-        DateOnly from,
-        DateOnly to,
-        Guid? modalityId) =>
-        GetListAsync<GraduationReportRow>(
-            $"api/v1/reports/graduation?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}{ModalityQuery(modalityId)}");
-
-    public Task<IReadOnlyList<GraduationSystemResponse>> ListGraduationSystemsAsync() =>
-        GetListAsync<GraduationSystemResponse>("api/v1/graduation-systems");
-
-    public async Task<GraduationOptionsResponse> GetGraduationOptionsAsync()
+    public Task<IReadOnlyList<ClientPerformanceReportRow>> GetClientPerformanceReportAsync(DateOnly from, DateOnly to, Guid? modalityId, int page, int pageSize) => GetListAsync<ClientPerformanceReportRow>($"api/v1/reports/client-performance?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}{ModalityQuery(modalityId)}&page={page}&pageSize={pageSize}");
+    public Task<IReadOnlyList<GraduationReportRow>> GetGraduationReportAsync(DateOnly from, DateOnly to, Guid? modalityId) => GetListAsync<GraduationReportRow>($"api/v1/reports/graduation?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}{ModalityQuery(modalityId)}");
+    public Task<IReadOnlyList<GraduationSystemResponse>> ListGraduationSystemsAsync() => GetListAsync<GraduationSystemResponse>("api/v1/graduation-systems");
+    public async Task<GraduationOptionsResponse> GetGraduationOptionsAsync(string? area = null)
     {
-        using var response = await SendAuthorizedAsync(HttpMethod.Get, "api/v1/graduation/options");
-        return await response.Content.ReadFromJsonAsync<GraduationOptionsResponse>()
-            ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyGraduationOptions);
+        using var response = await SendAuthorizedAsync(HttpMethod.Get, "api/v1/graduation/options" + (area is null ? "" : $"?area={KiaiControl.Contracts.Common.AcademyArea.Normalize(area)}"));
+        return await response.Content.ReadFromJsonAsync<GraduationOptionsResponse>() ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyGraduationOptions);
     }
 
-    public Task<GraduationSystemResponse> CreateGraduationSystemAsync(CreateGraduationSystemRequest request) =>
-        CreateAsync<CreateGraduationSystemRequest, GraduationSystemResponse>("graduation-systems", request);
-
-    public Task<IReadOnlyList<GraduationLevelResponse>> ListGraduationLevelsAsync(Guid systemId) =>
-        GetListAsync<GraduationLevelResponse>($"api/v1/graduation-systems/{systemId}/levels");
-
-    public Task<GraduationLevelResponse> CreateGraduationLevelAsync(
-        Guid systemId,
-        CreateGraduationLevelRequest request) =>
-        CreateAsync<CreateGraduationLevelRequest, GraduationLevelResponse>(
-            $"graduation-systems/{systemId}/levels", request);
-
-    public Task<IReadOnlyList<GraduationBeltResponse>> ListGraduationBeltsAsync(Guid systemId) =>
-        GetListAsync<GraduationBeltResponse>($"api/v1/graduation-systems/{systemId:D}/belts");
-
-    public Task<GraduationBeltResponse> CreateGraduationBeltAsync(
-        Guid systemId,
-        CreateGraduationBeltRequest request) =>
-        CreateAsync<CreateGraduationBeltRequest, GraduationBeltResponse>(
-            $"graduation-systems/{systemId}/belts", request);
-
-    public Task UpdateGraduationBeltAsync(
-        Guid systemId,
-        Guid beltId,
-        CreateGraduationBeltRequest request) =>
-        PutAsync($"graduation-systems/{systemId}/belts/{beltId}", request);
-
-    public Task DeleteGraduationBeltAsync(Guid systemId, Guid beltId) =>
-        DeleteAsync($"graduation-systems/{systemId}/belts", beltId);
-
-    public Task<GraduationLevelResponse> CreateGraduationDegreeAsync(
-        Guid systemId,
-        Guid beltId,
-        CreateGraduationDegreeRequest request) =>
-        CreateAsync<CreateGraduationDegreeRequest, GraduationLevelResponse>(
-            $"graduation-systems/{systemId}/belts/{beltId}/degrees", request);
-
-    public Task UpdateGraduationDegreeAsync(
-        Guid systemId,
-        Guid beltId,
-        Guid degreeId,
-        CreateGraduationDegreeRequest request) =>
-        PutAsync($"graduation-systems/{systemId}/belts/{beltId}/degrees/{degreeId}", request);
-
-    public Task DeleteGraduationDegreeAsync(Guid systemId, Guid beltId, Guid degreeId) =>
-        DeleteAsync($"graduation-systems/{systemId}/belts/{beltId}/degrees", degreeId);
-
-    public Task<IReadOnlyList<EligibleClientResponse>> ListEligibleGraduationClientsAsync(Guid systemId) =>
-        GetListAsync<EligibleClientResponse>(
-            $"api/v1/graduation/eligible-clients?systemId={systemId:D}");
-
-    public Task<ClientGraduationResponse> SetInitialGraduationAsync(
-        Guid clientId,
-        SetClientGraduationRequest request) =>
-        CreateAsync<SetClientGraduationRequest, ClientGraduationResponse>(
-            $"clients/{clientId}/graduations", request);
-
-    public Task<GraduationEventResponse> PromoteClientAsync(
-        Guid clientId,
-        PromoteClientRequest request) =>
-        CreateAsync<PromoteClientRequest, GraduationEventResponse>(
-            $"clients/{clientId}/graduation-events", request);
-
-    public async Task<FitnessOptionsResponse> GetFitnessOptionsAsync()
+    public Task<GraduationSystemResponse> CreateGraduationSystemAsync(CreateGraduationSystemRequest request) => CreateAsync<CreateGraduationSystemRequest, GraduationSystemResponse>("graduation-systems", request);
+    public Task<IReadOnlyList<GraduationLevelResponse>> ListGraduationLevelsAsync(Guid systemId) => GetListAsync<GraduationLevelResponse>($"api/v1/graduation-systems/{systemId}/levels");
+    public Task<GraduationLevelResponse> CreateGraduationLevelAsync(Guid systemId, CreateGraduationLevelRequest request) => CreateAsync<CreateGraduationLevelRequest, GraduationLevelResponse>($"graduation-systems/{systemId}/levels", request);
+    public Task<IReadOnlyList<GraduationBeltResponse>> ListGraduationBeltsAsync(Guid systemId) => GetListAsync<GraduationBeltResponse>($"api/v1/graduation-systems/{systemId:D}/belts");
+    public Task<GraduationBeltResponse> CreateGraduationBeltAsync(Guid systemId, CreateGraduationBeltRequest request) => CreateAsync<CreateGraduationBeltRequest, GraduationBeltResponse>($"graduation-systems/{systemId}/belts", request);
+    public Task UpdateGraduationBeltAsync(Guid systemId, Guid beltId, CreateGraduationBeltRequest request) => PutAsync($"graduation-systems/{systemId}/belts/{beltId}", request);
+    public Task DeleteGraduationBeltAsync(Guid systemId, Guid beltId) => DeleteAsync($"graduation-systems/{systemId}/belts", beltId);
+    public Task<GraduationLevelResponse> CreateGraduationDegreeAsync(Guid systemId, Guid beltId, CreateGraduationDegreeRequest request) => CreateAsync<CreateGraduationDegreeRequest, GraduationLevelResponse>($"graduation-systems/{systemId}/belts/{beltId}/degrees", request);
+    public Task UpdateGraduationDegreeAsync(Guid systemId, Guid beltId, Guid degreeId, CreateGraduationDegreeRequest request) => PutAsync($"graduation-systems/{systemId}/belts/{beltId}/degrees/{degreeId}", request);
+    public Task DeleteGraduationDegreeAsync(Guid systemId, Guid beltId, Guid degreeId) => DeleteAsync($"graduation-systems/{systemId}/belts/{beltId}/degrees", degreeId);
+    public Task<IReadOnlyList<EligibleClientResponse>> ListEligibleGraduationClientsAsync(Guid systemId) => GetListAsync<EligibleClientResponse>($"api/v1/graduation/eligible-clients?systemId={systemId:D}");
+    public Task<ClientGraduationResponse> SetInitialGraduationAsync(Guid clientId, SetClientGraduationRequest request) => CreateAsync<SetClientGraduationRequest, ClientGraduationResponse>($"clients/{clientId}/graduations", request);
+    public Task<GraduationEventResponse> PromoteClientAsync(Guid clientId, PromoteClientRequest request) => CreateAsync<PromoteClientRequest, GraduationEventResponse>($"clients/{clientId}/graduation-events", request);
+    public async Task<FitnessOptionsResponse> GetFitnessOptionsAsync(string? area = null)
     {
-        using var response = await SendAuthorizedAsync(HttpMethod.Get, "api/v1/fitness-goals/options");
-        return await response.Content.ReadFromJsonAsync<FitnessOptionsResponse>()
-            ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyFitnessOptions);
+        using var response = await SendAuthorizedAsync(HttpMethod.Get, "api/v1/fitness-goals/options" + (area is null ? "" : $"?area={KiaiControl.Contracts.Common.AcademyArea.Normalize(area)}"));
+        return await response.Content.ReadFromJsonAsync<FitnessOptionsResponse>() ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyFitnessOptions);
     }
 
-    public Task<IReadOnlyList<FitnessGoalResponse>> ListFitnessGoalsAsync(
-        int page = 1,
-        int pageSize = 50,
-        Guid? clientId = null) =>
-        ListAsync<FitnessGoalResponse>("fitness-goals", page, pageSize, clientId);
-
-    public Task<FitnessGoalResponse> CreateFitnessGoalAsync(CreateFitnessGoalRequest request) =>
-        CreateAsync<CreateFitnessGoalRequest, FitnessGoalResponse>("fitness-goals", request);
-
-    public Task<FitnessProgressResponse> RecordFitnessProgressAsync(
-        Guid goalId,
-        RecordFitnessProgressRequest request) =>
-        CreateAsync<RecordFitnessProgressRequest, FitnessProgressResponse>(
-            $"fitness-goals/{goalId}/progress", request);
-
-    public Task<IReadOnlyList<FitnessProgressResponse>> ListFitnessProgressAsync(
-        Guid goalId,
-        int page = 1,
-        int pageSize = 20) =>
-        ListAsync<FitnessProgressResponse>($"fitness-goals/{goalId}/progress", page, pageSize);
-
+    public Task<IReadOnlyList<FitnessGoalResponse>> ListFitnessGoalsAsync(int page = 1, int pageSize = 50, Guid? clientId = null, string? area = null) => area is null
+        ? ListAsync<FitnessGoalResponse>("fitness-goals", page, pageSize, clientId)
+        : GetListAsync<FitnessGoalResponse>($"api/v1/fitness-goals?page={page}&pageSize={pageSize}{(clientId is null ? "" : $"&clientId={clientId:D}")}&area={KiaiControl.Contracts.Common.AcademyArea.Normalize(area)}");
+    public Task<FitnessGoalResponse> CreateFitnessGoalAsync(CreateFitnessGoalRequest request) => CreateAsync<CreateFitnessGoalRequest, FitnessGoalResponse>("fitness-goals", request);
+    public Task<FitnessProgressResponse> RecordFitnessProgressAsync(Guid goalId, RecordFitnessProgressRequest request) => CreateAsync<RecordFitnessProgressRequest, FitnessProgressResponse>($"fitness-goals/{goalId}/progress", request);
+    public Task<IReadOnlyList<FitnessProgressResponse>> ListFitnessProgressAsync(Guid goalId, int page = 1, int pageSize = 20) => ListAsync<FitnessProgressResponse>($"fitness-goals/{goalId}/progress", page, pageSize);
     public async Task CancelFitnessGoalAsync(Guid goalId)
     {
         using var response = await SendAuthorizedAsync(HttpMethod.Patch, $"api/v1/fitness-goals/{goalId}/cancel");
@@ -245,76 +135,45 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
     public async Task<RankingOptionsResponse> GetRankingOptionsAsync()
     {
         using var response = await SendAuthorizedAsync(HttpMethod.Get, "api/v1/rankings/options");
-        return await response.Content.ReadFromJsonAsync<RankingOptionsResponse>()
-            ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyRankingOptions);
+        return await response.Content.ReadFromJsonAsync<RankingOptionsResponse>() ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyRankingOptions);
     }
 
-    public Task<IReadOnlyList<RankingCycleResponse>> ListRankingCyclesAsync(int page = 1, int pageSize = 50) =>
-        ListAsync<RankingCycleResponse>("rankings/history", page, pageSize);
-
-    public Task<RankingCycleResponse> CreateRankingCycleAsync(CreateRankingCycleRequest request) =>
-        CreateAsync<CreateRankingCycleRequest, RankingCycleResponse>("ranking-cycles", request);
-
-    public Task<IReadOnlyList<RankingEntryResponse>> ListCurrentRankingAsync(int page = 1, int pageSize = 50) =>
-        ListAsync<RankingEntryResponse>("rankings/current", page, pageSize);
-
-    public Task<IReadOnlyList<RankingEntryResponse>> ListRankingEntriesAsync(
-        Guid cycleId,
-        int page = 1,
-        int pageSize = 50) =>
-        ListAsync<RankingEntryResponse>($"ranking-cycles/{cycleId}/entries", page, pageSize);
-
+    public Task<IReadOnlyList<RankingCycleResponse>> ListRankingCyclesAsync(int page = 1, int pageSize = 50) => ListAsync<RankingCycleResponse>("rankings/history", page, pageSize);
+    public Task<RankingCycleResponse> CreateRankingCycleAsync(CreateRankingCycleRequest request) => CreateAsync<CreateRankingCycleRequest, RankingCycleResponse>("ranking-cycles", request);
+    public Task<IReadOnlyList<RankingEntryResponse>> ListCurrentRankingAsync(int page = 1, int pageSize = 50) => ListAsync<RankingEntryResponse>("rankings/current", page, pageSize);
+    public Task<IReadOnlyList<RankingEntryResponse>> ListRankingEntriesAsync(Guid cycleId, int page = 1, int pageSize = 50) => ListAsync<RankingEntryResponse>($"ranking-cycles/{cycleId}/entries", page, pageSize);
     public async Task<IReadOnlyList<RankingEntryResponse>> RecalculateRankingAsync(Guid cycleId)
     {
         using var response = await SendAuthorizedAsync(HttpMethod.Post, $"api/v1/ranking-cycles/{cycleId}/recalculate");
-        return await response.Content.ReadFromJsonAsync<List<RankingEntryResponse>>()
-            ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyRankingResponse);
+        return await response.Content.ReadFromJsonAsync<List<RankingEntryResponse>>() ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyRankingResponse);
     }
 
-    public Task<IReadOnlyList<MedalResponse>> ListMedalsAsync() =>
-        GetListAsync<MedalResponse>("api/v1/medals");
-
-    public Task<MedalResponse> CreateMedalAsync(CreateMedalRequest request) =>
-        CreateAsync<CreateMedalRequest, MedalResponse>("medals", request);
-
-    public Task<PersonMedalResponse> AwardMedalAsync(Guid medalId, AwardMedalRequest request) =>
-        CreateAsync<AwardMedalRequest, PersonMedalResponse>($"medals/{medalId}/awards", request);
-
-    public Task<IReadOnlyList<PersonMedalResponse>> ListClientMedalsAsync(Guid clientId) =>
-        GetListAsync<PersonMedalResponse>($"api/v1/clients/{clientId}/medals");
-
-    public Task<IReadOnlyList<NotificationResponse>> ListMyNotificationsAsync(int page = 1, int pageSize = 50) =>
-        ListAsync<NotificationResponse>("notifications", page, pageSize);
-
-    public Task<IReadOnlyList<NotificationResponse>> ListNotificationOutboxAsync(int page = 1, int pageSize = 50) =>
-        GetListAsync<NotificationResponse>($"api/v1/notifications/outbox?page={page}&pageSize={pageSize}");
-
+    public Task<IReadOnlyList<MedalResponse>> ListMedalsAsync() => GetListAsync<MedalResponse>("api/v1/medals");
+    public Task<MedalResponse> CreateMedalAsync(CreateMedalRequest request) => CreateAsync<CreateMedalRequest, MedalResponse>("medals", request);
+    public Task<PersonMedalResponse> AwardMedalAsync(Guid medalId, AwardMedalRequest request) => CreateAsync<AwardMedalRequest, PersonMedalResponse>($"medals/{medalId}/awards", request);
+    public Task<IReadOnlyList<PersonMedalResponse>> ListClientMedalsAsync(Guid clientId) => GetListAsync<PersonMedalResponse>($"api/v1/clients/{clientId}/medals");
+    public Task<IReadOnlyList<NotificationResponse>> ListMyNotificationsAsync(int page = 1, int pageSize = 50) => ListAsync<NotificationResponse>("notifications", page, pageSize);
+    public Task<IReadOnlyList<NotificationResponse>> ListNotificationOutboxAsync(int page = 1, int pageSize = 50) => GetListAsync<NotificationResponse>($"api/v1/notifications/outbox?page={page}&pageSize={pageSize}");
     public async Task<NotificationOptionsResponse> GetNotificationOptionsAsync()
     {
         using var response = await SendAuthorizedAsync(HttpMethod.Get, "api/v1/notifications/options");
-        return await response.Content.ReadFromJsonAsync<NotificationOptionsResponse>()
-            ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyNotificationOptions);
+        return await response.Content.ReadFromJsonAsync<NotificationOptionsResponse>() ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyNotificationOptions);
     }
 
-    public Task<NotificationResponse> CreateNotificationAsync(CreateNotificationRequest request) =>
-        CreateAsync<CreateNotificationRequest, NotificationResponse>("notifications", request);
-
+    public Task<NotificationResponse> CreateNotificationAsync(CreateNotificationRequest request) => CreateAsync<CreateNotificationRequest, NotificationResponse>("notifications", request);
     public async Task MarkNotificationAsReadAsync(Guid notificationId)
     {
         using var response = await SendAuthorizedAsync(HttpMethod.Patch, $"api/v1/notifications/{notificationId}/read");
     }
 
-    public Task<IReadOnlyList<AuditLogResponse>> ListAuditLogsAsync(
-        DateTimeOffset? from,
-        DateTimeOffset? to,
-        int page = 1,
-        int pageSize = 50)
+    public Task<IReadOnlyList<AuditLogResponse>> ListAuditLogsAsync(DateTimeOffset? from, DateTimeOffset? to, int page = 1, int pageSize = 50)
     {
         var query = $"?page={page}&pageSize={pageSize}";
         if (from is not null)
         {
             query += $"&from={Uri.EscapeDataString(from.Value.ToString("O"))}";
         }
+
         if (to is not null)
         {
             query += $"&to={Uri.EscapeDataString(to.Value.ToString("O"))}";
@@ -323,58 +182,29 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
         return GetListAsync<AuditLogResponse>($"api/v1/audit-logs{query}");
     }
 
-    public Task<IReadOnlyList<ModalityResponse>> ListAssignableClientModalitiesAsync() =>
-        ListAsync<ModalityResponse>("clients/modalities", page: 1, pageSize: 200);
-
-    public Task<IReadOnlyList<ModalityResponse>> ListClientModalitiesAsync(Guid clientId) =>
-        ListAsync<ModalityResponse>($"clients/{clientId}/modalities", page: 1, pageSize: 200);
-
+    public Task<IReadOnlyList<ModalityResponse>> ListAssignableClientModalitiesAsync() => ListAsync<ModalityResponse>("clients/modalities", page: 1, pageSize: 200);
+    public Task<IReadOnlyList<ModalityResponse>> ListClientModalitiesAsync(Guid clientId) => ListAsync<ModalityResponse>($"clients/{clientId}/modalities", page: 1, pageSize: 200);
     public async Task LinkClientModalityAsync(Guid clientId, Guid modalityId)
     {
         using var response = await SendAuthorizedAsync(HttpMethod.Post, $"api/v1/clients/{clientId}/modalities/{modalityId}");
     }
 
-    public Task UnlinkClientModalityAsync(Guid clientId, Guid modalityId) =>
-        DeleteAsync($"clients/{clientId}/modalities", modalityId);
-
-    public Task<IReadOnlyList<BillingPlanResponse>> ListBillingPlansAsync(int page = 1, int pageSize = 100) =>
-        ListAsync<BillingPlanResponse>("billing/plans", page, pageSize);
-
-    public Task<BillingPlanResponse> CreateBillingPlanAsync(CreateBillingPlanRequest request) =>
-        CreateAsync<CreateBillingPlanRequest, BillingPlanResponse>("billing/plans", request);
-
-    public Task<BillingPlanResponse> UpdateBillingPlanAsync(Guid planId, UpdateBillingPlanRequest request) =>
-        UpdateAsync<UpdateBillingPlanRequest, BillingPlanResponse>("billing/plans", planId, request);
-
+    public Task UnlinkClientModalityAsync(Guid clientId, Guid modalityId) => DeleteAsync($"clients/{clientId}/modalities", modalityId);
+    public Task<IReadOnlyList<BillingPlanResponse>> ListBillingPlansAsync(int page = 1, int pageSize = 100) => ListAsync<BillingPlanResponse>("billing/plans", page, pageSize);
+    public Task<BillingPlanResponse> CreateBillingPlanAsync(CreateBillingPlanRequest request) => CreateAsync<CreateBillingPlanRequest, BillingPlanResponse>("billing/plans", request);
+    public Task<BillingPlanResponse> UpdateBillingPlanAsync(Guid planId, UpdateBillingPlanRequest request) => UpdateAsync<UpdateBillingPlanRequest, BillingPlanResponse>("billing/plans", planId, request);
     public Task DeactivateBillingPlanAsync(Guid planId) => DeleteAsync("billing/plans", planId);
-
-    public Task<IReadOnlyList<ClientPlanSubscriptionResponse>> ListClientSubscriptionsAsync(int page = 1, int pageSize = 100) =>
-        ListAsync<ClientPlanSubscriptionResponse>("billing/subscriptions", page, pageSize);
-
-    public Task<IReadOnlyList<ClientPlanSubscriptionResponse>> ListClientSubscriptionsAsync(
-        Guid clientId,
-        int page = 1,
-        int pageSize = 200) =>
-        ListAsync<ClientPlanSubscriptionResponse>("billing/subscriptions", page, pageSize, clientId);
-
-    public Task<ClientPlanSubscriptionResponse> CreateClientSubscriptionAsync(Guid clientId, CreateClientSubscriptionRequest request) =>
-        CreateAsync<CreateClientSubscriptionRequest, ClientPlanSubscriptionResponse>($"billing/clients/{clientId}/subscriptions", request);
-
-    public async Task<ClientPlanSubscriptionResponse> CancelClientSubscriptionAsync(
-        Guid subscriptionId,
-        CancelClientSubscriptionRequest request)
+    public Task<IReadOnlyList<ClientPlanSubscriptionResponse>> ListClientSubscriptionsAsync(int page = 1, int pageSize = 100) => ListAsync<ClientPlanSubscriptionResponse>("billing/subscriptions", page, pageSize);
+    public Task<IReadOnlyList<ClientPlanSubscriptionResponse>> ListClientSubscriptionsAsync(Guid clientId, int page = 1, int pageSize = 200) => ListAsync<ClientPlanSubscriptionResponse>("billing/subscriptions", page, pageSize, clientId);
+    public Task<ClientPlanSubscriptionResponse> CreateClientSubscriptionAsync(Guid clientId, CreateClientSubscriptionRequest request) => CreateAsync<CreateClientSubscriptionRequest, ClientPlanSubscriptionResponse>($"billing/clients/{clientId}/subscriptions", request);
+    public async Task<ClientPlanSubscriptionResponse> CancelClientSubscriptionAsync(Guid subscriptionId, CancelClientSubscriptionRequest request)
     {
         using var response = await SendAuthorizedAsync(HttpMethod.Patch, $"api/v1/billing/subscriptions/{subscriptionId}/cancel", request);
-        return await response.Content.ReadFromJsonAsync<ClientPlanSubscriptionResponse>()
-            ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyResponse);
+        return await response.Content.ReadFromJsonAsync<ClientPlanSubscriptionResponse>() ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyResponse);
     }
 
-    public Task<IReadOnlyList<BillingResponse>> ListInvoicesAsync(int page = 1, int pageSize = 100) =>
-        ListAsync<BillingResponse>("billing", page, pageSize);
-
-    public Task<IReadOnlyList<BillingResponse>> ListClientInvoicesAsync(Guid clientId, int page = 1, int pageSize = 200) =>
-        ListAsync<BillingResponse>("billing", page, pageSize, clientId);
-
+    public Task<IReadOnlyList<BillingResponse>> ListInvoicesAsync(int page = 1, int pageSize = 100) => ListAsync<BillingResponse>("billing", page, pageSize);
+    public Task<IReadOnlyList<BillingResponse>> ListClientInvoicesAsync(Guid clientId, int page = 1, int pageSize = 200) => ListAsync<BillingResponse>("billing", page, pageSize, clientId);
     public async Task<IReadOnlyList<BillingResponse>> GenerateInvoicesAsync(GenerateInvoicesRequest request)
     {
         using var response = await SendAuthorizedAsync(HttpMethod.Post, "api/v1/billing/invoices/generate", request);
@@ -384,16 +214,11 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
     public async Task<PaymentResponse> RegisterInvoicePaymentAsync(Guid invoiceId, RegisterPaymentRequest request)
     {
         using var response = await SendAuthorizedAsync(HttpMethod.Post, $"api/v1/billing/{invoiceId}/payments", request);
-        return await response.Content.ReadFromJsonAsync<PaymentResponse>()
-            ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyResponse);
+        return await response.Content.ReadFromJsonAsync<PaymentResponse>() ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyResponse);
     }
 
-    public Task<IReadOnlyList<PaymentResponse>> ListPaymentsAsync(int page = 1, int pageSize = 100) =>
-        ListAsync<PaymentResponse>("billing/payments", page, pageSize);
-
-    public Task<IReadOnlyList<PaymentResponse>> ListClientPaymentsAsync(Guid clientId, int page = 1, int pageSize = 200) =>
-        ListAsync<PaymentResponse>("billing/payments", page, pageSize, clientId);
-
+    public Task<IReadOnlyList<PaymentResponse>> ListPaymentsAsync(int page = 1, int pageSize = 100) => ListAsync<PaymentResponse>("billing/payments", page, pageSize);
+    public Task<IReadOnlyList<PaymentResponse>> ListClientPaymentsAsync(Guid clientId, int page = 1, int pageSize = 200) => ListAsync<PaymentResponse>("billing/payments", page, pageSize, clientId);
     public async Task<IReadOnlyList<RoleResponse>> ListAccessRolesAsync()
     {
         using var response = await SendAuthorizedAsync(HttpMethod.Get, "api/v1/access/roles");
@@ -408,12 +233,8 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
 
     public async Task<UserAccountResponse> CreateUserAccountAsync(Guid personId, CreateUserAccountRequest request)
     {
-        using var response = await SendAuthorizedAsync(
-            HttpMethod.Post,
-            $"api/v1/access/people/{personId}/account",
-            request);
-        return await response.Content.ReadFromJsonAsync<UserAccountResponse>()
-            ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyResponse);
+        using var response = await SendAuthorizedAsync(HttpMethod.Post, $"api/v1/access/people/{personId}/account", request);
+        return await response.Content.ReadFromJsonAsync<UserAccountResponse>() ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyResponse);
     }
 
     public async Task<IReadOnlyList<PermissionResponse>> ListAccessPermissionsAsync()
@@ -435,43 +256,22 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
         var escapedPermissionCode = Uri.EscapeDataString(permissionCode);
         if (isGranted)
         {
-            await PutAsync($"access/roles/{escapedRoleCode}/permissions", new SetRolePermissionRequest
-            {
-                PermissionCode = permissionCode
-            });
+            await PutAsync($"access/roles/{escapedRoleCode}/permissions", new SetRolePermissionRequest { PermissionCode = permissionCode });
             return;
         }
 
         await DeleteAsync($"access/roles/{escapedRoleCode}/permissions/{escapedPermissionCode}", null);
     }
 
-    public Task<IReadOnlyList<LessonResponse>> ListLessonsAsync(int page = 1, int pageSize = 200) =>
-        ListAsync<LessonResponse>("lessons", page, pageSize);
-
-    public async Task<IReadOnlyList<ModalityScheduleResponse>> ListTeacherSchedulesAsync(Guid teacherId) =>
-        await GetAsync<List<ModalityScheduleResponse>>($"teachers/{teacherId}/schedules");
-
-    public Task<ModalityScheduleResponse> CreateTeacherScheduleAsync(
-        Guid teacherId,
-        CreateTeacherScheduleRequest request) =>
-        CreateAsync<CreateTeacherScheduleRequest, ModalityScheduleResponse>(
-            $"teachers/{teacherId}/schedules", request);
-
-    public Task DeleteTeacherScheduleAsync(Guid teacherId, Guid scheduleId) =>
-        DeleteAsync($"teachers/{teacherId}/schedules", scheduleId);
-
-    public async Task<IReadOnlyList<LessonResponse>> ListTeacherLessonsAsync(
-        Guid teacherId,
-        DateTimeOffset from,
-        DateTimeOffset to,
-        int page = 1,
-        int pageSize = 200)
+    public Task<IReadOnlyList<LessonResponse>> ListLessonsAsync(int page = 1, int pageSize = 200) => ListAsync<LessonResponse>("lessons", page, pageSize);
+    public async Task<IReadOnlyList<ModalityScheduleResponse>> ListTeacherSchedulesAsync(Guid teacherId) => await GetAsync<List<ModalityScheduleResponse>>($"teachers/{teacherId}/schedules");
+    public Task<ModalityScheduleResponse> CreateTeacherScheduleAsync(Guid teacherId, CreateTeacherScheduleRequest request) => CreateAsync<CreateTeacherScheduleRequest, ModalityScheduleResponse>($"teachers/{teacherId}/schedules", request);
+    public Task DeleteTeacherScheduleAsync(Guid teacherId, Guid scheduleId) => DeleteAsync($"teachers/{teacherId}/schedules", scheduleId);
+    public async Task<IReadOnlyList<LessonResponse>> ListTeacherLessonsAsync(Guid teacherId, DateTimeOffset from, DateTimeOffset to, int page = 1, int pageSize = 200)
     {
         var fromQuery = Uri.EscapeDataString(from.ToString("O"));
         var toQuery = Uri.EscapeDataString(to.ToString("O"));
-        using var response = await SendAuthorizedAsync(
-            HttpMethod.Get,
-            $"api/v1/teachers/{teacherId}/lessons?page={page}&pageSize={pageSize}&from={fromQuery}&to={toQuery}");
+        using var response = await SendAuthorizedAsync(HttpMethod.Get, $"api/v1/teachers/{teacherId}/lessons?page={page}&pageSize={pageSize}&from={fromQuery}&to={toQuery}");
         return await response.Content.ReadFromJsonAsync<List<LessonResponse>>() ?? [];
     }
 
@@ -484,15 +284,13 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
     public async Task<LessonResponse> CancelLessonAsync(Guid lessonId, CancelLessonRequest request)
     {
         using var response = await SendAuthorizedAsync(HttpMethod.Patch, $"api/v1/lessons/{lessonId}/cancel", request);
-        return await response.Content.ReadFromJsonAsync<LessonResponse>()
-            ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyResponse);
+        return await response.Content.ReadFromJsonAsync<LessonResponse>() ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyResponse);
     }
 
     public async Task<LessonResponse> RescheduleLessonAsync(Guid lessonId, RescheduleLessonRequest request)
     {
         using var response = await SendAuthorizedAsync(HttpMethod.Patch, $"api/v1/lessons/{lessonId}/reschedule", request);
-        return await response.Content.ReadFromJsonAsync<LessonResponse>()
-            ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyResponse);
+        return await response.Content.ReadFromJsonAsync<LessonResponse>() ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyResponse);
     }
 
     public async Task<IReadOnlyList<AttendanceRecordResponse>> GetLessonAttendanceAsync(Guid lessonId)
@@ -507,75 +305,55 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
         return await response.Content.ReadFromJsonAsync<List<EligibleAttendanceClientResponse>>() ?? [];
     }
 
-    public async Task<IReadOnlyList<AttendanceRecordResponse>> SaveLessonAttendanceAsync(
-        Guid lessonId,
-        SaveAttendanceCallRequest request)
+    public async Task<IReadOnlyList<AttendanceRecordResponse>> SaveLessonAttendanceAsync(Guid lessonId, SaveAttendanceCallRequest request)
     {
         using var response = await SendAuthorizedAsync(HttpMethod.Put, $"api/v1/lessons/{lessonId}/attendances", request);
         return await response.Content.ReadFromJsonAsync<List<AttendanceRecordResponse>>() ?? [];
     }
 
-    public Task<IReadOnlyList<AttendanceRecordResponse>> ListPendingCheckInsAsync(int page = 1, int pageSize = 100) =>
-        ListAsync<AttendanceRecordResponse>("attendance/pending", page, pageSize);
-
+    public Task<IReadOnlyList<AttendanceRecordResponse>> ListPendingCheckInsAsync(int page = 1, int pageSize = 100) => ListAsync<AttendanceRecordResponse>("attendance/pending", page, pageSize);
     public async Task<AttendanceRecordResponse> ValidateCheckInAsync(Guid attendanceId, string status)
     {
         using var response = await SendAuthorizedAsync(HttpMethod.Patch, $"api/v1/attendance/{attendanceId}/validate", new ValidateCheckInRequest { Status = status });
-        return await response.Content.ReadFromJsonAsync<AttendanceRecordResponse>()
-            ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyResponse);
+        return await response.Content.ReadFromJsonAsync<AttendanceRecordResponse>() ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyResponse);
     }
 
     public async Task<AttendanceRecordResponse> CheckInAsync(Guid lessonId)
     {
-        using var response = await SendAuthorizedAsync(
-            HttpMethod.Post,
-            "api/v1/attendance/check-in",
-            new CheckInRequest { LessonId = lessonId });
-        return await response.Content.ReadFromJsonAsync<AttendanceRecordResponse>()
-            ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyResponse);
+        using var response = await SendAuthorizedAsync(HttpMethod.Post, "api/v1/attendance/check-in", new CheckInRequest { LessonId = lessonId });
+        return await response.Content.ReadFromJsonAsync<AttendanceRecordResponse>() ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyResponse);
     }
 
-    public async Task<IReadOnlyList<T>> ListAsync<T>(
-        string resource,
-        int page = 1,
-        int pageSize = 100,
-        Guid? clientId = null)
+    public async Task<IReadOnlyList<T>> ListAsync<T>(string resource, int page = 1, int pageSize = 100, Guid? clientId = null)
     {
         var clientFilter = clientId is null ? string.Empty : $"&clientId={clientId.Value:D}";
-        using var response = await SendAuthorizedAsync(
-            HttpMethod.Get, $"api/v1/{resource}?page={page}&pageSize={pageSize}{clientFilter}");
+        using var response = await SendAuthorizedAsync(HttpMethod.Get, $"api/v1/{resource}?page={page}&pageSize={pageSize}{clientFilter}");
         return await response.Content.ReadFromJsonAsync<List<T>>() ?? [];
     }
 
     private async Task<IReadOnlyList<T>> GetListAsync<T>(string requestUri)
     {
         using var response = await SendAuthorizedAsync(HttpMethod.Get, requestUri);
-        return await response.Content.ReadFromJsonAsync<List<T>>()
-            ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyListResponse);
+        return await response.Content.ReadFromJsonAsync<List<T>>() ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyListResponse);
     }
 
-    private static string ModalityQuery(Guid? modalityId) =>
-        modalityId is null ? string.Empty : $"&modalityId={modalityId.Value:D}";
-
+    private static string ModalityQuery(Guid? modalityId) => modalityId is null ? string.Empty : $"&modalityId={modalityId.Value:D}";
     public async Task<T> GetAsync<T>(string resource)
     {
         using var response = await SendAuthorizedAsync(HttpMethod.Get, $"api/v1/{resource}");
-        return await response.Content.ReadFromJsonAsync<T>()
-            ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyResponse);
+        return await response.Content.ReadFromJsonAsync<T>() ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyResponse);
     }
 
     public async Task<TResponse> CreateAsync<TRequest, TResponse>(string resource, TRequest body)
     {
         using var response = await SendAuthorizedAsync(HttpMethod.Post, $"api/v1/{resource}", body);
-        return await response.Content.ReadFromJsonAsync<TResponse>()
-            ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyResponse);
+        return await response.Content.ReadFromJsonAsync<TResponse>() ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyResponse);
     }
 
     public async Task<TResponse> UpdateAsync<TRequest, TResponse>(string resource, Guid id, TRequest body)
     {
         using var response = await SendAuthorizedAsync(HttpMethod.Put, $"api/v1/{resource}/{id}", body);
-        return await response.Content.ReadFromJsonAsync<TResponse>()
-            ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyResponse);
+        return await response.Content.ReadFromJsonAsync<TResponse>() ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyResponse);
     }
 
     public async Task PutAsync<TRequest>(string resource, TRequest body)
@@ -627,10 +405,7 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
         try
         {
             var client = httpClientFactory.CreateClient("KiaiApi");
-            using var response = await client.PostAsJsonAsync("api/v1/auth/logout", new LogoutRequest
-            {
-                RefreshToken = currentSession.RefreshToken
-            });
+            using var response = await client.PostAsJsonAsync("api/v1/auth/logout", new LogoutRequest { RefreshToken = currentSession.RefreshToken });
             response.EnsureSuccessStatusCode();
         }
         finally
@@ -648,9 +423,9 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
         {
             request.Content = JsonContent.Create(body, body.GetType());
         }
+
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", currentSession.AccessToken);
         request.Headers.Add("X-Organization-Id", currentSession.User.OrganizationId.ToString());
-
         var response = await client.SendAsync(request);
         if (response.StatusCode == HttpStatusCode.Unauthorized && allowRefresh)
         {
@@ -673,7 +448,7 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
 
         if (!response.IsSuccessStatusCode)
         {
-            var detail = (await response.Content.ReadAsStringAsync()).Trim().Trim('"');
+            var detail = await ReadApiErrorAsync(response);
             var status = response.StatusCode;
             response.Dispose();
             throw new HttpRequestException(string.IsNullOrWhiteSpace(detail) ? string.Format(AdminSystemMessages.ApiRequestFailed, (int)status) : detail, null, status);
@@ -705,11 +480,7 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
             }
 
             var client = httpClientFactory.CreateClient("KiaiApi");
-            using var response = await client.PostAsJsonAsync("api/v1/auth/refresh", new RefreshTokenRequest
-            {
-                RefreshToken = currentSession.RefreshToken
-            });
-
+            using var response = await client.PostAsJsonAsync("api/v1/auth/refresh", new RefreshTokenRequest { RefreshToken = currentSession.RefreshToken });
             if (response.StatusCode == HttpStatusCode.Unauthorized)
             {
                 await session.ClearAsync();
@@ -718,15 +489,11 @@ public sealed class AdminApiClient(IHttpClientFactory httpClientFactory, AdminSe
 
             if (!response.IsSuccessStatusCode)
             {
-                var detail = (await response.Content.ReadAsStringAsync()).Trim().Trim('"');
-                throw new HttpRequestException(
-                    string.IsNullOrWhiteSpace(detail) ? $"Erro {(int)response.StatusCode} ao renovar a sessão." : detail,
-                    null,
-                    response.StatusCode);
+                var detail = await ReadApiErrorAsync(response);
+                throw new HttpRequestException(string.IsNullOrWhiteSpace(detail) ? $"Erro {(int)response.StatusCode} ao renovar a sessão." : detail, null, response.StatusCode);
             }
 
-            var refreshed = await response.Content.ReadFromJsonAsync<SessionTokenResponse>()
-                ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptySessionDuringRefresh);
+            var refreshed = await response.Content.ReadFromJsonAsync<SessionTokenResponse>() ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptySessionDuringRefresh);
             await session.SetAsync(refreshed);
             return true;
         }

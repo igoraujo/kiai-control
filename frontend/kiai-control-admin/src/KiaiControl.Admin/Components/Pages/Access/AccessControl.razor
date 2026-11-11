@@ -10,6 +10,7 @@
 <MudStack Spacing="3">
     <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
         <MudText Typo="Typo.h4">Acesso e permissões</MudText>
+        <MudButton Href="/people" StartIcon="@Icons.Material.Filled.ManageAccounts">Gerenciar pessoas e contas</MudButton>
         <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadAsync" Disabled="_isLoading">
             Atualizar
         </MudButton>
@@ -70,6 +71,7 @@
                     <MudItem xs="12" md="6">
                         <MudTextField T="string" @bind-Value="_temporaryPassword" Label="Senha temporária"
                                       Variant="Variant.Outlined" InputType="InputType.Password"
+                                      HelperText="@PasswordPolicy.Requirements"
                                       autocomplete="new-password" />
                     </MudItem>
                 </MudGrid>
@@ -90,6 +92,7 @@
         {
             <MudDivider />
             <MudText Typo="Typo.h6">Permissões por perfil</MudText>
+            <MudText Typo="Typo.body2">As opções respeitam as funções de cada perfil. Alterações passam a valer na próxima requisição, com renovação da sessão.</MudText>
             <MudStack Row="true" Spacing="3" AlignItems="AlignItems.Center">
                 <MudSelect T="string" Value="@_selectedRoleCode" ValueChanged="SelectRoleAsync"
                            Label="Perfil" Variant="Variant.Outlined" Dense="true" Style="max-width: 320px">
@@ -117,7 +120,7 @@
                         <MudCheckBox T="bool"
                                      Value="@IsGranted(permission.Code)"
                                      ValueChanged="@(value => SetPermissionAsync(permission.Code, value))"
-                                     Disabled="@(_isSaving || _selectedRoleCode == "owner")"
+                                     Disabled="@(_isSaving || _selectedRoleCode == "owner" || (!IsGranted(permission.Code) && !PermissionRoleRules.CanGrant(_selectedRoleCode??"",permission.Code)))"
                                      Color="Color.Primary" />
                     </MudTd>
                 </RowTemplate>
@@ -149,6 +152,8 @@
     private IEnumerable<PermissionResponse> FilteredPermissions => _permissions;
     private IEnumerable<RoleResponse> AssignableRoles => _roles.Where(role =>
         role.Code != "platform_owner"
+        && (role.Code!="client" || _peopleWithoutAccounts.FirstOrDefault(p=>p.PersonId==_selectedPersonId)?.HasClientProfile==true)
+        && (role.Code!="teacher" || _peopleWithoutAccounts.FirstOrDefault(p=>p.PersonId==_selectedPersonId)?.HasTeacherProfile==true)
         && (Session.Current?.User.Roles.Contains("owner", StringComparer.OrdinalIgnoreCase) == true
             || role.Code is not ("owner" or "admin")));
 
@@ -157,6 +162,7 @@
         _selectedPersonId = personId;
         var selectedPerson = _peopleWithoutAccounts.FirstOrDefault(person => person.PersonId == personId);
         _accountEmail = selectedPerson?.Email ?? string.Empty;
+        if(!AssignableRoles.Any(r=>r.Code==_accountRoleCode))_accountRoleCode=AssignableRoles.FirstOrDefault()?.Code;
     }
 
     protected override async Task OnInitializedAsync()
@@ -229,6 +235,12 @@
     {
         if (_selectedPersonId is not Guid personId || _isSaving)
         {
+            return;
+        }
+
+        if (!PasswordPolicy.IsValid(_temporaryPassword))
+        {
+            _errorMessage = PasswordPolicy.Requirements;
             return;
         }
 

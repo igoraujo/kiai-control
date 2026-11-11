@@ -2,6 +2,8 @@
 
 Aplicativo Flutter nativo para alunos consultarem aulas e acompanharem metas, e para professores fazerem a chamada e validarem presencas. O painel administrativo continua no frontend Blazor.
 
+A troca de senha exige no mínimo 6 caracteres, uma letra maiúscula, uma minúscula e um caractere especial, conforme a política da API. `lib/src/password_policy.dart` centraliza a validação e a mensagem do app. Os testes cobrem também letras acentuadas, símbolos Unicode e a contagem mínima de caracteres.
+
 ## Requisitos
 
 - Flutter SDK com suporte a Dart 3.4 ou superior.

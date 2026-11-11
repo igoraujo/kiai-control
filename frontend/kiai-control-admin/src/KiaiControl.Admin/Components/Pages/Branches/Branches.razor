@@ -9,18 +9,17 @@
             <MudText Typo="Typo.h4">Unidades</MudText>
             <MudText Typo="Typo.body2" Color="Color.Secondary">Gerencie as unidades da academia</MudText>
         </div>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="() => EditAsync(null)">Nova unidade</MudButton>
+        @if(CanManage){<MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="() => EditAsync(null)">Nova unidade</MudButton>}
     </MudStack>
 
     @if (ErrorMessage is not null)
     {
-        <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">@ErrorMessage</MudAlert>
+        <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">@ErrorMessage <MudButton OnClick="LoadAsync" Size="Size.Small">Tentar novamente</MudButton></MudAlert>
     }
 
-    <MudTable Items="Items" Loading="IsLoading" Hover="true" Dense="true"
-              Filter="@(new Func<BranchResponse, bool>(b => string.IsNullOrWhiteSpace(Search) || b.Name.Contains(Search, StringComparison.OrdinalIgnoreCase)))">
+    <MudTable @ref="Table" ServerData="LoadServerData" RowsPerPage="25" Hover="true" Dense="true" Breakpoint="Breakpoint.Sm">
         <ToolBarContent>
-            <MudTextField @bind-Value="Search" Placeholder="Buscar por nome" Adornment="Adornment.Start"
+            <MudTextField T="string" Value="Search" ValueChanged="SearchAsync" DebounceInterval="300" Placeholder="Buscar por nome" Adornment="Adornment.Start"
                           AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Margin="Margin.Dense" />
         </ToolBarContent>
         <HeaderContent>
@@ -31,18 +30,19 @@
             <MudTh Style="text-align:right">Ações</MudTh>
         </HeaderContent>
         <RowTemplate>
-            <MudTd>@context.Name</MudTd>
-            <MudTd>@context.AddressLine</MudTd>
-            <MudTd>@(string.Join("/", new[] { context.City, context.State }.Where(v => !string.IsNullOrWhiteSpace(v))))</MudTd>
-            <MudTd>@context.PostalCode</MudTd>
-            <MudTd Style="text-align:right">
-                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" aria-label="Editar" OnClick="() => EditAsync(context)" />
-                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" aria-label="Excluir" OnClick="() => DeleteAsync(context.Id, context.Name)" />
+            <MudTd DataLabel="Nome">@context.Name</MudTd>
+            <MudTd DataLabel="Endereço">@context.AddressLine</MudTd>
+            <MudTd DataLabel="Cidade/UF">@(string.Join("/", new[] { context.City, context.State }.Where(v => !string.IsNullOrWhiteSpace(v))))</MudTd>
+            <MudTd DataLabel="CEP">@context.PostalCode</MudTd>
+            <MudTd DataLabel="Ações" Style="text-align:right">
+                @if(CanManage){<MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" aria-label="Editar" OnClick="() => EditAsync(context)" />}
+                @if(CanManage){<MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" aria-label="Excluir" OnClick="() => DeleteAsync(context.Id, context.Name)" />}
             </MudTd>
         </RowTemplate>
         <NoRecordsContent>
             <MudText>Nenhuma unidade encontrada.</MudText>
         </NoRecordsContent>
+        <PagerContent><MudTablePager PageSizeOptions="new int[] { 10, 25, 50, 100 }" RowsPerPageString="Registros por página" InfoFormat="{first_item}-{last_item} de {all_items}" /></PagerContent>
     </MudTable>
 </MudStack>
 

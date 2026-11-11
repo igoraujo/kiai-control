@@ -36,7 +36,7 @@
     }
     else
     {
-        <MudTabs Elevation="0" Rounded="false">
+        <MudTabs Elevation="0" Rounded="false" @bind-ActivePanelIndex="_activeTab">
             <MudTabPanel Text="Faturas">
                 <MudStack Spacing="2" Class="pt-3">
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
@@ -48,9 +48,9 @@
                         </MudButton>
                     </MudStack>
 
-                    <MudTable Items="@FilteredInvoices" Loading="_isLoading" Hover="true" Dense="true">
+                    <MudTable Items="_invoices" Loading="_isLoading" Hover="true" Dense="true">
                         <ToolBarContent>
-                            <MudTextField @bind-Value="_search" Placeholder="Buscar aluno ou status" Adornment="Adornment.Start"
+                            <MudTextField T="string" Value="_search" ValueChanged="SearchInvoicesAsync" DebounceInterval="300" Placeholder="Buscar aluno ou status" Adornment="Adornment.Start"
                                           AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Margin="Margin.Dense" />
                         </ToolBarContent>
                         <HeaderContent>
@@ -76,7 +76,7 @@
                             </MudTd>
                         </RowTemplate>
                         <NoRecordsContent><MudText>Nenhuma fatura encontrada.</MudText></NoRecordsContent>
-                    </MudTable>
+                    </MudTable><PageControls Page="_invoicePage" HasNext="@(_invoices.Count==PageSize)" Busy="_isLoading" Changed="InvoicePageAsync" />
                 </MudStack>
             </MudTabPanel>
 
@@ -112,7 +112,7 @@
                             </MudTd>
                         </RowTemplate>
                         <NoRecordsContent><MudText>Nenhuma assinatura encontrada.</MudText></NoRecordsContent>
-                    </MudTable>
+                    </MudTable><PageControls Page="_subscriptionPage" HasNext="@(_subscriptions.Count==PageSize)" Busy="_isLoading" Changed="SubscriptionPageAsync" />
                 </MudStack>
             </MudTabPanel>
 
@@ -154,7 +154,7 @@
                             </MudTd>
                         </RowTemplate>
                         <NoRecordsContent><MudText>Nenhum plano encontrado.</MudText></NoRecordsContent>
-                    </MudTable>
+                    <PagerContent><MudTablePager RowsPerPageString="Planos por página" /></PagerContent></MudTable>
                 </MudStack>
             </MudTabPanel>
 
@@ -176,7 +176,7 @@
                             <MudTd>@(payment.ExternalReference ?? "-")</MudTd>
                         </RowTemplate>
                         <NoRecordsContent><MudText>Nenhum pagamento encontrado.</MudText></NoRecordsContent>
-                    </MudTable>
+                    </MudTable><PageControls Page="_paymentPage" HasNext="@(_payments.Count==PageSize)" Busy="_isLoading" Changed="PaymentPageAsync" />
                 </MudStack>
             </MudTabPanel>
         </MudTabs>
@@ -184,6 +184,8 @@
 </MudStack>
 
 @code {
+    private int _activeTab,_invoicePage=1,_subscriptionPage=1,_paymentPage=1;
+    private const int PageSize=25;
     private IReadOnlyList<BillingPlanResponse> _plans = [];
     private IReadOnlyList<ClientPlanSubscriptionResponse> _subscriptions = [];
     private IReadOnlyList<BillingResponse> _invoices = [];
@@ -227,17 +229,17 @@
         _errorMessage = null;
         try
         {
-            var plansTask = Api.ListBillingPlansAsync();
-            var subscriptionsTask = Api.ListClientSubscriptionsAsync();
-            var invoicesTask = Api.ListInvoicesAsync();
-            var paymentsTask = Api.ListPaymentsAsync();
-            var clientsTask = Api.ListAsync<ClientResponse>("clients", pageSize: 200);
-            await Task.WhenAll(plansTask, subscriptionsTask, invoicesTask, paymentsTask, clientsTask);
-            _plans = await plansTask;
+            var optionsTask = Api.GetAsync<BillingOptionsResponse>("billing/options");
+            var subscriptionsTask = Api.ListClientSubscriptionsAsync(_subscriptionPage,PageSize);
+            var invoicesTask = Api.InvoicePageAsync(_invoicePage,PageSize,SearchTerm(_search));
+            var paymentsTask = Api.ListPaymentsAsync(_paymentPage,PageSize);
+            await Task.WhenAll(optionsTask, subscriptionsTask, invoicesTask, paymentsTask);
+            var options=await optionsTask;
+            _plans = options.Plans;
             _subscriptions = await subscriptionsTask;
             _invoices = await invoicesTask;
             _payments = await paymentsTask;
-            _clients = await clientsTask;
+            _clients = options.Clients;
         }
         catch (UnauthorizedAccessException)
         {
@@ -391,6 +393,11 @@
 
     private string ClientName(Guid clientId) => _clients.FirstOrDefault(client => client.Id == clientId)?.FullName ?? "Aluno removido";
 
+    private async Task SearchInvoicesAsync(string value){_search=value;_invoicePage=1;await LoadAsync();}
+    private async Task InvoicePageAsync(int page){_invoicePage=page;await LoadAsync();}
+    private async Task SubscriptionPageAsync(int page){_subscriptionPage=page;await LoadAsync();}
+    private async Task PaymentPageAsync(int page){_paymentPage=page;await LoadAsync();}
+    private static string SearchTerm(string s)=>s.Trim().ToLowerInvariant() switch {"pago" or "paga"=>"paid","pendente"=>"pending","vencida"=>"overdue","parcial"=>"partially_paid","cancelada"=>"canceled","isenta"=>"exempt",_=>s};
     private string PlanName(Guid planId) => _plans.FirstOrDefault(plan => plan.Id == planId)?.Name ?? "Plano indisponível";
 
     private static string InvoiceStatusLabel(string status) => status switch
