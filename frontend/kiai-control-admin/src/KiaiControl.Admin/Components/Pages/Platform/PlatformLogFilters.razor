@@ -1,0 +1,81 @@
+@inject AdminApiClient Api
+<MudPaper Outlined="true" Class="pa-4">
+    <MudGrid>
+        <MudItem xs="12" md="4">
+            @if (FixedOrganization is not null)
+            {
+                <MudText Typo="Typo.caption">Academia selecionada</MudText>
+                <MudText>@FixedOrganization.Name @(FixedOrganization.DeletedAt is not null ? "(arquivada)" : "")</MudText>
+            }
+            else
+            {
+            <MudAutocomplete T="OrganizationResponse" Value="_organization" ValueChanged="x => _organization = x" Label="Academia"
+                             SearchFunc="SearchAsync" ToStringFunc="OrganizationLabel" Clearable="true" ResetValueOnEmptyText="true" CoerceValue="true" Placeholder="Todas as academias" />
+            }
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3"><MudDatePicker @bind-Date="_from" Label="De (UTC)" Required="true" DateFormat="dd/MM/yyyy" /></MudItem>
+        <MudItem xs="12" sm="6" md="3"><MudDatePicker @bind-Date="_to" Label="Até (UTC)" Required="true" DateFormat="dd/MM/yyyy" /></MudItem>
+        @if (Audit)
+        {
+            <MudItem xs="12" md="6"><MudTextField @bind-Value="_actor" Label="Usuário" Placeholder="Nome ou e-mail do autor" MaxLength="160" /></MudItem>
+            <MudItem xs="12" md="6"><MudTextField @bind-Value="_action" Label="Ação" Placeholder="Ex.: POST ou platform.account.updated" MaxLength="120" /></MudItem>
+        }
+        else if (!Metrics)
+        {
+            <MudItem xs="12" md="6">
+                <MudSelect T="string" @bind-Value="_category" Label="Categoria">
+                    <MudSelectItem Value='@("all")'>Todas</MudSelectItem>
+                    <MudSelectItem Value='@("request_failure")'>Falha da API</MudSelectItem>
+                    <MudSelectItem Value='@("authentication_failure")'>Falha de login</MudSelectItem>
+                    <MudSelectItem Value='@("audit_failure")'>Falha de auditoria</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+        }
+        <MudItem xs="12"><MudButton OnClick="ApplyAsync" Disabled="Busy" Variant="Variant.Outlined" Color="Color.Primary">Aplicar filtros</MudButton></MudItem>
+    </MudGrid>
+    @if (_error is not null) { <MudAlert Severity="Severity.Error" Class="mt-2">@_error</MudAlert> }
+</MudPaper>
+@code {
+    [Parameter] public bool Audit { get; set; }
+    [Parameter] public bool Metrics { get; set; }
+    [Parameter] public OrganizationResponse? FixedOrganization { get; set; }
+    [Parameter] public Guid? InitialOrganizationId { get; set; }
+    [Parameter] public bool Busy { get; set; }
+    [Parameter] public EventCallback<PlatformLogQuery> Changed { get; set; }
+    private OrganizationResponse? _organization;
+    private DateTime? _from = DateTime.UtcNow.Date.AddDays(-7);
+    private DateTime? _to = DateTime.UtcNow.Date;
+    private string? _actor;
+    private string? _action;
+    private string _category = "all";
+    private string? _error;
+    private Guid? _loadedOrganizationId;
+    protected override async Task OnParametersSetAsync()
+    {
+        if (InitialOrganizationId is Guid id && _loadedOrganizationId != id)
+        {
+            try { _organization = await Api.GetAsync<OrganizationResponse>($"platform/organizations/{id}"); _loadedOrganizationId = id; }
+            catch (Exception e) when (e is HttpRequestException or UnauthorizedAccessException) { _error = "Não foi possível localizar a academia."; }
+        }
+    }
+    private static string OrganizationLabel(OrganizationResponse? x) => x is null ? "" : x.Name + (x.DeletedAt is null ? "" : " (arquivada)");
+    private async Task<IEnumerable<OrganizationResponse>> SearchAsync(string search, CancellationToken ct)
+    {
+        try { return (await Api.ListPlatformOrganizationsAsync(1, 50, search, archive: "all")).Items; }
+        catch (Exception e) when (e is HttpRequestException or UnauthorizedAccessException)
+        { _error = "Não foi possível buscar academias. Tente novamente."; return []; }
+    }
+    private async Task ApplyAsync()
+    {
+        _error = null;
+        var maximumDays = Metrics ? 90 : 366;
+        if (_from is null || _to is null || _to < _from || (_to.Value - _from.Value).TotalDays >= maximumDays)
+        { _error = $"Informe um período válido de até {maximumDays} dias."; return; }
+        var from = new DateTimeOffset(DateTime.SpecifyKind(_from.Value.Date, DateTimeKind.Utc));
+        var to = new DateTimeOffset(DateTime.SpecifyKind(_to.Value.Date.AddDays(1), DateTimeKind.Utc));
+        if (to > DateTimeOffset.UtcNow) to = DateTimeOffset.UtcNow;
+        if (to <= from) { _error = "Selecione um período que já tenha iniciado."; return; }
+        await Changed.InvokeAsync(new PlatformLogQuery(FixedOrganization?.Id ?? _organization?.Id, from, to, _actor,
+            Audit ? _action : _category == "all" ? null : _category));
+    }
+}

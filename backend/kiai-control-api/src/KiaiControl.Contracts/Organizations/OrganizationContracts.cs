@@ -51,6 +51,10 @@ public sealed class OrganizationResponse
     public DateTimeOffset CreatedAt { get; init; }
 
     public DateTimeOffset? UpdatedAt { get; init; }
+
+    public DateTimeOffset? DeletedAt { get; init; }
+
+    public bool PrivacyHold { get; init; }
 }
 
 public sealed class OrganizationRegistrationResponse

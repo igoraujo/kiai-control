@@ -34,6 +34,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<BillingUseCase>();
         services.AddScoped<BillingCatalogUseCase>();
         services.AddScoped<OrganizationUseCase>();
+        services.AddScoped<KiaiControl.UseCases.Platform.PlatformAdministrationUseCase>();
+        services.AddScoped<KiaiControl.UseCases.Platform.PlatformObservabilityUseCase>();
         services.AddScoped<BranchUseCase>();
         services.AddScoped<NotificationUseCase>();
         services.AddScoped<AuditLogUseCase>();

@@ -1,0 +1,55 @@
+@inject AdminApiClient Api
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudText Typo="Typo.h6">@Organization.Name</MudText>
+            @if (_error is not null) { <MudAlert Severity="Severity.Error">@_error</MudAlert> }
+            @if (Mode == "hold")
+            {
+                <MudAlert Severity="Severity.Info">A preservação suspende os prazos automáticos de limpeza para obrigação ou investigação documentada. Ao encerrar a preservação, os prazos configurados voltam a valer.</MudAlert>
+                <MudSwitch T="bool" @bind-Value="_hold" Label="Preservação legal ativa" Color="Color.Warning" />
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Warning">@OperationDescription</MudAlert>
+                <MudTextField @bind-Value="_name" Label="Confirme o nome da academia" HelperText="Digite o nome exatamente como exibido." MaxLength="160" />
+            }
+            <MudTextField @bind-Value="_reason" Label="Motivo e fundamento" Lines="3" MaxLength="500" HelperText="Informe a finalidade sem incluir senhas ou dados pessoais desnecessários." />
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Disabled="_busy" OnClick="() => Dialog.Cancel()">Cancelar</MudButton>
+        <MudButton Disabled="_busy" OnClick="SaveAsync" Color="Color.Warning" Variant="Variant.Filled">Confirmar operação</MudButton>
+    </DialogActions>
+</MudDialog>
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = default!;
+    [Parameter, EditorRequired] public OrganizationResponse Organization { get; set; } = default!;
+    [Parameter] public string Mode { get; set; } = "archive";
+    private string _name = "";
+    private string _reason = "";
+    private bool _hold;
+    private bool _busy;
+    private string? _error;
+    private string OperationDescription => Mode switch
+    {
+        "archive" => "O arquivamento encerra os acessos e retira a academia da lista de operação. Os cadastros e históricos são preservados para uma futura retomada.",
+        "reactivate" => "A academia voltará a ficar ativa no mesmo cadastro e com seu histórico preservado. Os usuários liberados poderão entrar novamente; contas bloqueadas permanecerão bloqueadas e sessões antigas não serão recuperadas.",
+        _ => "A restauração mantém a academia inativa e não recupera sessões antigas. A ativação deverá ser feita separadamente. Para retomar o contrato e liberar os acessos agora, use Restaurar e reativar."
+    };
+    protected override void OnInitialized() => _hold = Organization.PrivacyHold;
+    private async Task SaveAsync()
+    {
+        if (_busy) return;
+        _busy = true;
+        _error = null;
+        try
+        {
+            if (Mode == "hold") await Api.PutAsync($"platform/organizations/{Organization.Id}/privacy-hold", new PlatformPrivacyHoldRequest { Hold = _hold, Reason = _reason });
+            else await Api.ChangePlatformArchiveAsync(Organization.Id, Mode == "archive", new() { ConfirmName = _name, Reason = _reason, Reactivate = Mode == "reactivate" });
+            Dialog.Close(DialogResult.Ok(true));
+        }
+        catch (Exception e) when (e is HttpRequestException or UnauthorizedAccessException) { _error = e is UnauthorizedAccessException ? "Sua sessão expirou." : e.Message; }
+        finally { _busy = false; }
+    }
+}

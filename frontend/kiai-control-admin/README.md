@@ -1,5 +1,7 @@
 # Kiai Control Admin
 
+O painel do Administrador da Plataforma inclui academias, responsáveis, auditoria global e ocorrências. Consulte [PLATFORM_ADMINISTRATION.md](../../PLATFORM_ADMINISTRATION.md) para o acesso inicial e as regras de operação.
+
 Painel web em .NET 10, Blazor Server e MudBlazor. Consome a API versionada e compartilha somente `KiaiControl.Contracts` com o backend.
 
 ## Executar

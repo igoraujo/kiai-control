@@ -1,226 +1,62 @@
 @page "/platform/organizations"
-@using KiaiControl.Contracts.Organizations
-@inject AdminSession Session
-@inject AdminApiClient Api
-@inject NavigationManager Navigation
-@inject ISnackbar Snackbar
+@inherits PlatformPageBase
 
-<PageTitle>Organizações | Kiai Control</PageTitle>
-
+<PageTitle>Academias | Plataforma Kiai Control</PageTitle>
 <MudStack Spacing="3">
-    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
-        <MudText Typo="Typo.h4">Organizações</MudText>
-        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh"
-                   OnClick="LoadOrganizationsAsync" Disabled="_isLoading">
-            Atualizar
-        </MudButton>
+    <MudText Typo="Typo.overline" Color="Color.Secondary">Administração da plataforma</MudText>
+    <MudStack Row="true" Wrap="Wrap.Wrap" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+        <MudText Typo="Typo.h4">Academias</MudText>
+        <MudButton OnClick="RegisterAsync" Disabled="IsBusy" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.AddBusiness">Nova academia</MudButton>
     </MudStack>
-
-    @if (_errorMessage is not null)
-    {
-        <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">@_errorMessage</MudAlert>
-    }
-
-    <MudPaper Class="pa-4" Outlined="true">
-        <MudStack Spacing="3">
-            <MudText Typo="Typo.h6">Cadastrar organização</MudText>
-            <MudGrid>
-                <MudItem xs="12" md="6">
-                    <MudTextField T="string" @bind-Value="_form.Name" Label="Nome da organização"
-                                  Variant="Variant.Outlined" Required="true" />
-                </MudItem>
-                <MudItem xs="12" md="6">
-                    <MudTextField T="string" @bind-Value="_form.TradeName" Label="Nome fantasia"
-                                  Variant="Variant.Outlined" />
-                </MudItem>
-                <MudItem xs="12" md="6">
-                    <MudTextField T="string" @bind-Value="_form.Document" Label="CNPJ"
-                                  Variant="Variant.Outlined" />
-                </MudItem>
-                <MudItem xs="12" md="6">
-                    <MudTextField T="string" @bind-Value="_form.Email" Label="E-mail da organização"
-                                  InputType="InputType.Email" Variant="Variant.Outlined" />
-                </MudItem>
-                <MudItem xs="12" md="6">
-                    <MudTextField T="string" @bind-Value="_form.Phone" Label="Telefone"
-                                  Variant="Variant.Outlined" />
-                </MudItem>
-                <MudItem xs="12"><MudDivider /></MudItem>
-                <MudItem xs="12" md="6">
-                    <MudTextField T="string" @bind-Value="_form.OwnerFullName" Label="Nome do primeiro responsável"
-                                  Variant="Variant.Outlined" Required="true" />
-                </MudItem>
-                <MudItem xs="12" md="6">
-                    <MudTextField T="string" @bind-Value="_form.OwnerEmail" Label="E-mail de acesso"
-                                  InputType="InputType.Email" Variant="Variant.Outlined" Required="true" />
-                </MudItem>
-                <MudItem xs="12" md="6">
-                    <MudTextField T="string" @bind-Value="_form.OwnerPassword" Label="Senha temporária"
-                                  InputType="InputType.Password" Variant="Variant.Outlined" Required="true"
-                                  Immediate="true" HelperText="@PasswordPolicy.Requirements" />
-                </MudItem>
-            </MudGrid>
-            <MudText Typo="Typo.caption" Color="Color.Secondary">
-                O primeiro responsável precisará definir uma nova senha no primeiro acesso.
-            </MudText>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.AddBusiness"
-                       OnClick="RegisterOrganizationAsync" Disabled="@(_isSaving || !CanSubmit)">
-                Cadastrar organização
-            </MudButton>
-        </MudStack>
+    <MudText>Cadastre academias e gerencie seus responsáveis e acessos.</MudText>
+    <MudStack Row="true" Wrap="Wrap.Wrap">
+        @foreach (var state in new[] { ("active", "Em operação"), ("archived", "Arquivadas"), ("all", "Todas") })
+        {
+            <MudButton Variant="@(_archive == state.Item1 ? Variant.Filled : Variant.Outlined)" Color="Color.Primary" Disabled="IsBusy" OnClick="() => ArchiveFilterAsync(state.Item1)">@state.Item2</MudButton>
+        }
+    </MudStack>
+    @if (Error is not null) { <MudAlert Severity="Severity.Error">@Error</MudAlert> }
+    <MudPaper Outlined="true" Class="pa-4">
+        <MudGrid>
+            <MudItem xs="12" md="7"><MudTextField @bind-Value="_search" Label="Buscar academia" Placeholder="Nome, documento ou e-mail" Variant="Variant.Outlined" /></MudItem>
+            <MudItem xs="12" md="3">
+                <MudSelect T="string" @bind-Value="_status" Label="Status" Variant="Variant.Outlined">
+                    <MudSelectItem Value='@("all")'>Todos</MudSelectItem>
+                    <MudSelectItem Value='@("active")'>Ativas</MudSelectItem>
+                    <MudSelectItem Value='@("suspended")'>Suspensas</MudSelectItem>
+                    <MudSelectItem Value='@("inactive")'>Inativas</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="2"><MudButton OnClick="FilterAsync" Disabled="IsBusy" Variant="Variant.Outlined" Class="mt-3">Filtrar</MudButton></MudItem>
+        </MudGrid>
     </MudPaper>
-
-    <MudText Typo="Typo.h6">Organizações cadastradas</MudText>
-    @if (_isLoading)
-    {
-        <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
-    }
-    else
-    {
-        <MudTable Items="_organizations" Dense="true" Hover="true" Elevation="0">
-            <HeaderContent>
-                <MudTh>Organização</MudTh>
-                <MudTh>Documento</MudTh>
-                <MudTh>E-mail</MudTh>
-                <MudTh>Status</MudTh>
-                <MudTh>Cadastro</MudTh>
-            </HeaderContent>
-            <RowTemplate Context="organization">
-                <MudTd DataLabel="Organização">@organization.Name</MudTd>
-                <MudTd DataLabel="Documento">@organization.Document</MudTd>
-                <MudTd DataLabel="E-mail">@organization.Email</MudTd>
-                <MudTd DataLabel="Status">@organization.Status</MudTd>
-                <MudTd DataLabel="Cadastro">@organization.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy")</MudTd>
-            </RowTemplate>
-            <NoRecordsContent>
-                <MudText>Nenhuma organização cadastrada.</MudText>
-            </NoRecordsContent>
-        </MudTable>
-    }
+    <MudTable Items="_result.Items" Loading="IsBusy" Hover="true" Elevation="0" Breakpoint="Breakpoint.Md">
+        <HeaderContent><MudTh>Academia</MudTh><MudTh>Contato</MudTh><MudTh>Status</MudTh><MudTh>Ações</MudTh></HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Academia"><div class="platform-cell-content"><MudText>@context.Name</MudText><MudText Typo="Typo.caption">@context.Document</MudText></div></MudTd>
+            <MudTd DataLabel="Contato"><div class="platform-cell-content">@context.Email<br />@context.Phone</div></MudTd>
+            <MudTd DataLabel="Status"><MudChip T="string" Size="Size.Small" Color="@(context.DeletedAt is null && context.Status == "active" ? Color.Success : Color.Warning)">@(context.DeletedAt is not null ? "Arquivada" : PlatformLabels.Status(context.Status))</MudChip></MudTd>
+            <MudTd DataLabel="Ações"><div class="platform-cell-content"><MudButton Href="@($"/platform/organizations/{context.Id}")" Color="Color.Primary">Gerenciar</MudButton><MudButton Href="@($"/platform/organizations/{context.Id}/audit")">Auditoria</MudButton></div></MudTd>
+        </RowTemplate>
+        <NoRecordsContent><MudText>Nenhuma academia encontrada.</MudText></NoRecordsContent>
+    </MudTable>
+    <PlatformPagination Page="_page" Total="_result.Total" Busy="IsBusy" Changed="PageAsync" />
 </MudStack>
 
 @code {
-    private readonly OrganizationForm _form = new();
-    private IReadOnlyList<OrganizationResponse> _organizations = [];
-    private string? _errorMessage;
-    private bool _isLoading = true;
-    private bool _isSaving;
-
-    private bool CanSubmit =>
-        !string.IsNullOrWhiteSpace(_form.Name)
-        && !string.IsNullOrWhiteSpace(_form.OwnerFullName)
-        && !string.IsNullOrWhiteSpace(_form.OwnerEmail)
-        && PasswordPolicy.IsValid(_form.OwnerPassword);
-
-    protected override async Task OnInitializedAsync()
+    private PagedResponse<OrganizationResponse> _result = new([], 0);
+    private int _page = 1;
+    private string? _search;
+    private string _status = "all";
+    private string _archive = "active";
+    protected override async Task LoadAsync() => _result = await Api.ListPlatformOrganizationsAsync(_page, 25, _search, _status == "all" ? null : _status, _archive);
+    private Task ArchiveFilterAsync(string archive) { _archive = archive; _page = 1; return RunAsync(LoadAsync); }
+    private Task FilterAsync() { _page = 1; return RunAsync(LoadAsync); }
+    private Task PageAsync(int page) { _page = page; return RunAsync(LoadAsync); }
+    private async Task RegisterAsync()
     {
-        if (Session.Current is null)
-        {
-            Navigation.NavigateTo("/login");
-            return;
-        }
-
-        if (!Session.Current.User.Roles.Contains("platform_owner", StringComparer.OrdinalIgnoreCase))
-        {
-            Navigation.NavigateTo("/");
-            return;
-        }
-
-        await LoadOrganizationsAsync();
-    }
-
-    private async Task LoadOrganizationsAsync()
-    {
-        _isLoading = true;
-        _errorMessage = null;
-        try
-        {
-            _organizations = await Api.ListPlatformOrganizationsAsync();
-        }
-        catch (UnauthorizedAccessException)
-        {
-            await Session.ClearAsync();
-            Navigation.NavigateTo("/login");
-        }
-        catch (HttpRequestException exception)
-        {
-            _errorMessage = exception.Message;
-        }
-        finally
-        {
-            _isLoading = false;
-        }
-    }
-
-    private async Task RegisterOrganizationAsync()
-    {
-        if (!CanSubmit || _isSaving)
-        {
-            return;
-        }
-
-        _isSaving = true;
-        _errorMessage = null;
-        try
-        {
-            var registration = await Api.RegisterPlatformOrganizationAsync(new RegisterOrganizationRequest
-            {
-                Name = _form.Name,
-                TradeName = _form.TradeName,
-                Document = _form.Document,
-                Email = _form.Email,
-                Phone = _form.Phone,
-                OwnerFullName = _form.OwnerFullName,
-                OwnerEmail = _form.OwnerEmail,
-                OwnerPassword = _form.OwnerPassword
-            });
-            _organizations = [registration.Organization, .. _organizations];
-            _form.Reset();
-            Snackbar.Add($"Organização cadastrada. Primeiro acesso: {registration.OwnerEmail}. Entregue a senha temporária com segurança.", Severity.Success);
-        }
-        catch (UnauthorizedAccessException)
-        {
-            await Session.ClearAsync();
-            Navigation.NavigateTo("/login");
-        }
-        catch (HttpRequestException exception)
-        {
-            _errorMessage = exception.Message;
-        }
-        finally
-        {
-            _isSaving = false;
-        }
-    }
-
-    private sealed class OrganizationForm
-    {
-        public string Name { get; set; } = string.Empty;
-
-        public string? TradeName { get; set; }
-
-        public string? Document { get; set; }
-
-        public string? Email { get; set; }
-
-        public string? Phone { get; set; }
-
-        public string OwnerFullName { get; set; } = string.Empty;
-
-        public string OwnerEmail { get; set; } = string.Empty;
-
-        public string OwnerPassword { get; set; } = string.Empty;
-
-        public void Reset()
-        {
-            Name = string.Empty;
-            TradeName = null;
-            Document = null;
-            Email = null;
-            Phone = null;
-            OwnerFullName = string.Empty;
-            OwnerEmail = string.Empty;
-            OwnerPassword = string.Empty;
-        }
+        var dialog = await Dialogs.ShowAsync<OrganizationRegistrationDialog>("Nova academia", new DialogOptions { FullWidth = true, MaxWidth = MaxWidth.Medium });
+        if (await dialog.Result is { Canceled: false, Data: OrganizationRegistrationResponse result })
+            Navigation.NavigateTo($"/platform/organizations/{result.Organization.Id}");
     }
 }

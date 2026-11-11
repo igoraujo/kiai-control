@@ -1,0 +1,85 @@
+@inject AdminApiClient Api
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3">
+            @if (_error is not null) { <MudAlert Severity="Severity.Error">@_error</MudAlert> }
+            @if (Account is null)
+            {
+                <MudTextField @bind-Value="_name" Label="Nome do responsável" Required="true" MaxLength="180" />
+            }
+            else { <MudText Typo="Typo.h6">@Account.FullName</MudText> }
+            <MudTextField @bind-Value="_email" Label="E-mail de acesso" InputType="InputType.Email" Required="true" MaxLength="160" />
+            @if (Account is null)
+            {
+                <MudSelect T="string" @bind-Value="_role" Label="Perfil inicial">
+                    <MudSelectItem Value='@("owner")'>Responsável (owner)</MudSelectItem>
+                    <MudSelectItem Value='@("admin")'>Administrador da academia</MudSelectItem>
+                </MudSelect>
+            }
+            else
+            {
+                <MudSelect T="string" @bind-SelectedValues="_roles" MultiSelection="true" Label="Perfis de acesso">
+                    @foreach (var role in AvailableRoles)
+                    {
+                        <MudSelectItem Value="@role">@AdminNavigation.RoleLabel(role)</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudSwitch T="bool" @bind-Value="_active" Color="Color.Success" Label="Acesso ativo" />
+                <MudText Typo="Typo.caption">Salvar acessos encerra as sessões desta conta. O último owner ativo é protegido.</MudText>
+            }
+            <MudTextField @bind-Value="_reason" Label="Motivo da alteração" Required="true" MaxLength="500" HelperText="Registrado na auditoria. Mínimo de 5 caracteres." />
+            @if (Account is not null)
+            {
+                <MudButton OnClick="SaveAsync" Disabled="_busy" Color="Color.Primary" Variant="Variant.Filled">Salvar acessos</MudButton>
+                <MudButton OnClick="RevokeAsync" Disabled="_busy" Color="Color.Warning">Encerrar sessões</MudButton>
+                <MudDivider />
+            }
+            <MudTextField @bind-Value="_password" Label="Senha temporária" InputType="InputType.Password" autocomplete="new-password" MaxLength="256" HelperText="@PasswordPolicy.Requirements" />
+            <MudAlert Severity="Severity.Info">A senha temporária deverá ser trocada no próximo acesso. A redefinição encerra as sessões e invalida links de recuperação anteriores.</MudAlert>
+            @if (Account is not null) { <MudButton OnClick="ResetAsync" Disabled="_busy" Color="Color.Warning">Redefinir senha</MudButton> }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => Dialog.Cancel()" Disabled="_busy">Fechar</MudButton>
+        @if (Account is null) { <MudButton OnClick="SaveAsync" Disabled="_busy" Variant="Variant.Filled" Color="Color.Primary">Criar responsável</MudButton> }
+    </DialogActions>
+</MudDialog>
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = default!;
+    [Parameter] public Guid OrganizationId { get; set; }
+    [Parameter] public PlatformAccountResponse? Account { get; set; }
+    private string _name = "";
+    private string _email = "";
+    private string _role = "owner";
+    private string _password = "";
+    private string _reason = "";
+    private IReadOnlyCollection<string> _roles = [];
+    private bool _active;
+    private string? _error;
+    private bool _busy;
+    private IEnumerable<string> AvailableRoles => new[] { "owner", "admin", "reception", "financial" }.Concat(Account?.Roles.Where(x => x is "client" or "teacher") ?? []);
+    protected override void OnInitialized()
+    {
+        _email = Account?.Email ?? "";
+        _roles = Account?.Roles.ToArray() ?? [];
+        _active = Account?.IsActive ?? true;
+    }
+    private Task SaveAsync() => ExecuteAsync(async () =>
+    {
+        if (Account is null)
+            await Api.CreatePlatformAccountAsync(OrganizationId, new() { FullName = _name, Email = _email, Role = _role, TemporaryPassword = _password, Reason = _reason });
+        else
+            await Api.PutAsync($"platform/organizations/{OrganizationId}/accounts/{Account.UserId}", new UpdatePlatformAccountRequest { Email = _email, Roles = _roles.ToArray(), IsActive = _active, Reason = _reason });
+    });
+    private Task ResetAsync() => ExecuteAsync(() => Api.PutAsync($"platform/organizations/{OrganizationId}/accounts/{Account!.UserId}/password", new PlatformPasswordRequest { TemporaryPassword = _password, Reason = _reason }));
+    private Task RevokeAsync() => ExecuteAsync(() => Api.RevokePlatformSessionsAsync(OrganizationId, Account!.UserId, new() { Reason = _reason }));
+    private async Task ExecuteAsync(Func<Task> action)
+    {
+        if (_busy) return;
+        _busy = true;
+        _error = null;
+        try { await action(); _password = ""; Dialog.Close(DialogResult.Ok(true)); }
+        catch (Exception e) when (e is HttpRequestException or UnauthorizedAccessException) { _error = e is UnauthorizedAccessException ? "Sua sessão expirou. Entre novamente." : e.Message; }
+        finally { _busy = false; }
+    }
+}

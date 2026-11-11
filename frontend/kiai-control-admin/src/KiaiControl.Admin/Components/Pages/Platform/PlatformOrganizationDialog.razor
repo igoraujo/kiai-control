@@ -1,0 +1,63 @@
+@inject AdminApiClient Api
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form">
+            <MudStack Spacing="3">
+                @if (_error is not null) { <MudAlert Severity="Severity.Error">@_error</MudAlert> }
+                <MudText Typo="Typo.subtitle1">@Organization.Name</MudText>
+                @if (StatusOnly)
+                {
+                    <MudSelect T="string" @bind-Value="_status" Label="Novo status">
+                        <MudSelectItem Value='@("active")'>Ativa</MudSelectItem>
+                        <MudSelectItem Value='@("inactive")'>Inativa</MudSelectItem>
+                        <MudSelectItem Value='@("suspended")'>Suspensa</MudSelectItem>
+                    </MudSelect>
+                    <MudAlert Severity="Severity.Warning">A mudança encerra todas as sessões da academia. Uma academia inativa ou suspensa não permite login nem uso da API.</MudAlert>
+                }
+                else
+                {
+                    <MudTextField @bind-Value="_request.Name" Label="Nome da academia" Required="true" MaxLength="160" />
+                    <MudTextField @bind-Value="_request.TradeName" Label="Nome fantasia" MaxLength="160" />
+                    <MudTextField @bind-Value="_request.Document" Label="CNPJ" MaxLength="30" />
+                    <MudTextField @bind-Value="_request.Email" Label="E-mail da academia" InputType="InputType.Email" MaxLength="160" />
+                    <MudTextField @bind-Value="_request.Phone" Label="Telefone" MaxLength="30" />
+                }
+                <MudTextField @bind-Value="_request.Reason" Label="Motivo da alteração" Required="true" MaxLength="500" HelperText="Registrado na auditoria. Mínimo de 5 caracteres." />
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => Dialog.Cancel()" Disabled="_busy">Cancelar</MudButton>
+        <MudButton OnClick="SaveAsync" Disabled="_busy" Color="Color.Primary" Variant="Variant.Filled">Salvar alteração</MudButton>
+    </DialogActions>
+</MudDialog>
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = default!;
+    [Parameter, EditorRequired] public OrganizationResponse Organization { get; set; } = default!;
+    [Parameter] public bool StatusOnly { get; set; }
+    private PlatformOrganizationUpdateRequest _request = new();
+    private MudForm _form = default!;
+    private string _status = "active";
+    private string? _error;
+    private bool _busy;
+    protected override void OnInitialized()
+    {
+        _status = Organization.Status;
+        _request = new() { Name = Organization.Name, TradeName = Organization.TradeName, Document = Organization.Document, Email = Organization.Email, Phone = Organization.Phone };
+    }
+    private async Task SaveAsync()
+    {
+        await _form.ValidateAsync();
+        if (!_form.IsValid || _busy) return;
+        _busy = true;
+        _error = null;
+        try
+        {
+            if (StatusOnly) await Api.PutAsync($"platform/organizations/{Organization.Id}/status", new OrganizationStatusRequest { Status = _status, Reason = _request.Reason });
+            else await Api.PutAsync($"platform/organizations/{Organization.Id}", _request);
+            Dialog.Close(DialogResult.Ok(true));
+        }
+        catch (Exception e) when (e is HttpRequestException or UnauthorizedAccessException) { _error = e is UnauthorizedAccessException ? "Sua sessão expirou. Entre novamente." : e.Message; }
+        finally { _busy = false; }
+    }
+}

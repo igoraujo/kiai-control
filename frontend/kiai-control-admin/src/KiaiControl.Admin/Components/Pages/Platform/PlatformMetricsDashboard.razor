@@ -1,0 +1,46 @@
+<MudGrid>
+    <MudItem xs="12" sm="6" md="3"><MudPaper Class="pa-4" Outlined="true"><MudText Typo="Typo.subtitle2">Requisições no período</MudText><MudText Typo="Typo.h4">@Data.Requests.ToString("N0")</MudText><MudText Typo="Typo.caption">Contagens agregadas da API</MudText></MudPaper></MudItem>
+    <MudItem xs="12" sm="6" md="3"><MudPaper Class="pa-4" Outlined="true"><MudText Typo="Typo.subtitle2">Taxa de erros 5xx</MudText><MudText Typo="Typo.h4" Color="Color.Error">@(Data.Requests == 0 ? "Sem tráfego" : (100d * Data.ServerErrors / Data.Requests).ToString("N2") + "%")</MudText><MudText Typo="Typo.caption">@Data.ServerErrors erros de servidor · @Data.ClientErrors respostas 4xx</MudText></MudPaper></MudItem>
+    <MudItem xs="12" sm="6" md="3"><MudPaper Class="pa-4" Outlined="true"><MudText Typo="Typo.subtitle2">Tempo médio</MudText><MudText Typo="Typo.h4">@Data.AverageDurationMs.ToString("N0") ms</MudText><MudText Typo="Typo.caption">Máximo observado: @Data.MaxDurationMs.ToString("N0") ms</MudText></MudPaper></MudItem>
+    <MudItem xs="12" sm="6" md="3"><MudPaper Class="pa-4" Outlined="true"><MudText Typo="Typo.subtitle2">Academias sem owner ativo</MudText><MudText Typo="Typo.h4" Color="Color.Warning">@Data.WithoutActiveOwner</MudText><MudText Typo="Typo.caption">@Data.Active ativas · @Data.Suspended suspensas · @Data.Inactive inativas · @Data.Archived arquivadas</MudText></MudPaper></MudItem>
+</MudGrid>
+<MudPaper Class="pa-4" Outlined="true">
+    <MudText Typo="Typo.h6">Evolução diária</MudText>
+    <MudStack Row="true" Wrap="Wrap.Wrap" Class="my-3">
+        @foreach (var measure in new[] { ("requests", "Requisições"), ("errors", "Erros 5xx"), ("duration", "Tempo médio") })
+        {
+            <MudButton Variant="@(_measure == measure.Item1 ? Variant.Filled : Variant.Outlined)" Color="Color.Primary" OnClick="() => _measure = measure.Item1">@measure.Item2</MudButton>
+        }
+    </MudStack>
+    <PlatformMetricsChart Days="Data.Days" Measure="_measure" />
+</MudPaper>
+<MudText Typo="Typo.h6">Controle por academia</MudText>
+<MudText Typo="Typo.body2">Indicadores agregados. Nenhum cadastro de aluno ou dado de saúde é exibido neste painel.</MudText>
+<MudTable Items="Data.Academies" Hover="true" Elevation="0" Breakpoint="Breakpoint.Md">
+    <HeaderContent><MudTh>Academia</MudTh><MudTh>Acessos</MudTh><MudTh>Operação</MudTh><MudTh>Último evento</MudTh><MudTh>Ações</MudTh></HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Academia"><div class="platform-cell-content"><MudText>@context.Name</MudText><MudText Typo="Typo.caption">@(context.Archived ? "Arquivada" : PlatformLabels.Status(context.Status)) @(context.PrivacyHold ? "· Preservação legal" : "")</MudText></div></MudTd>
+        <MudTd DataLabel="Acessos"><div class="platform-cell-content"><MudText>@context.ActiveOwners owner(s) ativo(s)</MudText><MudText Typo="Typo.caption">@context.Accounts contas · @context.BlockedAccounts bloqueadas · @context.PendingPasswords senhas pendentes</MudText></div></MudTd>
+        <MudTd DataLabel="Operação"><div class="platform-cell-content"><MudText>@context.Requests requisições · @context.ServerErrors erros 5xx</MudText><MudText Typo="Typo.caption">@context.Incidents ocorrências</MudText></div></MudTd>
+        <MudTd DataLabel="Último evento">@(context.LastActivityAt?.UtcDateTime.ToString("dd/MM/yyyy HH:mm") ?? "Sem eventos")</MudTd>
+        <MudTd DataLabel="Ações"><div class="platform-cell-content"><MudButton Href="@($"/platform/organizations/{context.Id}")">Gerenciar</MudButton><MudButton Href="@($"/platform/organizations/{context.Id}/audit")">Auditoria</MudButton></div></MudTd>
+    </RowTemplate>
+    <NoRecordsContent><MudText>Nenhuma academia encontrada.</MudText></NoRecordsContent>
+</MudTable>
+<PlatformPagination Page="Page" Total="Data.TotalAcademies" Busy="Busy" Changed="PageChanged" />
+<MudText Typo="Typo.h6">Rotas com maior volume ou erros</MudText>
+<MudTable Items="Data.Routes" Dense="true" Elevation="0" Breakpoint="Breakpoint.Md">
+    <HeaderContent><MudTh>Rota</MudTh><MudTh>Requisições</MudTh><MudTh>Erros 5xx</MudTh><MudTh>Tempo médio</MudTh></HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Rota"><code style="overflow-wrap:anywhere">@context.Method @context.Route</code></MudTd>
+        <MudTd DataLabel="Requisições">@context.Requests</MudTd><MudTd DataLabel="Erros 5xx">@context.ServerErrors</MudTd><MudTd DataLabel="Tempo médio">@context.AverageDurationMs.ToString("N0") ms</MudTd>
+    </RowTemplate>
+    <NoRecordsContent><MudText>Sem métricas registradas neste período.</MudText></NoRecordsContent>
+</MudTable>
+@code {
+    [Parameter, EditorRequired] public PlatformMetricsResponse Data { get; set; } = default!;
+    [Parameter] public int Page { get; set; }
+    [Parameter] public bool Busy { get; set; }
+    [Parameter] public EventCallback<int> PageChanged { get; set; }
+    private string _measure = "requests";
+}

@@ -3,6 +3,9 @@ using Dapper;
 using KiaiControl.Api.Configuration;
 using KiaiControl.Contracts.Auth;
 using KiaiControl.Core.Interfaces;
+using KiaiControl.Core.Entities;
+using KiaiControl.Repositories.Queries.Platform;
+using KiaiControl.Repositories.Queries.Audit;
 using Microsoft.Extensions.Options;
 
 namespace KiaiControl.Api.Services;
@@ -50,7 +53,7 @@ public sealed class PlatformOwnerBootstrapper(
         using var transaction = connection.BeginTransaction();
 
         var existingPlatformOwner = await connection.QuerySingleOrDefaultAsync<string>(
-            "select email from user_accounts where id = @UserId and is_platform_owner;",
+            PlatformBootstrapQueries.ExistingOwner,
             new { UserId = PlatformUserId },
             transaction);
         if (existingPlatformOwner is not null)
@@ -65,7 +68,7 @@ public sealed class PlatformOwnerBootstrapper(
         }
 
         var conflictingAccount = await connection.QuerySingleOrDefaultAsync<Guid?>(
-            "select id from user_accounts where lower(email) = @Email;",
+            PlatformBootstrapQueries.ExistingEmail,
             new { Email = email },
             transaction);
         if (conflictingAccount is not null)
@@ -75,29 +78,7 @@ public sealed class PlatformOwnerBootstrapper(
 
         var now = DateTimeOffset.UtcNow;
         var passwordHash = passwordHasher.Hash(configured.Password);
-        const string bootstrapSql = """
-            insert into organizations (id, name, status, created_at)
-            values (@OrganizationId, 'Kiai Control Platform', 'active', @CreatedAt)
-            on conflict (id) do nothing;
-
-            insert into organization_settings (id, organization_id)
-            values (gen_random_uuid(), @OrganizationId)
-            on conflict (organization_id) do nothing;
-
-            insert into persons (id, organization_id, full_name, email, status, created_at)
-            values (@PersonId, @OrganizationId, @FullName, @Email, 'active', @CreatedAt)
-            on conflict (id) do nothing;
-
-            insert into user_accounts (
-                id, person_id, email, password_hash, is_active, is_platform_owner,
-                must_change_password, created_at
-            )
-            values (
-                @UserId, @PersonId, @Email, @PasswordHash, true, true, true, @CreatedAt
-            );
-            """;
-
-        await connection.ExecuteAsync(bootstrapSql, new
+        await connection.ExecuteAsync(PlatformBootstrapQueries.Create, new
         {
             OrganizationId = PlatformOrganizationId,
             PersonId = PlatformPersonId,
@@ -106,6 +87,14 @@ public sealed class PlatformOwnerBootstrapper(
             FullName = fullName,
             PasswordHash = passwordHash,
             CreatedAt = now
+        }, transaction);
+
+        await connection.ExecuteAsync(AuditQueries.Insert, new AuditLog
+        {
+            Id = Guid.NewGuid(), OrganizationId = PlatformOrganizationId,
+            ActorPersonId = PlatformPersonId, ActorUserAccountId = PlatformUserId,
+            Action = "platform.account.provisioned", EntityName = "platform.accounts", EntityId = PlatformUserId,
+            Metadata = "{\"source\":\"bootstrap\",\"mustChangePassword\":true}", CreatedAt = now
         }, transaction);
 
         transaction.Commit();

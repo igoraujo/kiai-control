@@ -2,6 +2,12 @@ namespace KiaiControl.Core.Entities;
 
 public sealed class AuditLog
 {
+    public string? OrganizationName { get; set; }
+
+    public string? ActorName { get; set; }
+
+    public string? ActorEmail { get; set; }
+
     public Guid Id { get; set; }
 
     public Guid OrganizationId { get; set; }

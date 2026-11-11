@@ -10,13 +10,14 @@ public sealed class OrganizationUseCase(IOrganizationRepository organizationRepo
 {
     public async Task<OrganizationRegistrationResponse?> RegisterAsync(
         RegisterOrganizationRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        AuditLog? audit = null)
     {
         ValidateOrganization(request.Name, request.TradeName, request.Document, request.Email, request.Phone);
         ValidatePersonName(request.OwnerFullName);
         ValidateEmail(request.OwnerEmail, "OwnerEmail");
 
-        if (!PasswordPolicy.IsValid(request.OwnerPassword))
+        if (request.OwnerPassword is null || request.OwnerPassword.Length > 256 || !PasswordPolicy.IsValid(request.OwnerPassword))
         {
             throw new ArgumentException(PasswordPolicy.Requirements);
         }
@@ -33,7 +34,7 @@ public sealed class OrganizationUseCase(IOrganizationRepository organizationRepo
             request.OwnerFullName.Trim(),
             request.OwnerEmail.Trim().ToLowerInvariant(),
             passwordHasher.Hash(request.OwnerPassword),
-            cancellationToken);
+            cancellationToken, audit);
 
         return organization is null
             ? null
@@ -80,7 +81,7 @@ public sealed class OrganizationUseCase(IOrganizationRepository organizationRepo
         return organization is null ? null : ToResponse(organization);
     }
 
-    private static void ValidateOrganization(string name, string? tradeName, string? document, string? email, string? phone)
+    internal static void ValidateOrganization(string name, string? tradeName, string? document, string? email, string? phone)
     {
         if (string.IsNullOrWhiteSpace(name) || name.Trim().Length > 160)
         {
@@ -108,14 +109,9 @@ public sealed class OrganizationUseCase(IOrganizationRepository organizationRepo
 
     private static void ValidateEmail(string email, string fieldName)
     {
-        try
-        {
-            _ = new MailAddress(email.Trim());
-        }
-        catch (FormatException)
-        {
+        if (string.IsNullOrWhiteSpace(email) || email.Trim().Length > 160
+            || !MailAddress.TryCreate(email.Trim(), out var parsed) || parsed.Address != email.Trim())
             throw new ArgumentException(string.Format(SystemMessages.MustBeAValidEMailAddress, fieldName));
-        }
     }
 
     private static string? Normalize(string? value)
@@ -123,7 +119,7 @@ public sealed class OrganizationUseCase(IOrganizationRepository organizationRepo
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
-    private static OrganizationResponse ToResponse(Organization organization)
+    internal static OrganizationResponse ToResponse(Organization organization)
     {
         return new OrganizationResponse
         {
@@ -135,7 +131,9 @@ public sealed class OrganizationUseCase(IOrganizationRepository organizationRepo
             Phone = organization.Phone,
             Status = organization.Status,
             CreatedAt = organization.CreatedAt,
-            UpdatedAt = organization.UpdatedAt
+            UpdatedAt = organization.UpdatedAt,
+            DeletedAt = organization.DeletedAt,
+            PrivacyHold = organization.PrivacyHold
         };
     }
 }

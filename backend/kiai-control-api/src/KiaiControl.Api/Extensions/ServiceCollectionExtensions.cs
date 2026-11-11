@@ -46,6 +46,13 @@ public static class ServiceCollectionExtensions
         });
         services.AddScoped<OrganizationContext>();
         services.AddScoped<PlatformOwnerBootstrapper>();
+        services.AddScoped<PlatformAccessAudit>();
+        services.AddScoped<PlatformIncidentRecorder>();
+        services.AddOptions<PlatformPrivacyOptions>().Bind(configuration.GetSection("PlatformPrivacy"))
+            .Validate(policy => policy.IsValid(), "Os prazos de retenção devem estar entre 1 e 3650 dias; flush entre 1 e 300 segundos.")
+            .ValidateOnStart();
+        services.AddSingleton<PlatformTelemetryBuffer>();
+        services.AddHostedService<PlatformTelemetryWorker>();
         jwtOptions.Validate();
         var signingKey = jwtOptions.ResolveSigningKey(environment.IsDevelopment());
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
@@ -113,7 +120,9 @@ public static class ServiceCollectionExtensions
             services.AddDistributedMemoryCache();
         }
 
-        services.AddHealthChecks();
+        services.AddHealthChecks()
+            .AddCheck<PlatformDatabaseHealthCheck>("PostgreSQL", tags: ["ready"], timeout: TimeSpan.FromSeconds(4))
+            .AddCheck<PlatformCacheHealthCheck>(useRedisCache ? "Redis" : "Cache em memória", tags: ["ready"], timeout: TimeSpan.FromSeconds(4));
         services.AddKiaiUseCases();
         services.AddKiaiRepositories(connectionStrings.PostgreSql);
         services.AddKiaiServices(redisOptions.Redis, useRedisCache, jwtOptions.Issuer, jwtOptions.Audience, signingKey, jwtOptions.AccessTokenExpirationMinutes, jwtOptions.RefreshTokenExpirationDays);

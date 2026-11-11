@@ -38,10 +38,10 @@ public sealed partial class AdminApiClient(IHttpClientFactory httpClientFactory,
         using var response = await SendAuthorizedAsync(HttpMethod.Post, "api/v1/auth/change-password", new ChangePasswordRequest { CurrentPassword = currentPassword, NewPassword = newPassword });
     }
 
-    public async Task<IReadOnlyList<OrganizationResponse>> ListPlatformOrganizationsAsync()
+    public async Task<KiaiControl.Contracts.Common.PagedResponse<OrganizationResponse>> ListPlatformOrganizationsAsync(int page = 1, int pageSize = 25, string? search = null, string? status = null, string archive = "active")
     {
-        using var response = await SendAuthorizedAsync(HttpMethod.Get, "api/v1/platform/organizations");
-        return await response.Content.ReadFromJsonAsync<List<OrganizationResponse>>() ?? [];
+        using var response = await SendAuthorizedAsync(HttpMethod.Get, $"api/v1/platform/organizations?page={page}&pageSize={pageSize}&search={Uri.EscapeDataString(search ?? "")}&status={Uri.EscapeDataString(status ?? "")}&archive={Uri.EscapeDataString(archive)}");
+        return await response.Content.ReadFromJsonAsync<KiaiControl.Contracts.Common.PagedResponse<OrganizationResponse>>() ?? throw new HttpRequestException(AdminSystemMessages.ApiReturnedEmptyResponse);
     }
 
     public async Task<OrganizationRegistrationResponse> RegisterPlatformOrganizationAsync(RegisterOrganizationRequest request)

@@ -33,7 +33,7 @@ public sealed class ProductionSchemaTests(PostgreSqlFixture fixture)
                 await snapshot.ExecuteAsync(await File.ReadAllTextAsync(Path.Combine(scripts, "0001_create_production_schema.sql")));
                 await snapshot.ExecuteAsync(await File.ReadAllTextAsync(Path.Combine(scripts, "0002_seed_production_reference_data.sql")));
             }
-            Assert.Equal(37, await snapshot.QuerySingleAsync<int>("select count(1) from pg_tables where schemaname='public'"));
+            Assert.Equal(39, await snapshot.QuerySingleAsync<int>("select count(1) from pg_tables where schemaname='public'"));
             Assert.Equal(4, await snapshot.QuerySingleAsync<int>("select count(1) from permissions where code in ('clients.read','teachers.read','branches.read','modalities.read')"));
             Assert.Equal(3, await snapshot.QuerySingleAsync<int>("""
                 select count(1) from information_schema.columns where table_schema='public'

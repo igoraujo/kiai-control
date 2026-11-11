@@ -1,0 +1,60 @@
+@inject AdminApiClient Api
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="2">
+            <MudText Typo="Typo.h6">@Entry.Action</MudText>
+            <MudText>@Entry.OrganizationName · @Entry.CreatedAt.UtcDateTime.ToString("dd/MM/yyyy HH:mm:ss") UTC</MudText>
+            @if (_busy)
+            {
+                <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+                <MudText Typo="Typo.body2" role="status">Carregando detalhes...</MudText>
+            }
+            @if (_error is not null)
+            {
+                <MudAlert Severity="Severity.Error">@_error</MudAlert>
+                <MudButton Disabled="_busy" OnClick="LoadDetailsAsync" Color="Color.Primary">Tentar novamente</MudButton>
+            }
+            @if (_details is not null)
+            {
+                <MudText>Autor: @(_details.ActorName ?? "Sistema / autor não retido") · @_details.ActorEmail</MudText>
+                <MudText>IP: @(_details.IpAddress ?? "Não retido")</MudText>
+                <MudText Typo="Typo.caption" Style="overflow-wrap:anywhere">Evento: @_details.Id · Alvo: @_details.EntityId</MudText>
+                <pre style="white-space:pre-wrap;overflow-wrap:anywhere;margin:0;max-height:50vh;overflow:auto">@Metadata</pre>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions><MudButton OnClick="() => Dialog.Close()">Fechar</MudButton></DialogActions>
+</MudDialog>
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = default!;
+    [Parameter, EditorRequired] public PlatformAuditResponse Entry { get; set; } = default!;
+    private PlatformAuditResponse? _details;
+    private bool _busy;
+    private string? _error;
+    protected override Task OnInitializedAsync() => LoadDetailsAsync();
+    private async Task LoadDetailsAsync()
+    {
+        if (_busy) return;
+        _busy = true;
+        _error = null;
+        try { _details = await Api.PlatformAuditDetailsAsync(Entry.Id, new() { OrganizationId = Entry.OrganizationId }); }
+        catch (Exception e) when (e is HttpRequestException or UnauthorizedAccessException) { _error = e is UnauthorizedAccessException ? "Sua sessão expirou." : e.Message; }
+        finally { _busy = false; }
+    }
+    private string Metadata
+    {
+        get
+        {
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(_details?.Metadata ?? "{}");
+                return System.Text.Json.JsonSerializer.Serialize(doc.RootElement, new System.Text.Json.JsonSerializerOptions
+                {
+                    WriteIndented = true,
+                    Encoder = System.Text.Encodings.Web.JavaScriptEncoder.Create(System.Text.Unicode.UnicodeRanges.All)
+                });
+            }
+            catch (System.Text.Json.JsonException) { return "Metadados indisponíveis."; }
+        }
+    }
+}

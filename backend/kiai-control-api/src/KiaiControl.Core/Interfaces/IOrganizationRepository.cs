@@ -9,7 +9,8 @@ public interface IOrganizationRepository
         string ownerFullName,
         string ownerEmail,
         string ownerPasswordHash,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        AuditLog? audit = null);
 
     Task<Organization?> GetByIdAsync(Guid organizationId, CancellationToken cancellationToken = default);
 

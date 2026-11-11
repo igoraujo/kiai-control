@@ -30,6 +30,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IBillingRepository, SqlBillingRepository>();
         services.AddScoped<IBillingCatalogRepository, SqlBillingCatalogRepository>();
         services.AddScoped<IOrganizationRepository, SqlOrganizationRepository>();
+        services.AddScoped<IPlatformAdministrationRepository, SqlPlatformAdministrationRepository>();
+        services.AddScoped<IPlatformObservabilityRepository, SqlPlatformObservabilityRepository>();
         services.AddScoped<IBranchRepository, SqlBranchRepository>();
         services.AddScoped<INotificationRepository, SqlNotificationRepository>();
         services.AddScoped<IAuditLogRepository, SqlAuditLogRepository>();

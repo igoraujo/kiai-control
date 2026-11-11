@@ -1,5 +1,7 @@
 # Preparação do banco de produção
 
+O schema inclui a administração global e a tabela de ocorrências. Para bancos existentes, aplique as migrations até `016_platform_lifecycle_observability_privacy.sql`. Regras do Super Admin: [PLATFORM_ADMINISTRATION.md](../../../PLATFORM_ADMINISTRATION.md).
+
 Os scripts abaixo criam o schema atual do Kiai Control e inserem os dados globais de autorização:
 
 1. `0001_create_production_schema.sql`

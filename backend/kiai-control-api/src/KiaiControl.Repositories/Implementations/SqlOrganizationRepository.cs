@@ -2,6 +2,7 @@ using Dapper;
 using KiaiControl.Core.Entities;
 using KiaiControl.Core.Interfaces;
 using KiaiControl.Repositories.Queries.Organizations;
+using KiaiControl.Repositories.Queries.Audit;
 using Npgsql;
 
 namespace KiaiControl.Repositories.Implementations;
@@ -13,7 +14,8 @@ public sealed class SqlOrganizationRepository(IDbConnectionFactory dbConnectionF
         string ownerFullName,
         string ownerEmail,
         string ownerPasswordHash,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        AuditLog? audit = null)
     {
         organization.Id = Guid.NewGuid();
         organization.CreatedAt = DateTimeOffset.UtcNow;
@@ -35,9 +37,22 @@ public sealed class SqlOrganizationRepository(IDbConnectionFactory dbConnectionF
         };
 
         using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
+        using var transaction = connection.BeginTransaction();
         try
         {
-            var result = await connection.QuerySingleOrDefaultAsync<OrganizationRegistrationRow>(OrganizationQueries.Register, parameters);
+            var result = await connection.QuerySingleOrDefaultAsync<OrganizationRegistrationRow>(
+                new CommandDefinition(OrganizationQueries.Register, parameters, transaction, cancellationToken: cancellationToken));
+            if (result is null)
+                return null;
+            if (audit is not null)
+            {
+                audit.Id = Guid.NewGuid();
+                audit.CreatedAt = DateTimeOffset.UtcNow;
+                audit.OrganizationId = organization.Id;
+                audit.EntityId = organization.Id;
+                await connection.ExecuteAsync(new CommandDefinition(AuditQueries.Insert, audit, transaction, cancellationToken: cancellationToken));
+            }
+            transaction.Commit();
             return result is null ? null : (result.ToOrganization(), result.OwnerUserId);
         }
         catch (PostgresException exception) when (exception.SqlState == PostgresErrorCodes.UniqueViolation)

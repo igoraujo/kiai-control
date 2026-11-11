@@ -3,16 +3,18 @@ using System.Text.Json;
 using KiaiControl.Core.Common;
 using KiaiControl.Core.Entities;
 using KiaiControl.Core.Interfaces;
+using KiaiControl.Api.Services;
 
 namespace KiaiControl.Api.Middlewares;
 
 public sealed class MutationAuditMiddleware(RequestDelegate next, ILogger<MutationAuditMiddleware> logger)
 {
-    public async Task InvokeAsync(HttpContext context, OrganizationContext organizationContext, IAuditLogRepository auditLogRepository)
+    public async Task InvokeAsync(HttpContext context, OrganizationContext organizationContext, IAuditLogRepository auditLogRepository, PlatformIncidentRecorder incidentRecorder)
     {
         await next(context);
 
-        if (!context.User.Identity?.IsAuthenticated == true
+        if (context.Request.Path.StartsWithSegments("/api/v1/platform")
+            || !context.User.Identity?.IsAuthenticated == true
             || organizationContext.OrganizationId is not Guid organizationId
             || context.Response.StatusCode is < 200 or >= 300
             || HttpMethods.IsGet(context.Request.Method)
@@ -60,6 +62,7 @@ public sealed class MutationAuditMiddleware(RequestDelegate next, ILogger<Mutati
         catch (Exception exception)
         {
             logger.LogError(exception, "Failed to persist mutation audit event for {Route}.", context.Request.Path);
+            await incidentRecorder.TryRecordAsync(context, "audit_failure", context.Response.StatusCode);
         }
     }
 

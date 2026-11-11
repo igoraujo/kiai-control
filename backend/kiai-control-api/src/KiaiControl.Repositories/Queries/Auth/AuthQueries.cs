@@ -9,7 +9,7 @@ public static class AuthQueries
             p.organization_id as OrganizationId,
             ua.email as Email,
             ua.password_hash as PasswordHash,
-            ua.is_active as IsActive,
+            (ua.is_active and p.status = 'active' and o.status = 'active' and o.deleted_at is null) as IsActive,
             ua.session_version as SessionVersion,
             ua.must_change_password as MustChangePassword,
             array_cat(coalesce((
@@ -34,6 +34,7 @@ public static class AuthQueries
             ), array[]::text[]) as Permissions
         from user_accounts ua
         join persons p on p.id = ua.person_id
+        join organizations o on o.id = p.organization_id
         where lower(ua.email) = lower(@Email)
           and p.deleted_at is null
         limit 1;
@@ -46,7 +47,7 @@ public static class AuthQueries
             p.organization_id as OrganizationId,
             ua.email as Email,
             ua.password_hash as PasswordHash,
-            ua.is_active as IsActive,
+            (ua.is_active and p.status = 'active' and o.status = 'active' and o.deleted_at is null) as IsActive,
             ua.session_version as SessionVersion,
             ua.must_change_password as MustChangePassword,
             array_cat(coalesce((
@@ -71,6 +72,7 @@ public static class AuthQueries
             ), array[]::text[]) as Permissions
         from user_accounts ua
         join persons p on p.id = ua.person_id
+        join organizations o on o.id = p.organization_id
         where ua.id = @UserId
           and p.deleted_at is null
         limit 1;

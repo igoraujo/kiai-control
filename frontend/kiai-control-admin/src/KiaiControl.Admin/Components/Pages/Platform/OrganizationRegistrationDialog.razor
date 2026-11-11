@@ -1,0 +1,44 @@
+@inject AdminApiClient Api
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form">
+            <MudStack Spacing="3">
+                @if (_error is not null) { <MudAlert Severity="Severity.Error">@_error</MudAlert> }
+                <MudText Typo="Typo.subtitle1">Dados da academia</MudText>
+                <MudTextField @bind-Value="_request.Name" Label="Nome da academia" Required="true" MaxLength="160" />
+                <MudTextField @bind-Value="_request.TradeName" Label="Nome fantasia" MaxLength="160" />
+                <MudTextField @bind-Value="_request.Document" Label="CNPJ" MaxLength="30" />
+                <MudTextField @bind-Value="_request.Email" Label="E-mail da academia" InputType="InputType.Email" MaxLength="160" />
+                <MudTextField @bind-Value="_request.Phone" Label="Telefone" MaxLength="30" />
+                <MudDivider />
+                <MudText Typo="Typo.subtitle1">Primeiro responsável (owner)</MudText>
+                <MudTextField @bind-Value="_request.OwnerFullName" Label="Nome do responsável" Required="true" MaxLength="180" />
+                <MudTextField @bind-Value="_request.OwnerEmail" Label="E-mail de acesso" Required="true" InputType="InputType.Email" MaxLength="160" />
+                <MudTextField @bind-Value="_request.OwnerPassword" Label="Senha temporária" Required="true" InputType="InputType.Password" autocomplete="new-password" HelperText="@PasswordPolicy.Requirements" MaxLength="256" />
+                <MudAlert Severity="Severity.Info">O responsável deverá trocar a senha no primeiro acesso. Entregue a senha temporária por um canal seguro.</MudAlert>
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => Dialog.Cancel()" Disabled="_busy">Cancelar</MudButton>
+        <MudButton OnClick="SaveAsync" Disabled="_busy" Variant="Variant.Filled" Color="Color.Primary">Cadastrar academia</MudButton>
+    </DialogActions>
+</MudDialog>
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = default!;
+    private readonly RegisterOrganizationRequest _request = new();
+    private MudForm _form = default!;
+    private string? _error;
+    private bool _busy;
+    private async Task SaveAsync()
+    {
+        await _form.ValidateAsync();
+        if (!_form.IsValid || _busy) return;
+        if (!PasswordPolicy.IsValid(_request.OwnerPassword)) { _error = PasswordPolicy.Requirements; return; }
+        _busy = true;
+        _error = null;
+        try { var result = await Api.RegisterPlatformOrganizationAsync(_request); _request.OwnerPassword = ""; Dialog.Close(DialogResult.Ok(result)); }
+        catch (Exception e) when (e is HttpRequestException or UnauthorizedAccessException) { _error = e is UnauthorizedAccessException ? "Sua sessão expirou. Entre novamente." : e.Message; }
+        finally { _busy = false; }
+    }
+}

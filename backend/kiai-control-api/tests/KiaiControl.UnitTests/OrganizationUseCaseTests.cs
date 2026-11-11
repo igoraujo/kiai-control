@@ -60,7 +60,8 @@ public sealed class OrganizationUseCaseTests
             string ownerFullName,
             string ownerEmail,
             string ownerPasswordHash,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            AuditLog? audit = null)
         {
             organization.Id = Guid.NewGuid();
             organization.Status = "active";

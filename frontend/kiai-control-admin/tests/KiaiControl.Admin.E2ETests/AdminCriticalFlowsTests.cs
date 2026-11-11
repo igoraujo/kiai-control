@@ -184,9 +184,11 @@ public sealed class AdminCriticalFlowsTests
         await page.GetByText("Participação na jornada.", new() { Exact = true }).WaitForAsync();
         await page.GotoAsync($"{environment.AdminUrl}/notifications");
         await page.GetByRole(AriaRole.Combobox, new() { Name = "Aluno" }).ClickAsync();
-        await page.GetByText(clientName, new() { Exact = true }).Last.ClickAsync();
+        await page.GetByRole(AriaRole.Option, new() { Name = clientName, Exact = true }).ClickAsync();
+        await page.WaitForFunctionAsync("name => document.querySelector('div[role=\"combobox\"][aria-label=\"Aluno\"]')?.textContent?.includes(name)", clientName);
         await page.GetByLabel("Título").FillAsync("Comunicado Jornada E2E");
         await page.GetByLabel("Mensagem").FillAsync("Mensagem entregue na caixa do aluno.");
+        await page.GetByLabel("Mensagem").BlurAsync();
         await page.GetByRole(AriaRole.Button, new() { Name = "Registrar comunicado" }).ClickAsync();
         await page.GetByRole(AriaRole.Row).Filter(new() { HasText = "Comunicado Jornada E2E" }).WaitForAsync();
         await page.GotoAsync($"{environment.AdminUrl}/audit");
@@ -385,6 +387,9 @@ internal sealed class E2EEnvironment : IAsyncDisposable
     private Guid _organizationId;
     public string OwnerEmail { get; private set; } = $"owner-{Guid.NewGuid():N}@example.test";
     public string OwnerPassword { get; private set; } = OwnerPasswordValue;
+    public string PlatformEmail => PlatformOwnerEmailValue;
+    public string PlatformPassword => PlatformOwnerPasswordAfterFirstLogin;
+    public Task StopDatabaseAsync() => _database.StopAsync();
     public string ClientEmail { get; } = $"client-{Guid.NewGuid():N}@example.test";
     public string UpdatedClientEmail { get; } = $"updated-client-{Guid.NewGuid():N}@example.test";
     public string TeacherEmail { get; } = $"teacher-{Guid.NewGuid():N}@example.test";
@@ -427,6 +432,7 @@ internal sealed class E2EEnvironment : IAsyncDisposable
             apiEnvironment["PlatformOwner__Email"] = PlatformOwnerEmailValue;
             apiEnvironment["PlatformOwner__FullName"] = "E2E Platform Owner";
             apiEnvironment["PlatformOwner__Password"] = PlatformOwnerPasswordValue;
+            apiEnvironment["PlatformPrivacy__FlushSeconds"] = "1";
         }
 
         _apiProcess = StartApplication(Path.Combine(root, "backend", "kiai-control-api", "src", "KiaiControl.Api", "bin", configuration, "net10.0", "KiaiControl.Api.dll"), Path.Combine(root, "backend", "kiai-control-api", "src", "KiaiControl.Api"), _apiOutput, apiEnvironment);

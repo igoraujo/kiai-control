@@ -11,6 +11,8 @@ internal static class PostgresConflictMapper
         "uq_persons_org_document" => new ConflictException("Document is already registered in this organization."),
         "uq_clients_org_registration" => new ConflictException("RegistrationCode is already in use in this organization."),
         "uq_plans_org_name" => new ConflictException("A billing plan with this name already exists in this organization."),
+        "uq_organizations_document" => new ConflictException("O documento já está cadastrado em outra academia."),
+        "user_accounts_email_key" => new ConflictException("O e-mail de acesso já está cadastrado em outra conta."),
         _ => new ConflictException("A record with the same unique value already exists.")
     };
 }

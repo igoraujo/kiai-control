@@ -1,0 +1,48 @@
+@page "/platform/audit"
+@page "/platform/organizations/{OrganizationId:guid}/audit"
+@inherits PlatformPageBase
+<PageTitle>Auditoria global | Plataforma Kiai Control</PageTitle>
+<MudStack Spacing="3">
+    <MudText Typo="Typo.overline" Color="Color.Secondary">Administração da plataforma</MudText>
+    <MudText Typo="Typo.h4">@(OrganizationId.HasValue ? "Auditoria da academia" : "Auditoria global")</MudText>
+    @if (OrganizationId is Guid id) { <MudLink Href="@($"/platform/organizations/{id}")">Voltar à academia</MudLink> }
+    <MudText>Identificadores são reduzidos na listagem. Ao abrir os detalhes, sua consulta é registrada automaticamente. Horários em UTC.</MudText>
+    @if (Error is not null) { <MudAlert Severity="Severity.Error">@Error</MudAlert> }
+    <PlatformLogFilters Audit="true" FixedOrganization="_organization" Busy="IsBusy" Changed="FilterAsync" />
+    <MudTable Items="_result.Items" Loading="IsBusy" Hover="true" Elevation="0" Breakpoint="Breakpoint.Md">
+        <HeaderContent><MudTh>Quando (UTC)</MudTh><MudTh>Academia</MudTh><MudTh>Usuário</MudTh><MudTh>Ação</MudTh><MudTh>Detalhes</MudTh></HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Quando (UTC)">@context.CreatedAt.UtcDateTime.ToString("dd/MM/yyyy HH:mm:ss")</MudTd>
+            <MudTd DataLabel="Academia">@context.OrganizationName</MudTd>
+            <MudTd DataLabel="Usuário"><div class="platform-cell-content"><MudText>@(context.ActorName ?? "Sistema")</MudText><MudText Typo="Typo.caption">@context.ActorEmail</MudText></div></MudTd>
+            <MudTd DataLabel="Ação"><div class="platform-cell-content"><span style="overflow-wrap:anywhere">@context.Action</span><MudText Typo="Typo.caption">@context.EntityName</MudText></div></MudTd>
+            <MudTd DataLabel="Detalhes"><MudButton OnClick="() => DetailsAsync(context)">Ver detalhes</MudButton></MudTd>
+        </RowTemplate>
+        <NoRecordsContent><MudText>Nenhum evento encontrado para os filtros selecionados.</MudText></NoRecordsContent>
+    </MudTable>
+    <PlatformPagination Page="_page" Total="_result.Total" Busy="IsBusy" Changed="PageAsync" />
+</MudStack>
+@code {
+    [Parameter] public Guid? OrganizationId { get; set; }
+    private OrganizationResponse? _organization;
+    private PagedResponse<PlatformAuditResponse> _result = new([], 0);
+    private PlatformLogQuery _query = PlatformLogQuery.Default;
+    private int _page = 1;
+    private Guid? _routeScope;
+    protected override async Task LoadAsync()
+    {
+        if (_routeScope != OrganizationId)
+        {
+            _query = PlatformLogQuery.Default with { OrganizationId = OrganizationId };
+            _page = 1;
+            _routeScope = OrganizationId;
+        }
+        _organization = OrganizationId is Guid id ? await Api.GetAsync<OrganizationResponse>($"platform/organizations/{id}") : null;
+        _query = _query with { OrganizationId = OrganizationId ?? _query.OrganizationId };
+        _result = await Api.PlatformAuditAsync(_query, _page);
+    }
+    private Task FilterAsync(PlatformLogQuery query) { _query = query with { OrganizationId = OrganizationId ?? query.OrganizationId }; _page = 1; return RunAsync(LoadAsync); }
+    private Task PageAsync(int page) { _page = page; return RunAsync(LoadAsync); }
+    private async Task DetailsAsync(PlatformAuditResponse entry) => await Dialogs.ShowAsync<PlatformAuditDetailsDialog>("Detalhes do evento",
+        new DialogParameters<PlatformAuditDetailsDialog> { { x => x.Entry, entry } }, new DialogOptions { FullWidth = true, MaxWidth = MaxWidth.Medium });
+}

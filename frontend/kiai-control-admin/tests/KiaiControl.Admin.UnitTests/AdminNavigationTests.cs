@@ -5,6 +5,31 @@ using KiaiControl.Contracts.Fitness;
 namespace KiaiControl.Admin.UnitTests;
 public sealed class AdminNavigationTests
 {
+    [Theory]
+    [InlineData("owner")]
+    [InlineData("admin")]
+    [InlineData("reception")]
+    [InlineData("financial")]
+    [InlineData("client")]
+    [InlineData("teacher")]
+    public void TenantRoles_ShouldNeverOpenPlatformPagesEvenWithAllPermissionClaims(string role)
+    {
+        var user = User(role, PermissionCodes.All);
+        foreach (var path in new[] { "/platform/organizations", "/platform/organizations/00000000-0000-0000-0000-000000000001", "/platform/audit", "/platform/operations" })
+            Assert.False(AdminNavigation.CanVisit(user, path));
+    }
+
+    [Fact]
+    public void PlatformRole_ShouldLandInDedicatedAreaWithoutTenantPermissions()
+    {
+        var user = User("platform_owner");
+        Assert.Equal("/platform/organizations", AdminNavigation.Home(user));
+        Assert.True(AdminNavigation.CanVisit(user, "/platform/audit"));
+        Assert.True(AdminNavigation.CanVisit(user, "/platform/operations"));
+        Assert.False(AdminNavigation.CanVisit(user, "/clients"));
+        Assert.False(AdminNavigation.CanVisit(user, "/fight"));
+        Assert.False(AdminNavigation.CanVisit(user, "/gym"));
+    }
     private static AuthUserProfileResponse User(string role, params string[] permissions) => new()
     {
         Roles = [role],

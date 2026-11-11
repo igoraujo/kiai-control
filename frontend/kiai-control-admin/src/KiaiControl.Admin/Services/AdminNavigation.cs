@@ -86,7 +86,7 @@ public static class AdminNavigation
         "client" => "Aluno",
         "reception" => "Recepção",
         "financial" => "Financeiro",
-        "platform_owner" => "Dono da plataforma",
+        "platform_owner" => "Administrador da plataforma",
         _ => role
     };
 }

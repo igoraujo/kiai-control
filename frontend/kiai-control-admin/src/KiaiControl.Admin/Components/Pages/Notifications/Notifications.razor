@@ -44,10 +44,10 @@
                         </MudSelect>
                     </MudItem>
                     <MudItem xs="12" md="3">
-                        <MudTextField @bind-Value="_title" Label="Título" MaxLength="160" Variant="Variant.Outlined" />
+                        <MudTextField @bind-Value="_title" Label="Título" Immediate="true" MaxLength="160" Variant="Variant.Outlined" />
                     </MudItem>
                     <MudItem xs="12" md="4">
-                        <MudTextField @bind-Value="_body" Label="Mensagem" Lines="2" MaxLength="10000" Variant="Variant.Outlined" />
+                        <MudTextField @bind-Value="_body" Label="Mensagem" Immediate="true" Lines="2" MaxLength="10000" Variant="Variant.Outlined" />
                     </MudItem>
                     <MudItem xs="12" md="2" Class="d-flex align-center">
                         <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SendAsync"

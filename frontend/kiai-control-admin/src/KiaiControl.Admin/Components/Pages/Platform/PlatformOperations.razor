@@ -1,0 +1,79 @@
+@page "/platform/operations"
+@inherits PlatformPageBase
+<PageTitle>Operação da plataforma | Kiai Control</PageTitle>
+<MudStack Spacing="3">
+    <MudText Typo="Typo.overline" Color="Color.Secondary">Administração da plataforma</MudText>
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+        <MudText Typo="Typo.h4">Operação da plataforma</MudText>
+        <MudIconButton Icon="@Icons.Material.Filled.Refresh" aria-label="Atualizar operação" OnClick="RefreshAsync" Disabled="IsBusy" />
+    </MudStack>
+    @if (Error is not null) { <MudAlert Severity="Severity.Error">@Error</MudAlert> }
+    <MudText>Visão agregada por academia e período. Métricas são atualizadas em lotes; use Atualizar para consultar os registros persistidos. Horários em UTC.</MudText>
+    <PlatformLogFilters Metrics="true" InitialOrganizationId="OrganizationId" Busy="IsBusy" Changed="FilterAsync" />
+    @if (_health is not null)
+    {
+        <MudPaper Outlined="true" Class="pa-4">
+            <MudText Typo="Typo.h6">Dependências · @_health.CheckedAt.UtcDateTime.ToString("HH:mm:ss") UTC</MudText>
+            <MudStack Row="true" Wrap="Wrap.Wrap">
+                @foreach (var dependency in _health.Dependencies) { <MudChip T="string" Color="@(dependency.Status == "Healthy" ? Color.Success : Color.Error)">@dependency.Name · @(dependency.Status == "Healthy" ? "Disponível" : "Indisponível") · @dependency.DurationMs.ToString("N0") ms</MudChip> }
+            </MudStack>
+        </MudPaper>
+    }
+    @if (_metrics is not null) { <PlatformMetricsDashboard Data="_metrics" Page="_academyPage" Busy="IsBusy" PageChanged="AcademyPageAsync" /> }
+    @if (_policy is not null)
+    {
+        <MudPaper Class="pa-4" Outlined="true">
+            <MudText Typo="Typo.h6">Privacidade e retenção</MudText>
+            <MudText>Métricas: @_policy.MetricsDays dias · Ocorrências: @_policy.IncidentsDays dias · Identificadores e detalhes de auditoria: @_policy.AuditIdentityDays dias.</MudText>
+            <MudText Typo="Typo.body2">@(_metrics?.PrivacyHeld ?? 0) academia(s) em preservação legal. Revise a necessidade de manutenção dessas exceções.</MudText>
+            <MudText Typo="Typo.body2">Após o prazo, a auditoria mantém o fato administrativo e remove identificadores e metadados pessoais. Academias em preservação legal ficam fora da limpeza automática. Cadastros e registros financeiros não são apagados por esta política.</MudText>
+            <MudText Typo="Typo.caption">Prazos técnicos configuráveis, que devem refletir as finalidades e obrigações definidas pelo controlador.</MudText>
+        </MudPaper>
+    }
+    <MudText Typo="Typo.h6">Ocorrências do período</MudText>
+    <MudSelect T="string" Value="_category" ValueChanged="CategoryAsync" Label="Categoria de ocorrência" Disabled="IsBusy">
+        <MudSelectItem Value='@("all")'>Todas</MudSelectItem><MudSelectItem Value='@("request_failure")'>Falha da API</MudSelectItem><MudSelectItem Value='@("authentication_failure")'>Falha de login</MudSelectItem><MudSelectItem Value='@("audit_failure")'>Falha de auditoria</MudSelectItem>
+    </MudSelect>
+    <MudTable Items="_result.Items" Loading="IsBusy" Hover="true" Elevation="0" Breakpoint="Breakpoint.Md">
+        <HeaderContent><MudTh>Quando (UTC)</MudTh><MudTh>Academia</MudTh><MudTh>Ocorrência</MudTh><MudTh>Correlação</MudTh></HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Quando (UTC)">@context.CreatedAt.UtcDateTime.ToString("dd/MM/yyyy HH:mm:ss")</MudTd>
+            <MudTd DataLabel="Academia">@(context.OrganizationName ?? "Sem academia identificada")</MudTd>
+            <MudTd DataLabel="Ocorrência"><div class="platform-cell-content"><MudText>@PlatformLabels.Category(context.Category) · HTTP @context.StatusCode</MudText><MudText Typo="Typo.caption" Style="overflow-wrap:anywhere">@context.Method @context.Route</MudText></div></MudTd>
+            <MudTd DataLabel="Correlação"><code style="overflow-wrap:anywhere">@context.CorrelationId</code></MudTd>
+        </RowTemplate>
+        <NoRecordsContent><MudText>Nenhuma ocorrência encontrada para os filtros selecionados.</MudText></NoRecordsContent>
+    </MudTable>
+    <PlatformPagination Page="_page" Total="_result.Total" Busy="IsBusy" Changed="PageAsync" />
+</MudStack>
+@code {
+    [SupplyParameterFromQuery(Name = "organizationId")] public Guid? OrganizationId { get; set; }
+    private PlatformMetricsResponse? _metrics;
+    private PlatformHealthResponse? _health;
+    private PlatformRetentionPolicyResponse? _policy;
+    private PagedResponse<PlatformIncidentResponse> _result = new([], 0);
+    private PlatformLogQuery _query = PlatformLogQuery.Default;
+    private int _page = 1;
+    private int _academyPage = 1;
+    private Guid? _routeOrg;
+    private bool _initialized;
+    private string _category = "all";
+    protected override async Task LoadAsync()
+    {
+        if (!_initialized || _routeOrg != OrganizationId) { _query = _query with { OrganizationId = OrganizationId }; _routeOrg = OrganizationId; _initialized = true; }
+        _metrics = await Api.PlatformMetricsAsync(_query, _academyPage);
+        _health = await Api.PlatformHealthAsync();
+        _policy = await Api.PlatformRetentionPolicyAsync();
+        await LoadIncidentsAsync();
+    }
+    private async Task LoadIncidentsAsync() => _result = await Api.PlatformIncidentsAsync(_query with { Action = _category == "all" ? null : _category }, _page);
+    private Task FilterAsync(PlatformLogQuery query) { _query = query; _page = 1; _academyPage = 1; return RunAsync(LoadAsync); }
+    private Task PageAsync(int page) { _page = page; return RunAsync(LoadIncidentsAsync); }
+    private Task RefreshAsync()
+    {
+        if (_query.To.UtcDateTime.Date == DateTime.UtcNow.Date) _query = _query with { To = DateTimeOffset.UtcNow };
+        return RunAsync(LoadAsync);
+    }
+    private Task CategoryAsync(string category) { _category = category; _page = 1; return RunAsync(LoadIncidentsAsync); }
+    private Task AcademyPageAsync(int page) { _academyPage = page; return RunAsync(async () => _metrics = await Api.PlatformMetricsAsync(_query, _academyPage)); }
+}

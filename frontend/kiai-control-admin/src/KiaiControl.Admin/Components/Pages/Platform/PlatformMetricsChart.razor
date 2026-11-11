@@ -1,0 +1,27 @@
+<div class="platform-metric-chart">
+    <MudText Typo="Typo.caption">Máximo da escala: @Maximum.ToString("N0") @Unit · Horários em UTC</MudText>
+    <svg viewBox="0 0 720 220" role="img" aria-label="@($"Evolução diária de {MeasureLabel}")" style="width:100%;height:auto;display:block">
+        <path d="M20 20 H700 M20 100 H700 M20 180 H700" stroke="#d9dfeb" stroke-width="1" fill="none" />
+        <polyline points="@Points" fill="none" stroke="@(Measure == "errors" ? "#b63c42" : "#69519b")" stroke-width="3" />
+        @for (var i = 0; i < Days.Count; i++)
+        {
+            var point = Days[i];
+            <circle cx="@F(X(i))" cy="@F(Y(point))" r="4" fill="#69519b" tabindex="0">
+                <title>@point.Day.UtcDateTime.ToString("dd/MM") · @Value(point).ToString("N1") @Unit</title>
+            </circle>
+        }
+    </svg>
+    <MudStack Row="true" Justify="Justify.SpaceBetween"><MudText Typo="Typo.caption">@Days.FirstOrDefault()?.Day.UtcDateTime.ToString("dd/MM/yyyy")</MudText><MudText Typo="Typo.caption">@Days.LastOrDefault()?.Day.UtcDateTime.ToString("dd/MM/yyyy")</MudText></MudStack>
+</div>
+@code {
+    [Parameter] public IReadOnlyList<PlatformMetricDayResponse> Days { get; set; } = [];
+    [Parameter] public string Measure { get; set; } = "requests";
+    private string MeasureLabel => Measure switch { "errors" => "erros 5xx", "duration" => "tempo médio", _ => "requisições" };
+    private string Unit => Measure == "duration" ? "ms" : "";
+    private double Value(PlatformMetricDayResponse day) => Measure switch { "errors" => day.ServerErrors, "duration" => day.AverageDurationMs, _ => day.Requests };
+    private double Maximum => Math.Max(1, Days.Select(Value).DefaultIfEmpty().Max());
+    private double X(int i) => Days.Count <= 1 ? 360 : 20 + i * 680d / (Days.Count - 1);
+    private double Y(PlatformMetricDayResponse day) => 180 - Value(day) / Maximum * 160;
+    private string Points => string.Join(" ", Days.Select((day, i) => $"{F(X(i))},{F(Y(day))}"));
+    private static string F(double value) => value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+}

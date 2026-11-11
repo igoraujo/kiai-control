@@ -15,11 +15,56 @@
 
 ## Resumo do Estado
 
-O backend ja tem uma base ampla de API e modulos de negocio. O Admin cobre uma parte dos fluxos operacionais. O banco tem schema inicial, migrations `001`-`014` e script de bootstrap com ledger para evitar reaplicacao. A principal lacuna nao e a ausencia de todos os modulos: e a falta de verificacao completa dos fluxos contra PostgreSQL, de cobertura automatizada em algumas areas e de paridade do painel com as capacidades existentes da API.
+O backend ja tem uma base ampla de API e modulos de negocio. O Admin cobre uma parte dos fluxos operacionais. O banco tem schema inicial, migrations `001`-`016` e script de bootstrap com ledger para evitar reaplicacao. A principal lacuna nao e a ausencia de todos os modulos: e a falta de verificacao completa dos fluxos contra PostgreSQL, de cobertura automatizada em algumas areas e de paridade do painel com as capacidades existentes da API.
 
 O workspace contem API, Admin e um aplicativo Flutter inicial. O Admin recebeu as jornadas de equipe/contas e portal pessoal, com diferenciacao visual Gym/Fight. Infraestrutura/deploy e observabilidade de producao continuam sendo etapas operacionais separadas; a validacao local nao comprova deploy ou servicos externos.
 
-### Decisao de operacao de aulas
+### Administração da plataforma (validada em 2026-11-11)
+
+- [x] Separar a área `platform_owner` da operação das academias, com menu e identificação visual próprios; as rotas globais não aceitam papéis locais nem troca de tenant por header.
+- [x] Listar academias com busca literal parametrizada, status e paginação; cadastrar academia e primeiro owner; editar dados e ativar/suspender/inativar com motivo auditado.
+- [x] Impedir login/refresh e uso de JWT de academias suspensas/inativas; revogar sessões e recuperação na mudança de status, preservando as demais academias.
+- [x] Cadastrar responsáveis, ajustar e-mail/perfis/estado, bloquear/reativar, revogar sessões e definir senha temporária com troca obrigatória; proteger a conta global, vínculos de aluno/professor e o último owner ativo sob concorrência.
+- [x] Persistir auditoria de mutações da plataforma na mesma transação da operação, incluindo cadastro e bootstrap; testar rollback quando a gravação da auditoria falha.
+- [x] Consultar auditorias globais com academia, usuário, ação e período; registrar acessos globais e mostrar detalhes legíveis sem senhas/hashes.
+- [x] Persistir ocorrências HTTP 5xx, login 401 e falhas do middleware de auditoria, com template de rota e correlação; consultar indicadores de 24h e histórico paginado. Não são armazenados corpo, query string ou credenciais.
+- [x] Adicionar migration `015`, índices, schema consolidado idempotente, DBML e documentação em `PLATFORM_ADMINISTRATION.md`; migration aplicada no banco de testes com ledger, sem excluir registros.
+
+Validação executada: **81 unitários da API, 39 de integração PostgreSQL, 2 arquiteturais, 41 unitários/componentes Admin e 15 E2E Chromium/API/Admin/PostgreSQL: 178 aprovados**. Os novos cenários cobrem cadastro e edição de academia, novo owner, senha temporária, revogação de JWT/refresh, suspensão/reativação, auditoria global, bloqueio dos papéis locais, correlação e telas em 390 px. O schema consolidado foi criado e reaplicado em banco descartável. O E2E também identificou e permitiu corrigir a atualização dos campos que habilitam o envio de comunicados.
+
+O provisionamento pessoal foi realizado na base de testes, com hash validado, senha temporária em arquivo privado fora do repositório e auditoria transacional. Nenhuma credencial de acesso foi adicionada ao código. O módulo não elimina as pendências de readiness, monitoração externa nem a auditoria transacional nas demais áreas.
+
+### Auditoria por academia, ciclo de vida e privacidade (validada em 2026-11-11)
+
+- [x] Auditoria em `/platform/organizations/{id}/audit`, com academia fixa, filtros e histórico de academias arquivadas.
+- [x] Visões Em operação/Arquivadas/Todas; arquivamento por `deleted_at` com confirmação do nome e motivo; revogação de sessões; restauração como inativa; nenhuma exclusão física em cascata de cadastros.
+- [x] Listagem de auditoria sem identidade completa, IP, alvo ou metadados pessoais; detalhes exigem autorização e auditoria bem-sucedida, sem justificativa manual; metadados usam lista de chaves permitidas; o texto do filtro de autor não é copiado para o log.
+- [x] Dashboard por academia e período: tráfego, 4xx/5xx, média ponderada/máximo de duração, gráfico diário interativo, templates de rotas, contadores de contas e preservação; sem dados individuais de alunos ou saúde.
+- [x] Readiness com probes de PostgreSQL/cache, timeout e descrição sem segredos; E2E interrompe PostgreSQL e confirma readiness 503/liveness 200.
+- [x] Retenção configurável de telemetria e remoção de identificadores/metadados antigos da auditoria; preservação legal com fundamento auditado; locks serializam limpeza e alterações de preservação; cadastros e financeiro são preservados.
+- [x] Migration `016`, schema consolidado idempotente e DBML com 39 tabelas; aplicada na base de testes com ledger. Política técnica e limites documentados em `PLATFORM_ADMINISTRATION.md`, com referências oficiais da ANPD.
+
+Validação executada: **85 unitários da API, 44 de integração PostgreSQL, 2 arquiteturais, 41 unitários/componentes Admin e 17 E2E: 189 aprovados**. Inclui isolamento por academia, privacidade da resposta, confirmação/rollback de arquivamento, restauração sem reativação, retenção/preservação, agregação ponderada, captura de templates sem query string e métricas persistidas pelo coletor real. O navegador percorreu os novos controles e a versão móvel; a atualização dos indicadores também foi verificada.
+
+Os padrões de 30/90/180 dias são opções técnicas a ajustar/documentar pelo controlador segundo finalidade, base legal e obrigações de conservação. Não representam prazo legal universal nem certificação de conformidade. Arquivamento não é eliminação de dados pessoais; direitos dos titulares também envolvem cadastros, backups e logs externos. Redis real e staging exigem validação específica; o E2E desta entrega aferiu PostgreSQL real e cache em memória.
+
+### Retomada de contrato no mesmo cadastro (validada em 2026-11-11)
+
+- [x] Ação **Restaurar e reativar** para academias arquivadas, com confirmação do nome e motivo, reutilizando o mesmo ID e os cadastros existentes.
+- [x] `POST /platform/organizations/{id}/restore` aceita `reactivate: true` e restaura/ativa na mesma transação da auditoria `platform.organization.reactivated`; sem a opção, a restauração continua como inativa.
+- [x] Preservar usuários, alunos, credenciais e histórico; manter contas bloqueadas bloqueadas; exigir novo login, sem recuperar JWT/refresh tokens antigos. Reativar não recria dados anteriormente eliminados por outra política.
+- [x] Testar retomada após cancelamento, ausência de duplicação, preservação dos vínculos e rollback se a auditoria da reativação falhar. Nenhuma migration nova foi necessária.
+
+Validação: **85 unitários API, 45 de integração PostgreSQL, 2 arquiteturais, 41 unitários/componentes Admin e 18 E2E: 191 testes distintos aprovados**. Na execução geral, um teste antigo de comunicados falhou esperando o botão habilitar; a seleção passou a aguardar confirmação visual e o preenchimento passou a encerrar o foco antes de enviar. A reexecução desse cenário passou. O novo E2E confirmou retorno de login e acesso ao mesmo aluno, usuários e academia sem novo cadastro.
+
+### Consulta direta dos detalhes de auditoria (validada em 2026-11-11)
+
+- [x] Remover a justificativa manual da tela e da API, conforme solicitado. **Ver detalhes** carrega o evento automaticamente, com indicação de carregamento e nova tentativa em caso de erro.
+- [x] Preservar autorização `platform_owner`, vínculo entre evento/academia, filtros de dados sensíveis e registro automático `platform.audit.details_viewed` antes de entregar os detalhes.
+
+Validação desta alteração: **1 teste de integração PostgreSQL e 1 E2E aprovados**. A integração verifica consulta sem justificativa, IDs obrigatórios, isolamento por academia e metadados filtrados. O navegador confirma abertura sem formulário/confirmação adicional e registro automático de cada consulta. API e Admin foram compilados por esses testes; `git diff --check` aprovado. Nenhuma migration ou commit foi necessário.
+
+### Fluxo de aulas
 
 O fluxo e modalidade → horarios recorrentes por unidade (professor opcional) → aulas por data → chamada. Um aluno ativo vinculado a modalidade pode frequentar qualquer horario dela; nao ha vinculo fixo a horario. A migration `007_remove_class_groups.sql` remove tabelas, endpoints e telas de turma/matricula fixa; aulas e ciclos de ranking sao associados a modalidade e matriculas ativas sao transferidas para `person_modalities`.
 
@@ -101,14 +146,14 @@ Validação: **81 unitários backend, 23 integração PostgreSQL, 2 arquiteturai
 | API e arquitetura | Presente, validacao operacional incompleta | Projetos Api, Core, Contracts, UseCases, Repositories e Services; controllers para autenticacao, organizacoes, unidades, clientes, professores, modalidades, aulas, presenca, financeiro, fitness, graduacao, ranking, notificacoes, relatorios, auditoria e controle de acesso. Rotas de professor agora retornam horarios associados e aulas filtradas por professor/periodo; teste de integracao confirma query em PostgreSQL. Outras rotas ainda precisam de validacao operacional. |
 | Autenticacao | Sessões, troca e recuperação implementadas | Versão da sessão e estado atual da conta/permissões são verificados na API; bloqueio, alteração de login/senha e encerramento administrativo invalidam acessos anteriores. Recuperação web e transporte SMTP implementados; entrega externa requer configuração e não foi exercitada nesta sessão. |
 | Tenant e autorizacao | Matriz aplicada e jornadas principais verificadas | Papéis/permissões efetivos continuam tenant-scoped; quatro permissões de consulta foram separadas de gestão. Menu, rotas e API respeitam a matriz. E2E valida consulta sem gravação, aluno restrito aos próprios dados, professor restrito às próprias aulas, perfil financeiro e proteção da própria conta. O MVP mantém uma organização por conta. |
-| Auditoria | Parcial | Middleware e endpoint de consulta existem. A gravacao ocorre depois da resposta da mutacao e falhas sao capturadas; assim, uma operacao pode concluir sem auditoria persistida. Integridade/atomicidade nao foi comprovada. |
-| Banco de dados | Migrations e schema consolidado validados | Migrations `001`–`014`; `011`–`014` aplicadas em transação no banco local `dev`, com ledger, sem exclusão de registros. A `014` cria configurações ausentes de academias legadas, sem alterar políticas existentes. Integração cria banco descartável com o schema de produção e reaplica schema/seed duas vezes; 37 tabelas correspondem ao DBML. Validação de rollback/recuperação operacional continua na fase de produção. |
+| Auditoria | Transacional na plataforma; parcial nas demais áreas | O módulo da plataforma persiste mutações e auditoria na mesma transação, com consulta global e registro dos acessos. Middleware e endpoint de consulta local existem. A gravacao ocorre depois da resposta da mutacao e falhas sao capturadas; assim, uma operacao pode concluir sem auditoria persistida. Integridade/atomicidade nao foi comprovada. |
+| Banco de dados | Migrations e schema consolidado validados | Migrations `001`–`016`; `011`–`016` aplicadas em transação no banco local `dev`, com ledger, sem exclusão de registros. A `014` cria configurações ausentes de academias legadas, sem alterar políticas existentes. Integração cria banco descartável com o schema de produção e reaplica schema/seed duas vezes; 39 tabelas correspondem ao DBML, incluindo `platform_incidents` e métricas agregadas. Validação de rollback/recuperação operacional continua na fase de produção. |
 | Testes do backend | 106 testes aprovados | 81 unitários, 23 integração e 2 arquiteturais aprovados localmente em 2026-11-11. Cobre política de senha, SQL constante, buscas parametrizadas com tentativas de injection, visões por área, configurações de academias legadas, filtros de aulas com offsets -03:00/+09:00, identidade compartilhada, mudança/bloqueio de conta, catálogo além dos primeiros 100, metas de redução, políticas de check-in e schema consolidado idempotente. |
 | Admin | Jornadas de gestão e portal pessoal entregues | Diretório/equipe e contas existentes, vínculo de pessoas pelos formulários, consulta sem gravação, paginação/busca, configurações, recuperação de senha, áreas pessoais de aluno/professor e entradas Gym/Fight. A jornada do aluno reutiliza componentes de presença, graduação, metas e conquistas. Componentes novos separam apresentação e lógica. |
-| Testes do Admin | 34 testes unitários/componentes e 13 E2E aprovados | Chromium/API/Admin/PostgreSQL reais: três visões de alunos para owner/admin/recepção, bootstrap, operação/financeiro, navegação, graduação/fitness/comunidade/auditoria, equipe/bloqueio/consulta, identidade nos dois formulários, portal privado e check-in, escopo do professor/perfil financeiro e recuperação com revogação. Aulas verificadas em America/Sao_Paulo; Gym/Fight e portal em 390 px. |
+| Testes do Admin | 41 testes unitários/componentes e 18 E2E aprovados | Chromium/API/Admin/PostgreSQL reais: três visões de alunos para owner/admin/recepção, bootstrap, operação/financeiro, navegação, graduação/fitness/comunidade/auditoria, equipe/bloqueio/consulta, identidade nos dois formulários, portal privado e check-in, escopo do professor/perfil financeiro e recuperação com revogação. Aulas verificadas em America/Sao_Paulo; Gym/Fight e portal em 390 px. |
 | Mobile | Presente, escopo inicial | `frontend/kiai-control-mobile`: login/sessão, aulas/check-in, chamada do professor, perfil, metas e troca de senha com a mesma política da API. 26 testes (9 modelos, 17 senha) e análise estática aprovados nesta entrega. Widget/integration tests e ampliação das jornadas mobile continuam no backlog. |
 | Infraestrutura e CI/CD | CI parcial validado em runner limpo; nova etapa E2E aguarda execucao remota | Workflow GitHub Actions compila API/Admin, testa API/Admin e publica TRX; agora tambem instala Chromium e exige TRX do E2E. A execucao anterior `41257017649` passou o workflow entao existente e publicou `test-results` (`13063921778`); ela nao inclui as mudancas Playwright atuais. Nao foram encontrados Dockerfiles, Compose, deploy manifests ou configuracao de observabilidade. |
-| Health e observabilidade | Parcial | Correlation ID e logging de falha de auditoria existem. Ha `/health/live` e `/health/ready`, mas o registro usa `AddHealthChecks()` sem checks de PostgreSQL/Redis. Nao foi encontrada integracao OpenTelemetry/Prometheus/Grafana. |
+| Health e observabilidade | Parcial | Correlation ID, logging de falha de auditoria e painel global de ocorrências HTTP 5xx, login 401 e falhas de auditoria existem. Há métricas agregadas por academia, gráfico diário e readiness com probes de PostgreSQL/cache. E2E confirma readiness 503 e liveness 200 com PostgreSQL indisponível. Redis real ainda precisa de validação operacional. Nao foi encontrada integracao OpenTelemetry/Prometheus/Grafana. |
 
 ## Alinhamento dos Documentos
 
@@ -172,7 +217,8 @@ Validação: **81 unitários backend, 23 integração PostgreSQL, 2 arquiteturai
 
 ### Fase 3 - Operacao e Prontidao para Producao (P0 antes do deploy)
 
-- [ ] Registrar health checks reais de PostgreSQL e Redis; `/health/ready` deve falhar quando dependencia necessaria estiver indisponivel.
+- [x] Registrar probes de PostgreSQL e cache configurado; E2E com PostgreSQL real confirma `/health/ready` 503 e `/health/live` 200 quando o banco para.
+- [ ] Validar Redis real saudável/indisponível e repetir os checks em staging.
 - [ ] Padronizar tratamento de excecoes/Problem Details em todos os ambientes e revisar mensagens que possam revelar detalhes internos.
 - [ ] Implementar OpenTelemetry para traces, metricas e logs; definir correlation/trace IDs e dashboards/alertas operacionais.
 - [ ] Criar Dockerfiles/Compose para desenvolvimento e pipeline de build/publicacao/deploy; documentar variaveis sem valores secretos.

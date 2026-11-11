@@ -3,6 +3,42 @@ Project kiai_control {
   Note: 'Modelo relacional normalizado do Kiai Control (SaaS multi-tenant). Baseado em CHECKPOINT.md, COPILOT.md e SYSTEM_DESIGN.md.'
 }
 
+Table platform_request_metrics {
+  id uuid [pk, default: `gen_random_uuid()`]
+  bucket_start timestamptz [not null]
+  organization_id uuid [ref: > organizations.id]
+  route varchar(300) [not null, note: 'Somente template; sem valores de rota ou query string']
+  method varchar(16) [not null]
+  status_code int [not null]
+  requests bigint [not null]
+  duration_total_ms double [not null]
+  max_duration_ms double [not null]
+
+  indexes {
+    (bucket_start, organization_id, route, method, status_code) [unique, note: 'NULLS NOT DISTINCT no PostgreSQL']
+    (organization_id, bucket_start)
+    bucket_start
+  }
+}
+
+Table platform_incidents {
+  id uuid [pk]
+  organization_id uuid [ref: > organizations.id]
+  actor_user_id uuid [ref: > user_accounts.id]
+  category varchar(40) [not null, note: 'request_failure, authentication_failure, audit_failure']
+  method varchar(16) [not null]
+  route varchar(300) [not null, note: 'Template da rota; sem query string ou valores de credenciais']
+  status_code int [not null]
+  correlation_id varchar(120) [not null]
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (created_at, id)
+    (organization_id, created_at)
+    (category, created_at)
+  }
+}
+
 Enum organization_status {
   active
   inactive
@@ -120,6 +156,7 @@ Table organizations {
   created_at timestamptz [not null, default: `now()`]
   updated_at timestamptz
   deleted_at timestamptz
+  privacy_hold boolean [not null, default: false]
 
   Note: 'Tenant raiz. Todas as tabelas multi-tenant devem carregar organization_id e filtrar por ele.'
 
@@ -768,4 +805,6 @@ Table audit_logs {
     (actor_person_id)
     (action)
   }
+  personal_data_redacted_at timestamptz
+
 }

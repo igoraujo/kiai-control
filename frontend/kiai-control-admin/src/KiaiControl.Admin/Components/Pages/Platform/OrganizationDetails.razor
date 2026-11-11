@@ -1,0 +1,99 @@
+@page "/platform/organizations/{OrganizationId:guid}"
+@inherits PlatformPageBase
+
+<PageTitle>Gestão da academia | Plataforma Kiai Control</PageTitle>
+<MudStack Spacing="3">
+    <MudLink Href="/platform/organizations">Voltar às academias</MudLink>
+    @if (Error is not null) { <MudAlert Severity="Severity.Error">@Error</MudAlert> }
+    @if (_organization is not null)
+    {
+        <MudStack Row="true" Wrap="Wrap.Wrap" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+            <MudText Typo="Typo.h4">@_organization.Name</MudText>
+            <MudChip T="string" Color="@(_organization.DeletedAt is null && _organization.Status == "active" ? Color.Success : Color.Warning)">@(_organization.DeletedAt is not null ? "Arquivada" : PlatformLabels.Status(_organization.Status))</MudChip>
+        </MudStack>
+        <MudPaper Outlined="true" Class="pa-4">
+            <MudStack Spacing="2">
+                @if (!string.IsNullOrWhiteSpace(_organization.TradeName) || !string.IsNullOrWhiteSpace(_organization.Document))
+                {
+                    <MudText>@string.Join(" · ", new[] { _organization.TradeName, _organization.Document }.Where(x => !string.IsNullOrWhiteSpace(x)))</MudText>
+                }
+                <MudText>@(string.Join(" · ", new[] { _organization.Email, _organization.Phone }.Where(x => !string.IsNullOrWhiteSpace(x))) is { Length: > 0 } contact ? contact : "Contato não informado")</MudText>
+                <MudText Typo="Typo.caption">Cadastrada em @_organization.CreatedAt.UtcDateTime.ToString("dd/MM/yyyy")</MudText>
+                <MudStack Row="true" Wrap="Wrap.Wrap">
+                    <MudButton OnClick="() => EditOrganizationAsync(false)" Disabled="@(IsBusy || _organization.DeletedAt is not null)" StartIcon="@Icons.Material.Filled.Edit">Editar dados</MudButton>
+                    <MudButton OnClick="() => EditOrganizationAsync(true)" Disabled="@(IsBusy || _organization.DeletedAt is not null)" Color="Color.Warning">Alterar status</MudButton>
+                    <MudButton Href="@($"/platform/organizations/{OrganizationId}/audit")" StartIcon="@Icons.Material.Filled.History">Auditoria da academia</MudButton>
+                    <MudButton Href="@($"/platform/operations?organizationId={OrganizationId}")">Indicadores</MudButton>
+                    <MudButton OnClick='() => LifecycleAsync(_organization.DeletedAt is null ? "archive" : "restore")' Disabled="IsBusy" Color="Color.Warning">@(_organization.DeletedAt is null ? "Arquivar academia" : "Restaurar academia")</MudButton>
+                    @if (_organization.DeletedAt is not null)
+                    {
+                        <MudButton OnClick='() => LifecycleAsync("reactivate")' Disabled="IsBusy" Color="Color.Success" Variant="Variant.Filled">Restaurar e reativar</MudButton>
+                    }
+                    <MudButton OnClick='() => LifecycleAsync("hold")' Disabled="IsBusy">@(_organization.PrivacyHold ? "Revisar preservação legal" : "Preservação legal")</MudButton>
+                </MudStack>
+            </MudStack>
+        </MudPaper>
+        @if (_organization.PrivacyHold) { <MudAlert Severity="Severity.Warning">Preservação legal ativa: a limpeza automática dos registros desta academia está suspensa. Revise periodicamente a finalidade e o fundamento.</MudAlert> }
+        @if (_organization.DeletedAt is not null) { <MudAlert Severity="Severity.Info">Arquivada em @_organization.DeletedAt.Value.UtcDateTime.ToString("dd/MM/yyyy HH:mm") UTC. Os cadastros foram preservados. Se o contrato for retomado, use Restaurar e reativar para voltar com a mesma academia, sem novo cadastro.</MudAlert> }
+        @if (_organization.Status != "active") { <MudAlert Severity="Severity.Warning">O acesso dos usuários desta academia está impedido. Reative a academia para permitir novos logins.</MudAlert> }
+        @if (_organization.DeletedAt is null)
+        {
+        <MudStack Row="true" Wrap="Wrap.Wrap" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+            <MudText Typo="Typo.h5">Responsáveis e contas de acesso</MudText>
+            <MudButton OnClick="() => AccountAsync(null)" Disabled="IsBusy" Color="Color.Primary" Variant="Variant.Filled">Adicionar responsável</MudButton>
+        </MudStack>
+        <MudText Typo="Typo.body2">Owner gerencia a academia. Admin opera conforme as permissões locais. Esses perfis não dão acesso à plataforma.</MudText>
+        <MudStack Row="true" AlignItems="AlignItems.Center">
+            <MudTextField @bind-Value="_search" Label="Buscar conta" Placeholder="Nome ou e-mail" />
+            <MudButton OnClick="FilterAsync" Disabled="IsBusy">Buscar</MudButton>
+        </MudStack>
+        <MudTable Items="_accounts.Items" Loading="IsBusy" Hover="true" Elevation="0" Breakpoint="Breakpoint.Md">
+            <HeaderContent><MudTh>Pessoa</MudTh><MudTh>Perfis</MudTh><MudTh>Acesso</MudTh><MudTh>Ações</MudTh></HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Pessoa"><div class="platform-cell-content"><MudText>@context.FullName</MudText><MudText Typo="Typo.caption">@context.Email</MudText></div></MudTd>
+                <MudTd DataLabel="Perfis">@string.Join(", ", context.Roles.Select(AdminNavigation.RoleLabel))</MudTd>
+                <MudTd DataLabel="Acesso"><div class="platform-cell-content">@(context.IsActive ? "Ativo" : "Bloqueado") @if (context.MustChangePassword) { <MudText Typo="Typo.caption">Troca de senha pendente</MudText> }</div></MudTd>
+                <MudTd DataLabel="Ações"><MudButton Color="Color.Primary" OnClick="() => AccountAsync(context)" Disabled="IsBusy">Gerenciar acesso</MudButton></MudTd>
+            </RowTemplate>
+            <NoRecordsContent><MudText>Nenhuma conta encontrada.</MudText></NoRecordsContent>
+        </MudTable>
+        <PlatformPagination Page="_page" Total="_accounts.Total" Busy="IsBusy" Changed="PageAsync" />
+        }
+    }
+</MudStack>
+@code {
+    [Parameter] public Guid OrganizationId { get; set; }
+    private OrganizationResponse? _organization;
+    private PagedResponse<PlatformAccountResponse> _accounts = new([], 0);
+    private int _page = 1;
+    private string? _search;
+    protected override async Task LoadAsync()
+    {
+        _organization = await Api.GetAsync<OrganizationResponse>($"platform/organizations/{OrganizationId}");
+        await LoadAccountsAsync();
+    }
+    private async Task LoadAccountsAsync() => _accounts = _organization?.DeletedAt is not null ? new([], 0) : await Api.PlatformAccountsAsync(OrganizationId, _page, _search);
+    private async Task LifecycleAsync(string mode)
+    {
+        var title = mode switch { "hold" => "Preservação de registros", "archive" => "Arquivar academia", "reactivate" => "Restaurar e reativar", _ => "Restaurar academia" };
+        var dialog = await Dialogs.ShowAsync<PlatformLifecycleDialog>(title,
+            new DialogParameters<PlatformLifecycleDialog> { { x => x.Organization, _organization! }, { x => x.Mode, mode } }, new DialogOptions { FullWidth = true, MaxWidth = MaxWidth.Small });
+        if (await dialog.Result is { Canceled: false }) await RunAsync(LoadAsync);
+    }
+    private Task FilterAsync() { _page = 1; return RunAsync(LoadAccountsAsync); }
+    private Task PageAsync(int page) { _page = page; return RunAsync(LoadAccountsAsync); }
+    private async Task EditOrganizationAsync(bool status)
+    {
+        var dialog = await Dialogs.ShowAsync<PlatformOrganizationDialog>(status ? "Status da academia" : "Editar academia",
+            new DialogParameters<PlatformOrganizationDialog> { { x => x.Organization, _organization! }, { x => x.StatusOnly, status } },
+            new DialogOptions { FullWidth = true, MaxWidth = MaxWidth.Small });
+        if (await dialog.Result is { Canceled: false }) await RunAsync(LoadAsync);
+    }
+    private async Task AccountAsync(PlatformAccountResponse? account)
+    {
+        var dialog = await Dialogs.ShowAsync<PlatformAccountDialog>(account is null ? "Adicionar responsável" : "Gerenciar acesso",
+            new DialogParameters<PlatformAccountDialog> { { x => x.OrganizationId, OrganizationId }, { x => x.Account, account } },
+            new DialogOptions { FullWidth = true, MaxWidth = MaxWidth.Small });
+        if (await dialog.Result is { Canceled: false }) await RunAsync(LoadAccountsAsync);
+    }
+}

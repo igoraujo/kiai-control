@@ -7,6 +7,8 @@ public static class WebApplicationExtensions
     public static WebApplication UseKiaiApi(this WebApplication app)
     {
         app.UseMiddleware<CorrelationIdMiddleware>();
+        app.UseMiddleware<PlatformTelemetryMiddleware>();
+        app.UseMiddleware<PlatformIncidentMiddleware>();
         app.UseExceptionHandler();
         if (app.Environment.IsDevelopment())
         {
