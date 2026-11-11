@@ -26,7 +26,7 @@ public static class ServiceCollectionExtensions
         services.Configure<CacheOptions>(configuration.GetSection(CacheOptions.SectionName));
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
         services.Configure<PlatformOwnerOptions>(configuration.GetSection(PlatformOwnerOptions.SectionName));
-        services.AddSingleton<KiaiControl.Core.Interfaces.IPasswordRecoveryDelivery>(provider => new KiaiControl.Services.Auth.SmtpPasswordRecoveryDelivery(configuration["Smtp:Host"], configuration.GetValue("Smtp:Port", 587), configuration["Smtp:Username"], configuration["Smtp:Password"], configuration["Smtp:From"], configuration["Smtp:ResetUrl"], provider.GetRequiredService<ILogger<KiaiControl.Services.Auth.SmtpPasswordRecoveryDelivery>>()));
+        services.AddKiaiEmail(configuration, environment.IsDevelopment());
         services.AddHttpContextAccessor();
         services.AddProblemDetails();
         services.AddControllers();

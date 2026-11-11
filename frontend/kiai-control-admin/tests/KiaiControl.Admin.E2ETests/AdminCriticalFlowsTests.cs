@@ -126,8 +126,10 @@ public sealed class AdminCriticalFlowsTests
         await page.GetByRole(AriaRole.Button, new() { Name = "Nova meta" }).ClickAsync();
         var goalDialog = page.GetByRole(AriaRole.Dialog);
         await goalDialog.GetByRole(AriaRole.Combobox, new() { Name = "Aluno" }).ClickAsync();
-        await page.GetByText(clientName, new() { Exact = true }).Last.ClickAsync();
+        await page.GetByRole(AriaRole.Option, new() { Name = clientName, Exact = true }).ClickAsync();
+        await page.WaitForFunctionAsync("name => document.querySelector('div[role=\"combobox\"][aria-label=\"Aluno\"]')?.textContent?.includes(name)", clientName);
         await goalDialog.GetByLabel("Meta", new() { Exact = true }).FillAsync("Treinar 3 vezes");
+        await goalDialog.GetByLabel("Meta", new() { Exact = true }).BlurAsync();
         await goalDialog.GetByLabel("Alvo").FillAsync("3");
         await goalDialog.GetByLabel("Unidade (ex.: kg, cm, aulas)").FillAsync("aulas");
         await goalDialog.GetByRole(AriaRole.Button, new() { Name = "Criar meta" }).ClickAsync();
@@ -359,7 +361,8 @@ public sealed class AdminCriticalFlowsTests
         if (type != "martial_art")
         {
             await page.GetByRole(AriaRole.Combobox, new() { Name = "Tipo" }).ClickAsync();
-            await page.GetByText("Fitness", new() { Exact = true }).Last.ClickAsync();
+            await page.GetByRole(AriaRole.Option, new() { Name = "Fitness", Exact = true }).ClickAsync();
+            await page.WaitForFunctionAsync("() => document.querySelector('div[role=\"combobox\"][aria-label=\"Tipo\"]')?.textContent?.includes('Fitness')");
         }
 
         await page.GetByRole(AriaRole.Button, new() { Name = "Salvar" }).ClickAsync();
@@ -398,7 +401,7 @@ internal sealed class E2EEnvironment : IAsyncDisposable
     public string ProcessOutput => $"API:{Environment.NewLine}{FormatOutput(_apiOutput)}{Environment.NewLine}Admin:{Environment.NewLine}{FormatOutput(_adminOutput)}";
     private string ConnectionString => _database.GetConnectionString();
 
-    public async Task StartAsync(bool seedAdmin = false, string timezone = "UTC")
+    public async Task StartAsync(bool seedAdmin = false, string timezone = "UTC", IReadOnlyDictionary<string, string>? emailEnvironment = null)
     {
         await _database.StartAsync();
         if (seedAdmin)
@@ -425,6 +428,7 @@ internal sealed class E2EEnvironment : IAsyncDisposable
             ["TZ"] = timezone,
             ["ConnectionStrings__PostgreSql"] = ConnectionString,
             ["Cache__Provider"] = "Memory",
+            ["Email__Provider"] = "Disabled",
             ["RateLimiting__AuthPermitLimit"] = "200"
         };
         if (!seedAdmin)
@@ -434,6 +438,9 @@ internal sealed class E2EEnvironment : IAsyncDisposable
             apiEnvironment["PlatformOwner__Password"] = PlatformOwnerPasswordValue;
             apiEnvironment["PlatformPrivacy__FlushSeconds"] = "1";
         }
+
+        if (emailEnvironment is not null)
+            foreach (var setting in emailEnvironment) apiEnvironment[setting.Key] = setting.Value;
 
         _apiProcess = StartApplication(Path.Combine(root, "backend", "kiai-control-api", "src", "KiaiControl.Api", "bin", configuration, "net10.0", "KiaiControl.Api.dll"), Path.Combine(root, "backend", "kiai-control-api", "src", "KiaiControl.Api"), _apiOutput, apiEnvironment);
         await WaitForHttpAsync($"{ApiUrl}/health/live", _apiProcess, _apiOutput);

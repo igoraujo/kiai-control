@@ -1,5 +1,7 @@
 # KiaiControl API
 
+Serviço de e-mail agnóstico (`IEmailSender`), configuração SMTP, adaptadores adicionais e captura local: [EMAIL_CONFIGURATION.md](../../EMAIL_CONFIGURATION.md).
+
 Administração global e provisionamento do Super Admin: [PLATFORM_ADMINISTRATION.md](../../PLATFORM_ADMINISTRATION.md). A versão atual exige migrations até `016_platform_lifecycle_observability_privacy.sql`.
 
 ## Objetivo
@@ -57,7 +59,7 @@ Permissoes efetivas combinam os defaults de `role_permissions` com overrides por
 
 No fluxo operacional, o aluno e vinculado uma vez a modalidade e pode participar de qualquer sessao dela. Horarios recorrentes sao cadastrados em `/modalities/{id}/schedules`, com unidade e professor opcionais; a geracao e idempotente para o mesmo horario/data. A chamada usa alunos ativos vinculados a modalidade. A migration `007` converte aulas e ciclos de ranking para sua modalidade, transfere matriculas ativas para `person_modalities` e remove as tabelas, campos e permissoes de turma fixa; esses registros nao permanecem no schema nem na API.
 
-Login, refresh, logout, change-password e recuperacao/reset estao limitados por padrao a 10 requisicoes por IP por minuto (`RateLimiting:AuthPermitLimit`). A recuperacao retorna mensagem generica e nao expoe o token; a entrega do link usa SMTP com TLS quando configurado (`Smtp:Host`, `Port`, `Username`, `Password`, `From`, `ResetUrl` HTTPS). Sem provedor configurado, a academia pode redefinir uma senha temporaria na gestao de pessoas.
+Login, refresh, logout, change-password e recuperacao/reset estao limitados por padrao a 10 requisicoes por IP por minuto (`RateLimiting:AuthPermitLimit`). A recuperacao retorna mensagem generica e nao expoe o token; compoe o e-mail usando `IEmailSender`. Configure `Email:Provider=Smtp`, remetente e `Email:Smtp:*`, além de `PasswordRecovery:ResetUrl`. As chaves antigas `Smtp:*` continuam compatíveis. Sem provedor configurado, a academia pode redefinir uma senha temporaria na gestao de pessoas. Guia completo em `EMAIL_CONFIGURATION.md`.
 
 Novas senhas devem ter no mínimo 6 caracteres, incluindo ao menos uma letra maiúscula, uma letra minúscula e um caractere especial. `Contracts/Auth/PasswordPolicy.cs` centraliza essa regra para cadastro da academia, bootstrap da plataforma, criação/redefinição de acesso, troca e recuperação de senha. O painel compartilha o mesmo validador. A validação considera letras e símbolos Unicode; espaços não contam como caracteres especiais.
 
