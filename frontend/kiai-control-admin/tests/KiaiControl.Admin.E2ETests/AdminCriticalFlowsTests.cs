@@ -481,8 +481,8 @@ internal sealed class E2EEnvironment : IAsyncDisposable
                     select 1 from schema_migrations
                     where migration_name = '010_platform_owner_and_temporary_passwords.sql'
                 )
-                and (select count(*) from organizations where id = @OrganizationId and email = 'admin@kiai.local') = 1
-                and (select count(*) from user_accounts where email = 'admin@kiai.local' and is_active) = 1
+                and (select count(1) from organizations where id = @OrganizationId and email = 'admin@kiai.local') = 1
+                and (select count(1) from user_accounts where email = 'admin@kiai.local' and is_active) = 1
                 and to_regclass('public.modality_schedules') is not null
                 and to_regclass('public.graduation_belts') is not null
                 and to_regclass('public.class_groups') is null
@@ -652,7 +652,7 @@ internal sealed class E2EEnvironment : IAsyncDisposable
     {
         await using var connection = new NpgsqlConnection(ConnectionString);
         await connection.OpenAsync();
-        await using var command = new NpgsqlCommand("select count(*) from attendances where lesson_id = @LessonId and status = 'present' and validated_at is not null", connection);
+        await using var command = new NpgsqlCommand("select count(1) from attendances where lesson_id = @LessonId and status = 'present' and validated_at is not null", connection);
         command.Parameters.AddWithValue("LessonId", lessonId);
         return Convert.ToInt32(await command.ExecuteScalarAsync());
     }
@@ -662,7 +662,7 @@ internal sealed class E2EEnvironment : IAsyncDisposable
         await using var connection = new NpgsqlConnection(ConnectionString);
         await connection.OpenAsync();
         await using var command = new NpgsqlCommand("""
-            select count(*)
+            select count(1)
             from payments payment
             join invoices invoice on invoice.id = payment.invoice_id
             where invoice.organization_id = @OrganizationId and invoice.client_id = @ClientId

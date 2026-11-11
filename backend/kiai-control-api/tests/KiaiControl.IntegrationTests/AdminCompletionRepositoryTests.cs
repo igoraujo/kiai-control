@@ -53,7 +53,7 @@ public sealed class AdminCompletionRepositoryTests(PostgreSqlFixture fixture)
         await administration.SaveSettingsAsync(org, settings, default);
         Assert.False((await administration.GetSettingsAsync(org, default)).RequireTeacherConfirmation);
         Assert.False((await administration.GetSettingsAsync(otherOrg, default)).AllowClientCheckin);
-        Assert.Equal(1, await c.QuerySingleAsync<int>("select count(*)::int from organization_settings where organization_id=@org", new { org }));
+        Assert.Equal(1, await c.QuerySingleAsync<int>("select count(1)::int from organization_settings where organization_id=@org", new { org }));
     }
 
     [Fact]

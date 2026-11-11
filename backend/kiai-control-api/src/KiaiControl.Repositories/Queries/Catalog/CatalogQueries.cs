@@ -50,7 +50,7 @@ public static class CatalogQueries
         offset @Offset
         limit @PageSize;
 
-        select count(*)
+        select count(1)
         from (
             select
                 lessons.id,
@@ -169,7 +169,7 @@ public static class CatalogQueries
             c.id
         offset @Offset rows fetch next @PageSize rows only;
 
-        select count(*)
+        select count(1)
         from clients c
         join persons p on p.id = c.person_id
         where c.organization_id = @OrganizationId
@@ -256,7 +256,7 @@ public static class CatalogQueries
             t.id
         offset @Offset rows fetch next @PageSize rows only;
 
-        select count(*)
+        select count(1)
         from teachers t
         join persons p on p.id = t.person_id
         where t.organization_id = @OrganizationId
@@ -313,7 +313,7 @@ public static class CatalogQueries
         order by name
         offset @Offset rows fetch next @PageSize rows only;
 
-        select count(*)
+        select count(1)
         from branches
         where organization_id = @OrganizationId
             and (@Search is null
@@ -343,7 +343,7 @@ public static class CatalogQueries
         order by name
         offset @Offset rows fetch next @PageSize rows only;
 
-        select count(*)
+        select count(1)
         from modalities
         where organization_id = @OrganizationId
             and (@Area = 'shared'

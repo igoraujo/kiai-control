@@ -87,6 +87,13 @@ Validação: **59 unitários backend, 23 integração PostgreSQL, 2 arquiteturai
 
 Validação: **81 unitários backend, 23 integração PostgreSQL, 2 arquiteturais, 34 unitários/componentes Admin, 13 E2E e 26 testes Flutter: 179 aprovados**. Build sem avisos/erros; `flutter analyze --no-pub` e `git diff --check` aprovados. Os processos descartáveis dos testes foram encerrados; nenhuma API/Admin de desenvolvimento ficou executando em segundo plano. Nenhum commit foi realizado.
 
+### Contagem de linhas — 2026-11-11
+
+- [x] Padronizadas 31 ocorrências de contagem de linhas para `count(1)`: 20 nas queries da aplicação, 9 nas verificações de testes e 2 no bootstrap do banco. Preservados `FILTER`, janelas, casts, contagens por coluna e `DISTINCT`.
+- [x] Queries continuam constantes e parametrizadas. A mudança é uma padronização; não foi atribuído ganho de desempenho sem medição no PostgreSQL.
+
+Validação: **81 unitários backend, 23 integração PostgreSQL, 2 arquiteturais e 13 E2E: 119 aprovados**. Sintaxe do bootstrap verificada com `bash -n`; `git diff --check` aprovado. Nenhuma migration, alteração de dados ou commit foi realizado.
+
 ## Inventario Verificado
 
 | Area | Estado atual | Evidencia e limite |

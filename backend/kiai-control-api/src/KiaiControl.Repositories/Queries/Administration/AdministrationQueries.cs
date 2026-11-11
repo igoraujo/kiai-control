@@ -40,7 +40,7 @@ public static class AdministrationQueries
         offset @Offset
         limit @Size;
 
-        select count(*)
+        select count(1)
         from persons p
         left join clients c on c.person_id = p.id
             and c.organization_id = p.organization_id

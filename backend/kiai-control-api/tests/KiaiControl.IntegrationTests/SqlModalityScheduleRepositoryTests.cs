@@ -259,7 +259,7 @@ public sealed class SqlModalityScheduleRepositoryTests(PostgreSqlFixture fixture
             await connection.OpenAsync();
             await using var command = new NpgsqlCommand(
                 """
-                select count(*)
+                select count(1)
                 from lesson_instructors
                 where lesson_id = @lessonId and teacher_id = @teacherId and is_substitute = false;
                 """,

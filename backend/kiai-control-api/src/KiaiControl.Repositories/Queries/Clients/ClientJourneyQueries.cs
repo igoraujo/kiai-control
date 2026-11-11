@@ -30,7 +30,7 @@ public static class ClientJourneyQueries
         offset @Offset
         limit @Size;
 
-        select count(*)
+        select count(1)
         from attendances
         where organization_id = @OrganizationId
             and client_id = @ClientId;
@@ -88,9 +88,9 @@ public static class ClientJourneyQueries
         limit 50;
 
         select
-            count(*) filter(
+            count(1) filter(
                             where a.status in ('present', 'late'))::integer as PresentCount,
-            count(*)::integer as CompletedCount
+            count(1)::integer as CompletedCount
         from attendances a
         join lessons l on l.id = a.lesson_id
             and l.organization_id = a.organization_id

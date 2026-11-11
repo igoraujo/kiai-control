@@ -4,12 +4,12 @@ public static class ReportQueries
 {
     public const string Dashboard = @"
         select
-            (select count(*)::integer from clients c where c.organization_id = @OrganizationId and c.current_status = 'active') as ActiveClients,
-            (select count(*)::integer from clients c where c.organization_id = @OrganizationId and c.joined_at between @From and @To) as NewClients,
-            (select count(*)::integer from clients c where c.organization_id = @OrganizationId and c.current_status = 'canceled') as CanceledClients,
-            (select count(*)::integer from lessons l where l.organization_id = @OrganizationId and l.status = 'completed' and l.starts_at::date between @From and @To) as CompletedLessons,
+            (select count(1)::integer from clients c where c.organization_id = @OrganizationId and c.current_status = 'active') as ActiveClients,
+            (select count(1)::integer from clients c where c.organization_id = @OrganizationId and c.joined_at between @From and @To) as NewClients,
+            (select count(1)::integer from clients c where c.organization_id = @OrganizationId and c.current_status = 'canceled') as CanceledClients,
+            (select count(1)::integer from lessons l where l.organization_id = @OrganizationId and l.status = 'completed' and l.starts_at::date between @From and @To) as CompletedLessons,
             coalesce((
-                select 100.0 * count(*) filter (where a.status in ('present', 'late')) / nullif(count(a.id), 0)
+                select 100.0 * count(1) filter (where a.status in ('present', 'late')) / nullif(count(a.id), 0)
                 from attendances a
                 join lessons l on l.id = a.lesson_id and l.organization_id = a.organization_id
                 where a.organization_id = @OrganizationId and l.starts_at::date between @From and @To
@@ -49,8 +49,8 @@ public static class ReportQueries
             coalesce(sum(greatest(amount - discount_amount + fine_amount + interest_amount - paid_amount, 0)), 0) as AmountOutstanding,
             coalesce(sum(greatest(amount - discount_amount + fine_amount + interest_amount - paid_amount, 0))
                 filter (where due_date < current_date and status in ('pending', 'partially_paid', 'overdue')), 0) as AmountOverdue,
-            count(*)::integer as InvoicesIssued,
-            count(*) filter (where due_date < current_date and status in ('pending', 'partially_paid', 'overdue'))::integer as InvoicesOverdue
+            count(1)::integer as InvoicesIssued,
+            count(1) filter (where due_date < current_date and status in ('pending', 'partially_paid', 'overdue'))::integer as InvoicesOverdue
         from invoices
         where organization_id = @OrganizationId and due_date between @From and @To;
         ";
@@ -89,7 +89,7 @@ public static class ReportQueries
             where payment.organization_id = @OrganizationId and payment.paid_at::date between @From and @To
             group by invoice.client_id
         ), fitness_totals as (
-            select client_id, count(*) filter (where status = 'active')::integer as active_goals
+            select client_id, count(1) filter (where status = 'active')::integer as active_goals
             from fitness_goals
             where organization_id = @OrganizationId
             group by client_id
