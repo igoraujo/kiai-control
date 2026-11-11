@@ -11,3 +11,5 @@ ios/Flutter/Generated.xcconfig
 ios/Flutter/ephemeral/
 android/.gradle/
 android/local.properties
+# Widget Preview related
+.widget_preview/
