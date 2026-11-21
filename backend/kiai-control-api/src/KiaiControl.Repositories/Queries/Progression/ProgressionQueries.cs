@@ -301,9 +301,9 @@ public static class ProgressionQueries
         join modalities modality on modality.id = system.modality_id
             and modality.type = 'martial_art' and modality.is_active = true
         left join lateral (
-            select count(a.id)::integer as attendance_count,
-                   count(a.id) filter (where a.status in ('present', 'late'))::integer as attended_count,
-                   count(distinct lesson.starts_at::date)::integer as training_days
+            select count(a.id) filter (where a.status <> 'pending_confirmation' and a.validated_at is not null and a.validated_by_person_id <> (select person_id from clients where id = a.client_id and organization_id = a.organization_id))::integer as attendance_count,
+                   count(a.id) filter (where a.status in ('present', 'late') and a.validated_at is not null and a.validated_by_person_id <> (select person_id from clients where id = a.client_id and organization_id = a.organization_id))::integer as attended_count,
+                   count(distinct lesson.starts_at::date) filter (where a.status in ('present', 'late') and a.validated_at is not null and a.validated_by_person_id <> (select person_id from clients where id = a.client_id and organization_id = a.organization_id))::integer as training_days
             from lessons lesson
             left join attendances a on a.lesson_id = lesson.id
                 and a.client_id = cg.client_id
@@ -378,9 +378,9 @@ public static class ProgressionQueries
               and c.current_status = 'active'
         ), attendance_stats as (
             select eligible.client_id,
-                   count(a.id)::integer as attendance_count,
-                   count(a.id) filter (where a.status in ('present', 'late'))::integer as attended_count,
-                   count(distinct eligible.starts_at::date)::integer as training_days
+                   count(a.id) filter (where a.status <> 'pending_confirmation' and a.validated_at is not null and a.validated_by_person_id <> (select person_id from clients where id = a.client_id and organization_id = a.organization_id))::integer as attendance_count,
+                   count(a.id) filter (where a.status in ('present', 'late') and a.validated_at is not null and a.validated_by_person_id <> (select person_id from clients where id = a.client_id and organization_id = a.organization_id))::integer as attended_count,
+                   count(distinct eligible.starts_at::date) filter (where a.status in ('present', 'late') and a.validated_at is not null and a.validated_by_person_id <> (select person_id from clients where id = a.client_id and organization_id = a.organization_id))::integer as training_days
             from eligible_lessons eligible
             left join attendances a on a.lesson_id = eligible.lesson_id
                 and a.client_id = eligible.client_id

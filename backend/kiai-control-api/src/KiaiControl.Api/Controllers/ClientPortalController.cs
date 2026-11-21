@@ -71,7 +71,12 @@ public sealed class ClientPortalController(OrganizationContext organizationConte
         var now = DateTimeOffset.UtcNow;
         var requestedStart = from?.ToUniversalTime() ?? now;
         var rangeStart = requestedStart < now ? now : requestedStart;
-        var rangeEnd = to?.ToUniversalTime() ?? rangeStart.AddDays(30);
+        var timezone = TimeZoneInfo.FindSystemTimeZoneById(settings.Timezone);
+        var localNow = TimeZoneInfo.ConvertTime(now, timezone);
+        var daysUntilMonday = ((int)DayOfWeek.Monday - (int)localNow.DayOfWeek + 7) % 7;
+        if (daysUntilMonday == 0) daysUntilMonday = 7;
+        var weekEnd = TimeZoneInfo.ConvertTimeToUtc(localNow.Date.AddDays(daysUntilMonday), timezone);
+        var rangeEnd = to?.ToUniversalTime() ?? new DateTimeOffset(weekEnd);
         if (rangeEnd <= rangeStart || rangeEnd - rangeStart > TimeSpan.FromDays(31))
         {
             return BadRequest("O período deve ser válido e não pode exceder 31 dias.");
@@ -99,8 +104,8 @@ public sealed class ClientPortalController(OrganizationContext organizationConte
         var eligibleLessons = lessons.OrderBy(lesson => lesson.StartsAt).ToArray();
         var checkIns = await attendanceUseCase.ListClientCheckInsAsync(organizationId, client.Id, rangeStart, rangeEnd, cancellationToken);
         var checkInStatuses = checkIns.ToDictionary(record => record.LessonId, record => record.Status);
-        var cancellable = checkIns.Where(record => record.Status == "pending_confirmation" || record.ValidatedByPersonId == client.PersonId).Select(record => record.LessonId).ToHashSet();
-        return Ok(eligibleLessons.Select(lesson => new ClientPortalLessonResponse { Id = lesson.Id, ModalityId = lesson.ModalityId, ModalityName = lesson.ModalityName, BranchName = lesson.BranchName, StartsAt = lesson.StartsAt, EndsAt = lesson.EndsAt, Status = lesson.Status, CheckInStatus = checkInStatuses.GetValueOrDefault(lesson.Id), AllowCheckIn = settings.AllowClientCheckin, CanCancelCheckIn = cancellable.Contains(lesson.Id) && lesson.StartsAt > now }).ToArray());
+        var cancellable = checkIns.Where(record => record.Status == "pending_confirmation").Select(record => record.LessonId).ToHashSet();
+        return Ok(eligibleLessons.Select(lesson => new ClientPortalLessonResponse { Id = lesson.Id, ModalityId = lesson.ModalityId, ModalityName = lesson.ModalityName, BranchName = lesson.BranchName, StartsAt = lesson.StartsAt, EndsAt = lesson.EndsAt, Status = lesson.Status, CheckInStatus = checkInStatuses.GetValueOrDefault(lesson.Id), AllowCheckIn = settings.AllowClientCheckin, CanCheckIn = settings.AllowClientCheckin && User.HasClaim("permission", KiaiControl.Contracts.Auth.PermissionCodes.AttendanceCheckIn) && lesson.StartsAt >= now && !checkInStatuses.ContainsKey(lesson.Id), CanCancelCheckIn = User.HasClaim("permission", KiaiControl.Contracts.Auth.PermissionCodes.AttendanceCheckIn) && cancellable.Contains(lesson.Id) && lesson.StartsAt > now }).ToArray());
     }
 
     [HttpGet("fitness")]

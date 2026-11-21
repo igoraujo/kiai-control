@@ -2,23 +2,31 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kiai_control_mobile/src/models.dart';
 
 void main() {
-  test('uses the academy check-in setting and server cancellation permission', () {
-    final now = DateTime.now().toUtc();
-    final lesson = ClientLesson.fromJson({
-      'id': 'lesson-policy',
-      'startsAt': now.add(const Duration(hours: 1)).toIso8601String(),
-      'endsAt': now.add(const Duration(hours: 2)).toIso8601String(),
-      'checkInStatus': 'present',
-      'allowCheckIn': false,
-      'canCancelCheckIn': true,
-    });
-    expect(lesson.canCheckIn, isFalse);
-    expect(lesson.canCancelCheckIn, isTrue);
-  });
+  test(
+    'uses the academy check-in setting and server cancellation permission',
+    () {
+      final now = DateTime.now().toUtc();
+      final lesson = ClientLesson.fromJson({
+        'id': 'lesson-policy',
+        'status': 'scheduled',
+        'startsAt': now.add(const Duration(hours: 1)).toIso8601String(),
+        'endsAt': now.add(const Duration(hours: 2)).toIso8601String(),
+        'checkInStatus': 'present',
+        'allowCheckIn': false,
+        'canCancelCheckIn': true,
+      });
+      expect(lesson.canCheckIn, isFalse);
+      expect(lesson.canCancelCheckIn, isTrue);
+    },
+  );
   test('measures a reducing fitness goal from its initial value', () {
     final goal = FitnessGoal.fromJson({
-      'title': 'Peso', 'direction': 'decrease', 'initialValue': 80,
-      'currentValue': 75, 'targetValue': 70, 'status': 'active',
+      'title': 'Peso',
+      'direction': 'decrease',
+      'initialValue': 80,
+      'currentValue': 75,
+      'targetValue': 70,
+      'status': 'active',
     });
     expect(goal.progress, .5);
   });
@@ -64,14 +72,19 @@ void main() {
   });
 
   group('ClientLesson check-in eligibility', () {
-    test('allows checking in for a lesson that has not started', () {
+    test('uses the server decision to allow check-in', () {
       final now = DateTime.now();
       final lesson = ClientLesson.fromJson({
         'id': 'lesson-1',
-        'startsAt':
-            now.add(const Duration(minutes: 5)).toUtc().toIso8601String(),
-        'endsAt':
-            now.add(const Duration(minutes: 65)).toUtc().toIso8601String(),
+        'canCheckIn': true,
+        'startsAt': now
+            .add(const Duration(minutes: 5))
+            .toUtc()
+            .toIso8601String(),
+        'endsAt': now
+            .add(const Duration(minutes: 65))
+            .toUtc()
+            .toIso8601String(),
         'status': 'scheduled',
       });
 
@@ -83,10 +96,15 @@ void main() {
       final now = DateTime.now();
       final lesson = ClientLesson.fromJson({
         'id': 'lesson-2',
-        'startsAt':
-            now.add(const Duration(minutes: 5)).toUtc().toIso8601String(),
-        'endsAt':
-            now.add(const Duration(minutes: 65)).toUtc().toIso8601String(),
+        'canCancelCheckIn': true,
+        'startsAt': now
+            .add(const Duration(minutes: 5))
+            .toUtc()
+            .toIso8601String(),
+        'endsAt': now
+            .add(const Duration(minutes: 65))
+            .toUtc()
+            .toIso8601String(),
         'status': 'scheduled',
         'checkInStatus': 'pending_confirmation',
       });
@@ -99,10 +117,14 @@ void main() {
       final now = DateTime.now();
       final lesson = ClientLesson.fromJson({
         'id': 'lesson-3',
-        'startsAt':
-            now.subtract(const Duration(minutes: 1)).toUtc().toIso8601String(),
-        'endsAt':
-            now.add(const Duration(minutes: 59)).toUtc().toIso8601String(),
+        'startsAt': now
+            .subtract(const Duration(minutes: 1))
+            .toUtc()
+            .toIso8601String(),
+        'endsAt': now
+            .add(const Duration(minutes: 59))
+            .toUtc()
+            .toIso8601String(),
         'status': 'scheduled',
         'checkInStatus': 'pending_confirmation',
       });

@@ -4,7 +4,7 @@ Serviço de e-mail agnóstico (`IEmailSender`), configuração SMTP, adaptadores
 
 Brevo no desenvolvimento: a API carrega User Secrets pelo ID `kiai-control-api-development` em `Development`. Configure login/chave SMTP e remetente verificado fora do repositório, conforme o [passo a passo](../../EMAIL_CONFIGURATION.md#brevo-no-desenvolvimento-local).
 
-Administração global e provisionamento do Super Admin: [PLATFORM_ADMINISTRATION.md](../../PLATFORM_ADMINISTRATION.md). A versão atual exige migrations até `016_platform_lifecycle_observability_privacy.sql`.
+Administração global e provisionamento do Super Admin: [PLATFORM_ADMINISTRATION.md](../../PLATFORM_ADMINISTRATION.md). A versão atual exige migrations até `017_mobile_accounts_and_push.sql`.
 
 ## Objetivo
 Base da API do Kiai Control para web e mobile, organizada como monolito modular com camadas separadas para API, Core, Contracts, UseCases, Repositories e Services.
@@ -57,7 +57,7 @@ O workflow de CI executa separadamente as suites unitarias, de integracao, arqui
 - `Jwt:Audience`
 - `Jwt:SigningKey` (obrigatoria fora de Development, minimo de 32 bytes para HS256)
 
-Permissoes efetivas combinam os defaults de `role_permissions` com overrides por organizacao em `organization_role_permissions`; elas sao adicionadas ao access JWT e exigidas por policies da API. Aplique as migrations `001`-`016` em ordem antes de usar a API; `004` e `005` preparam as permissoes, `006_open_modality_schedules.sql` adiciona horarios recorrentes por modalidade, `007_remove_class_groups.sql` remove o modelo de turmas, `008_graduation_belts_and_degrees.sql` organiza a graduacao em faixas e graus, `009_remove_non_martial_graduation_data.sql` remove dados de graduacao associados a modalidades que nao sao artes marciais, e `010_platform_owner_and_temporary_passwords.sql` adiciona as flags de dono global e troca de senha temporaria. O script `database/kiai-control-database/scripts/create_database.sh` registra as migrations na tabela `schema_migrations` e aplica apenas as pendentes.
+Permissoes efetivas combinam os defaults de `role_permissions` com overrides por organizacao em `organization_role_permissions`; elas sao adicionadas ao access JWT e exigidas por policies da API. Aplique as migrations `001`-`017` em ordem antes de usar a API; `004` e `005` preparam as permissoes, `006_open_modality_schedules.sql` adiciona horarios recorrentes por modalidade, `007_remove_class_groups.sql` remove o modelo de turmas, `008_graduation_belts_and_degrees.sql` organiza a graduacao em faixas e graus, `009_remove_non_martial_graduation_data.sql` remove dados de graduacao associados a modalidades que nao sao artes marciais, e `010_platform_owner_and_temporary_passwords.sql` adiciona as flags de dono global e troca de senha temporaria. O script `database/kiai-control-database/scripts/create_database.sh` registra as migrations na tabela `schema_migrations` e aplica apenas as pendentes.
 
 No fluxo operacional, o aluno e vinculado uma vez a modalidade e pode participar de qualquer sessao dela. Horarios recorrentes sao cadastrados em `/modalities/{id}/schedules`, com unidade e professor opcionais; a geracao e idempotente para o mesmo horario/data. A chamada usa alunos ativos vinculados a modalidade. A migration `007` converte aulas e ciclos de ranking para sua modalidade, transfere matriculas ativas para `person_modalities` e remove as tabelas, campos e permissoes de turma fixa; esses registros nao permanecem no schema nem na API.
 
@@ -98,3 +98,7 @@ As migrations `011` (versão de sessão), `012` (direção/valor inicial de meta
 A migration `014_backfill_organization_settings.sql` cria configurações padrão para academias antigas sem esse registro, sem alterar políticas existentes. A leitura também aceita esses cadastros legados e a gravação cria o registro ausente. Isso corrige a falha da agenda do aluno causada por `QuerySingleAsync` sem resultado. O seed administrativo legado passa a criar as configurações junto da academia.
 
 As permissões `.read` dos quatro cadastros autorizam GET; `.manage` continua necessária para mutações. Concessões incompatíveis com o papel são rejeitadas. Recuperação de senha não expõe token nem existência do e-mail e invalida sessões anteriores após concluir a troca.
+
+## Aplicativo mobile
+
+Contexto por capacidades, perfil pessoal/foto, evolução, ranking de presenças e push opcional: [MOBILE_API.md](../../MOBILE_API.md). Aplique a migration `017_mobile_accounts_and_push.sql`. Check-ins próprios sempre exigem confirmação; `Push:Enabled` inicia desativado e requer Application Default Credentials do Firebase.

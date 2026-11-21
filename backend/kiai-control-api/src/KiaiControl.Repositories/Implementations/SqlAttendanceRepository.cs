@@ -35,13 +35,14 @@ public sealed class SqlAttendanceRepository(IDbConnectionFactory dbConnectionFac
         return affected > 0;
     }
 
-    public async Task<IReadOnlyList<AttendanceRecord>> ListByOrganizationAsync(Guid organizationId, int page, int pageSize, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<AttendanceRecord>> ListByOrganizationAsync(Guid organizationId, int page, int pageSize, CancellationToken cancellationToken = default, Guid? teacherId = null)
     {
         var safePage = page < 1 ? 1 : page;
         var safePageSize = pageSize is < 1 or > 200 ? 50 : pageSize;
         var parameters = new
         {
             OrganizationId = organizationId,
+            TeacherId = teacherId,
             Offset = (safePage - 1) * safePageSize,
             PageSize = safePageSize
         };

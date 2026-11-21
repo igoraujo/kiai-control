@@ -1,16 +1,22 @@
 name: kiai_control_mobile
-description: Aplicativo mobile do aluno Kiai Control.
+description: Aplicativo mobile da plataforma Kiai Control.
 publish_to: none
 version: 0.1.0+1
 
 environment:
-  sdk: ">=3.4.0 <4.0.0"
+  sdk: ">=3.12.0 <4.0.0"
+  flutter: ">=3.44.0"
 
 dependencies:
+  firebase_core: ^5.2.0
+  firebase_messaging: ^17.1.0
   flutter:
+    sdk: flutter
+  flutter_localizations:
     sdk: flutter
   flutter_secure_storage: ^9.2.4
   http: ^1.2.2
+  image_picker: ^1.2.4
 
 dev_dependencies:
   flutter_test:

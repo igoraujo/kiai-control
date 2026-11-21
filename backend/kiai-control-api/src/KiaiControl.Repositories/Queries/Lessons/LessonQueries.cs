@@ -96,21 +96,21 @@ public static class LessonQueries
             modality.name as ModalityName,
             branch.name as BranchName
         from lessons
-        join modality_schedules modality_schedule on modality_schedule.id = lessons.modality_schedule_id
+        left join modality_schedules modality_schedule on modality_schedule.id = lessons.modality_schedule_id
             and modality_schedule.organization_id = lessons.organization_id
+        left join modalities modality on modality.id = lessons.modality_id
+            and modality.organization_id = lessons.organization_id
+        left join branches branch on branch.id = modality_schedule.branch_id
+            and branch.organization_id = lessons.organization_id
+        where lessons.organization_id = @OrganizationId
+            and lessons.id = @Id
         and (modality_schedule.teacher_id = @TeacherId
             or exists (
                 select 1
                 from lesson_instructors instructor
                 where instructor.lesson_id = lessons.id
                     and instructor.teacher_id = @TeacherId
-            ))
-        left join modalities modality on modality.id = lessons.modality_id
-            and modality.organization_id = lessons.organization_id
-        left join branches branch on branch.id = modality_schedule.branch_id
-            and branch.organization_id = lessons.organization_id
-        where lessons.organization_id = @OrganizationId
-            and lessons.id = @Id;
+            ));
         ";
 
     public const string Update = @"

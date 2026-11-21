@@ -95,7 +95,7 @@ public sealed class SqlAttendanceCheckInRepositoryTests(PostgreSqlFixture fixtur
             automatic.Parameters.AddWithValue("org",organizationId);await automatic.ExecuteNonQueryAsync();
         }
         var confirmed=await attendanceRepository.CreateCheckInAsync(organizationId,personId,futureLessonId,now);
-        Assert.NotNull(confirmed);Assert.Equal("present",confirmed.Status);Assert.Equal(personId,confirmed.ValidatedByPersonId);
+        Assert.NotNull(confirmed);Assert.Equal("pending_confirmation",confirmed.Status);Assert.Null(confirmed.ValidatedByPersonId);Assert.Null(confirmed.ValidatedAt);
         Assert.True(await attendanceRepository.CancelClientCheckInAsync(organizationId,personId,futureLessonId,now));
     }
 }

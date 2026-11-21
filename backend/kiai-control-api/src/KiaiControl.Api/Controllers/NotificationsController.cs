@@ -60,6 +60,14 @@ public sealed class NotificationsController(OrganizationContext organizationCont
         return Ok(items);
     }
 
+    [HttpGet("{id:guid}")]
+    public async Task<ActionResult<NotificationResponse>> GetMineAsync(Guid id, CancellationToken cancellationToken)
+    {
+        if (organizationContext.OrganizationId is not Guid org || !TryGetPersonId(out var person)) return Unauthorized();
+        var item = await notificationUseCase.GetMineAsync(org, person, id, cancellationToken);
+        return item is null ? NotFound() : Ok(item);
+    }
+
     [HttpGet("outbox")]
     [Authorize(Policy = PermissionCodes.NotificationsManage)]
     public async Task<ActionResult<IReadOnlyList<NotificationResponse>>> ListOrganizationAsync([FromQuery] int page = 1, [FromQuery] int pageSize = 50, CancellationToken cancellationToken = default)

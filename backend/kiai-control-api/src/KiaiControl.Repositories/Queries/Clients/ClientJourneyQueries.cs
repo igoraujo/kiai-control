@@ -89,8 +89,8 @@ public static class ClientJourneyQueries
 
         select
             count(1) filter(
-                            where a.status in ('present', 'late'))::integer as PresentCount,
-            count(1)::integer as CompletedCount
+                            where a.status in ('present', 'late') and a.validated_at is not null and a.validated_by_person_id <> (select person_id from clients where id = a.client_id and organization_id = a.organization_id))::integer as PresentCount,
+            count(1) filter (where a.status <> 'pending_confirmation' and a.validated_at is not null and a.validated_by_person_id <> (select person_id from clients where id = a.client_id and organization_id = a.organization_id))::integer as CompletedCount
         from attendances a
         join lessons l on l.id = a.lesson_id
             and l.organization_id = a.organization_id

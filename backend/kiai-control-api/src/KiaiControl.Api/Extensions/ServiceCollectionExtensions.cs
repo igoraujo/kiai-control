@@ -53,6 +53,11 @@ public static class ServiceCollectionExtensions
             .ValidateOnStart();
         services.AddSingleton<PlatformTelemetryBuffer>();
         services.AddHostedService<PlatformTelemetryWorker>();
+        if (configuration.GetValue<bool>("Push:Enabled"))
+        {
+            services.AddSingleton<KiaiControl.Core.Interfaces.IPushSender, KiaiControl.Services.Notifications.FirebasePushSender>();
+            services.AddHostedService<PushDeliveryWorker>();
+        }
         jwtOptions.Validate();
         var signingKey = jwtOptions.ResolveSigningKey(environment.IsDevelopment());
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>

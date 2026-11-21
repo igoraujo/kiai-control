@@ -33,19 +33,10 @@ public static class AttendanceQueries
             l.organization_id,
             l.id,
             c.id,
-            case
-                when settings.require_teacher_confirmation then 'pending_confirmation'::attendance_status
-                else 'present'::attendance_status
-            end,
+            'pending_confirmation'::attendance_status,
             @CheckedInAt,
-            case
-                when settings.require_teacher_confirmation then null
-                else @CheckedInAt
-            end,
-            case
-                when settings.require_teacher_confirmation then null
-                else p.id
-            end,
+            null,
+            null,
             @CreatedAt
         from lessons l
         join organization_settings settings on settings.organization_id = l.organization_id
@@ -116,10 +107,7 @@ public static class AttendanceQueries
             and l.organization_id = a.organization_id
             and l.status in ('scheduled', 'rescheduled')
             and l.starts_at >= @CancelledAt
-            and ((a.status = 'pending_confirmation'
-                and a.validated_at is null)
-                or (a.status = 'present'
-                    and a.validated_by_person_id = p.id));
+            and a.status = 'pending_confirmation' and a.validated_at is null;
         ";
 
     public const string ListByOrganization = @"
@@ -139,6 +127,14 @@ public static class AttendanceQueries
         join clients c on c.id = a.client_id and c.organization_id = a.organization_id
         join persons p on p.id = c.person_id
         where a.organization_id = @OrganizationId
+            and (@TeacherId is null or exists (
+                select 1 from lessons l
+                left join modality_schedules schedule on schedule.id = l.modality_schedule_id and schedule.organization_id = l.organization_id
+                where l.id = a.lesson_id and l.organization_id = a.organization_id
+                    and (schedule.teacher_id = @TeacherId or exists (
+                        select 1 from lesson_instructors i where i.lesson_id = l.id and i.teacher_id = @TeacherId
+                    ))
+            ))
         order by a.created_at desc
         offset @Offset rows fetch next @PageSize rows only;
         ";
@@ -168,7 +164,7 @@ public static class AttendanceQueries
             lesson_id = @LessonId,
             client_id = @ClientId,
             checked_in_at = @AttendanceDate,
-            status = @Status,
+            status = @Status::attendance_status,
             validated_at = @ValidatedAt,
             validated_by_person_id = @ValidatedByPersonId,
             updated_at = @UpdatedAt
@@ -230,6 +226,8 @@ public static class AttendanceQueries
             a.lesson_id as LessonId,
             a.client_id as ClientId,
             p.full_name as ClientName,
+            lesson.starts_at as LessonStartsAt,
+            modality.name as ModalityName,
             a.checked_in_at as AttendanceDate,
             a.status::text as Status,
             a.validated_at as ValidatedAt,
@@ -239,6 +237,9 @@ public static class AttendanceQueries
         from attendances a
         join clients c on c.id = a.client_id
             and c.organization_id = a.organization_id
+        join lessons lesson on lesson.id = a.lesson_id and lesson.organization_id = a.organization_id
+            and lesson.status in ('scheduled', 'rescheduled', 'completed')
+        join modalities modality on modality.id = lesson.modality_id and modality.organization_id = a.organization_id
         join persons p on p.id = c.person_id
         where a.organization_id = @OrganizationId
             and a.status = 'pending_confirmation'
@@ -272,6 +273,7 @@ public static class AttendanceQueries
         where organization_id = @OrganizationId
             and id = @AttendanceId
             and status = 'pending_confirmation'
+            and exists (select 1 from clients c where c.id = attendances.client_id and c.organization_id = attendances.organization_id and c.person_id <> @ValidatedByPersonId)
         returning id, organization_id as OrganizationId, lesson_id as LessonId, client_id as ClientId,
             checked_in_at as AttendanceDate, status::text as Status, validated_at as ValidatedAt,
             validated_by_person_id as ValidatedByPersonId, created_at as CreatedAt, updated_at as UpdatedAt;
@@ -299,6 +301,7 @@ public static class AttendanceQueries
           on c.id = @ClientId
          and c.organization_id = l.organization_id
          and c.current_status = 'active'
+         and c.person_id <> @ValidatedByPersonId
         where l.organization_id = @OrganizationId
           and l.id = @LessonId
           and l.status in ('scheduled', 'rescheduled', 'completed')

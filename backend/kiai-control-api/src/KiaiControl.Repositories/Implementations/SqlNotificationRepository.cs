@@ -7,6 +7,12 @@ namespace KiaiControl.Repositories.Implementations;
 
 public sealed class SqlNotificationRepository(IDbConnectionFactory dbConnectionFactory) : INotificationRepository
 {
+    public async Task<Notification?> GetMineAsync(Guid organizationId, Guid personId, Guid id, CancellationToken cancellationToken = default)
+    {
+        using var connection = await dbConnectionFactory.OpenConnectionAsync(cancellationToken);
+        return await connection.QuerySingleOrDefaultAsync<Notification>(new CommandDefinition(NotificationQueries.GetMine, new { OrganizationId = organizationId, PersonId = personId, Id = id }, cancellationToken: cancellationToken));
+    }
+
     public async Task<Notification?> CreateAsync(Notification notification, CancellationToken cancellationToken = default)
     {
         notification.Id = Guid.NewGuid();

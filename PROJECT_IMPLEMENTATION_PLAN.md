@@ -1,6 +1,6 @@
 # Kiai Control - Plano Geral de Implementacao
 
-**Estado verificado em:** 2026-11-11
+**Estado verificado em:** 2026-11-16
 **Escopo:** API, painel Admin, banco de dados, testes, seguranca, operacao e mobile.  
 **Objetivo:** ser a fonte de planejamento de evolucao do projeto e a checklist compartilhada pelos agentes.
 
@@ -15,9 +15,39 @@
 
 ## Resumo do Estado
 
-O backend ja tem uma base ampla de API e modulos de negocio. O Admin cobre uma parte dos fluxos operacionais. O banco tem schema inicial, migrations `001`-`016` e script de bootstrap com ledger para evitar reaplicacao. A principal lacuna nao e a ausencia de todos os modulos: e a falta de verificacao completa dos fluxos contra PostgreSQL, de cobertura automatizada em algumas areas e de paridade do painel com as capacidades existentes da API.
+O backend ja tem uma base ampla de API e modulos de negocio. O Admin cobre uma parte dos fluxos operacionais. O banco tem schema inicial, migrations `001`-`017` e script de bootstrap com ledger para evitar reaplicacao. A principal lacuna nao e a ausencia de todos os modulos: e a falta de verificacao completa dos fluxos contra PostgreSQL, de cobertura automatizada em algumas areas e de paridade do painel com as capacidades existentes da API.
 
-O workspace contem API, Admin e um aplicativo Flutter inicial. O Admin recebeu as jornadas de equipe/contas e portal pessoal, com diferenciacao visual Gym/Fight. Infraestrutura/deploy e observabilidade de producao continuam sendo etapas operacionais separadas; a validacao local nao comprova deploy ou servicos externos.
+O workspace contém API, Admin e um aplicativo Flutter ampliado, com navegação por capacidades e contratos pessoais versionados. O Admin recebeu as jornadas de equipe/contas e portal pessoal, com diferenciacao visual Gym/Fight. Infraestrutura/deploy e observabilidade de producao continuam sendo etapas operacionais separadas; a validacao local nao comprova deploy ou servicos externos.
+
+### Aplicativo mobile ampliado (validado em 2026-11-16)
+
+- [x] Mapear API/banco e preservar os fluxos Flutter de agenda, chamada, metas e política de senha; substituir as shells limitadas a aluno/professor por navegação comum derivada de capacidades da API, mantendo todos os papéis e permissões retornados.
+- [x] Sessão segura, refresh compartilhado entre requisições concorrentes, expiração global, logout, senha temporária e novo login após a troca/revogação; respostas inválidas e conexão não geram sucesso fictício.
+- [x] Dashboard por recursos autorizados, notificações pessoais e detalhe autenticado; agenda da semana da academia com flags de ações calculadas no servidor.
+- [x] Check-in próprio sempre pendente, cancelamento antes do início e tela de validação/rejeição. Preservar o middleware do professor e verificar também aula de destino; permitir professor avulso em aulas sem horário recorrente. Impedir autoaprovação.
+- [x] Evolução mensal, contagens/sequência, ranking anual/total com privacidade e empates, conquistas, faixa/grau e critério de aulas do próximo nível. Apenas presença validada por outra pessoa em aula concluída entra nos indicadores; ano respeita o fuso da academia. Metas com histórico paginado de medições.
+- [x] Perfil/foto pessoal, e-mail de contato distinto de login, consentimento push e privacidade do ranking; migration `017`, snapshot de produção idempotente e DBML correspondentes.
+- [x] Cliente Firebase Android/iOS, permissão no perfil, registro/atualização de dispositivo, recebimento foreground/background/abertura e logout; worker opcional com fila persistida, lease, retry e consentimento/versão de sessão verificados. Notificações só são marcadas enviadas após aceitação real pelo provedor.
+- [x] Documentar contratos, semântica de sequência/graduação, configurações externas e limites em [MOBILE_API.md](MOBILE_API.md) e no [README mobile](frontend/kiai-control-mobile/README.md).
+- [ ] Validar FCM/APNs em aparelhos configurados com as credenciais do proprietário. A implementação permanece desativada por padrão; nenhum envio externo foi executado.
+- [ ] Compilar/testar e assinar iOS com Xcode completo; o ambiente possui apenas Command Line Tools. Configurar assinatura de distribuição Android/iOS antes de publicar.
+- [ ] Acrescentar `integration_test` Flutter em aparelho/emulador com API. Nesta entrega há testes de widgets e integração HTTP/PostgreSQL real na API, sem afirmar equivalência com execução em aparelho.
+
+Validação executada: **113 testes unitários API, 57 de integração PostgreSQL/HTTP/SMTP, 2 arquiteturais, 41 testes Admin, 19 E2E Chromium/API/Admin/PostgreSQL e 41 testes Flutter: 273 testes distintos aprovados**. As seis novas integrações foram reexecutadas após ampliar casos de bloqueio/revogação e consentimento. `flutter analyze --no-pub` sem problemas; APK Android debug compilado; plists/entitlements/projeto Xcode válidos e `git diff --check` aprovado. A integração inclui login JWT real, senha temporária, acesso pessoal resistente a IDs arbitrários, 403 para validação por aluno, professor avulso, prazo/duplicidade e virada de ano no fuso da academia. Relatórios de teste em `/private/tmp/kiai-mobile-validation`.
+
+Comandos executados: `dotnet restore`/`dotnet test backend/kiai-control-api/KiaiControl.Api.slnx --no-restore -p:UseSharedCompilation=false`; `dotnet test` nos projetos `KiaiControl.Admin.UnitTests` e `KiaiControl.Admin.E2ETests`; `flutter pub get`, `dart format lib test`, `flutter analyze --no-pub`, `flutter test --no-pub`, `flutter build apk --debug --no-pub --dart-define=API_BASE_URL=http://10.0.2.2:5210/api/v1`; `plutil -lint` para Info.plist, entitlements e projeto Xcode; `git diff --check`. O APK usa a API local pelo endereço do host no emulador Android e push desativado por padrão; configure outra URL para aparelho físico.
+
+A migration foi aplicada somente em bancos temporários de teste; o banco de trabalho do usuário não foi modificado. Não houve publicação, configuração de credenciais externas ou commit. Fichas de musculação/exercícios/séries não existem no domínio atual; o app apresenta aulas, metas e medições existentes. A extensão necessária para fichas e o vínculo direto de comunicados com recursos estão descritos em `MOBILE_API.md`.
+
+### Contas locais para testar os perfis (validado em 2026-11-16)
+
+- [x] Aplicar e registrar a migration `017_mobile_accounts_and_push.sql` em transação no banco local de desenvolvimento (`postgres-dev`, banco `dev`), necessária ao aplicativo. A afirmação anterior de aplicação apenas em bancos temporários descreve a entrega inicial, antes desta solicitação de contas locais.
+- [x] Criar a academia isolada **Kiai Mobile — Testes**, duas contas de cada perfil de academia (owner/admin/teacher/client/reception/financial) e dois acessos globais; nenhuma conta ou senha preexistente foi redefinida. Cadastro de manutenção identificado na auditoria.
+- [x] Vincular aluno/professor 1 a Fight e aluno/professor 2 a Gym, com seis aulas futuras de teste e horários coerentes; sem registrar presença ou evolução fictícias.
+- [x] Executar login temporário, troca da senha pelo endpoint oficial, novo login e consulta do perfil/contexto para os 14 acessos. Conferir também as credenciais/claims na API local já existente em `:5210`, acesso aos módulos esperados e 403 de validação para aluno/financeiro.
+- [x] Confirmar 14 contas prontas, zero trocas iniciais pendentes, duas contas globais e seis aulas futuras; credenciais em arquivo privado fora do repositório e entregues diretamente ao usuário.
+
+Validação por requisições HTTP reais e PostgreSQL local; API temporária de verificação usa `:15210` e é encerrada ao concluir, preservando a API já executada pelo usuário em `:5210`. Nenhuma credencial ou token foi adicionado ao código ou a este plano.
 
 ### Administração da plataforma (validada em 2026-11-11)
 
@@ -182,7 +212,7 @@ Validação: **81 unitários backend, 23 integração PostgreSQL, 2 arquiteturai
 | Testes do backend | 106 testes aprovados | 81 unitários, 23 integração e 2 arquiteturais aprovados localmente em 2026-11-11. Cobre política de senha, SQL constante, buscas parametrizadas com tentativas de injection, visões por área, configurações de academias legadas, filtros de aulas com offsets -03:00/+09:00, identidade compartilhada, mudança/bloqueio de conta, catálogo além dos primeiros 100, metas de redução, políticas de check-in e schema consolidado idempotente. |
 | Admin | Jornadas de gestão e portal pessoal entregues | Diretório/equipe e contas existentes, vínculo de pessoas pelos formulários, consulta sem gravação, paginação/busca, configurações, recuperação de senha, áreas pessoais de aluno/professor e entradas Gym/Fight. A jornada do aluno reutiliza componentes de presença, graduação, metas e conquistas. Componentes novos separam apresentação e lógica. |
 | Testes do Admin | 41 testes unitários/componentes e 19 E2E aprovados | Chromium/API/Admin/PostgreSQL reais: três visões de alunos para owner/admin/recepção, bootstrap, operação/financeiro, navegação, graduação/fitness/comunidade/auditoria, equipe/bloqueio/consulta, identidade nos dois formulários, portal privado e check-in, escopo do professor/perfil financeiro e recuperação com revogação. Aulas verificadas em America/Sao_Paulo; Gym/Fight e portal em 390 px. |
-| Mobile | Presente, escopo inicial | `frontend/kiai-control-mobile`: login/sessão, aulas/check-in, chamada do professor, perfil, metas e troca de senha com a mesma política da API. 26 testes (9 modelos, 17 senha) e análise estática aprovados nesta entrega. Widget/integration tests e ampliação das jornadas mobile continuam no backlog. |
+| Mobile | Ampliado e validado em testes locais | `frontend/kiai-control-mobile`: sessão/capacidades, dashboard, agenda/chamada, pendências, evolução/ranking, conquistas/graduação, metas/histórico, perfil/foto, preferências e push opcional. 41 testes Flutter e análise estática aprovados; APK debug compilado. FCM/APNs real, iOS/Xcode e testes em aparelho continuam pendentes. |
 | Infraestrutura e CI/CD | CI parcial validado em runner limpo; nova etapa E2E aguarda execucao remota | Workflow GitHub Actions compila API/Admin, testa API/Admin e publica TRX; agora tambem instala Chromium e exige TRX do E2E. A execucao anterior `41257017649` passou o workflow entao existente e publicou `test-results` (`13063921778`); ela nao inclui as mudancas Playwright atuais. Nao foram encontrados Dockerfiles, Compose, deploy manifests ou configuracao de observabilidade. |
 | Health e observabilidade | Parcial | Correlation ID, logging de falha de auditoria e painel global de ocorrências HTTP 5xx, login 401 e falhas de auditoria existem. Há métricas agregadas por academia, gráfico diário e readiness com probes de PostgreSQL/cache. E2E confirma readiness 503 e liveness 200 com PostgreSQL indisponível. Redis real ainda precisa de validação operacional. Nao foi encontrada integracao OpenTelemetry/Prometheus/Grafana. |
 
@@ -292,9 +322,11 @@ Validação: **81 unitários backend, 23 integração PostgreSQL, 2 arquiteturai
 ### Fase 6 - Aplicativo Mobile (P2, escopo de produto)
 
 - [x] Projeto Flutter presente em `frontend/kiai-control-mobile`; estruturas Android/iOS e nove testes unitários de modelos verificados em 2026-11-11.
-- [ ] Definir contratos e fluxo de organizacao/sessao para pessoas com os papeis de aluno e professor.
-- [ ] Entregar primeiro login/sessao, agenda/check-in do professor e consulta do aluno (presenca, evolucao, graduacao e pagamentos).
-- [ ] Adicionar testes unitarios, widget e integration_test para os fluxos mobile criticos.
+- [x] Contratos de organização/sessão para todos os perfis, capacidades efetivas e múltiplos vínculos, validados com JWT/HTTP/PostgreSQL e widgets Flutter em 2026-11-16.
+- [x] Login/sessão, agenda/check-in, chamada/validação, presença/evolução/graduação e ranking entregues e verificados em 2026-11-16.
+- [ ] Expor pagamentos no app nativo se priorizados pelo produto; o portal web e a API existentes já possuem o recurso, fora do pedido desta entrega.
+- [x] Testes unitários/HTTP do cliente e widgets dos fluxos críticos: 41 aprovados em 2026-11-16.
+- [ ] Adicionar `integration_test` Flutter em aparelho/emulador com API e configuração push reais.
 
 **Aceite:** app consome API versionada sem compartilhar implementacoes internas do backend e respeita tenant, papeis e ciclo de vida de tokens.
 

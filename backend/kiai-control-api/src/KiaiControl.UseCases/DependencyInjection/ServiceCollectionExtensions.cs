@@ -21,6 +21,7 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddKiaiUseCases(this IServiceCollection services)
     {
         services.AddScoped<AuthUseCase>();
+        services.AddScoped<KiaiControl.UseCases.Mobile.MobileUseCase>();
         services.AddScoped<KiaiControl.UseCases.Administration.AdministrationUseCase>();
         services.AddScoped<KiaiControl.UseCases.Catalog.CatalogUseCase>();
         services.AddScoped<AccessControlUseCase>();

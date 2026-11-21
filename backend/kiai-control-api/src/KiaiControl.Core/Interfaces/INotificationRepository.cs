@@ -4,6 +4,8 @@ namespace KiaiControl.Core.Interfaces;
 
 public interface INotificationRepository
 {
+    Task<Notification?> GetMineAsync(Guid organizationId, Guid personId, Guid id, CancellationToken cancellationToken = default);
+
     Task<Notification?> CreateAsync(Notification notification, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<Notification>> ListByPersonAsync(

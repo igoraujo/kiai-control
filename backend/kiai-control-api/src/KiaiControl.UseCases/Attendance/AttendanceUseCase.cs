@@ -14,9 +14,9 @@ public sealed class AttendanceUseCase(IAttendanceRepository attendanceRepository
         return saved?.FirstOrDefault()is { } record ? ToResponse(record) : null;
     }
 
-    public async Task<IReadOnlyList<AttendanceRecordResponse>> ListAsync(Guid organizationId, int page, int pageSize, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<AttendanceRecordResponse>> ListAsync(Guid organizationId, int page, int pageSize, CancellationToken cancellationToken, Guid? teacherId = null)
     {
-        var attendance = await attendanceRepository.ListByOrganizationAsync(organizationId, page, pageSize, cancellationToken);
+        var attendance = await attendanceRepository.ListByOrganizationAsync(organizationId, page, pageSize, cancellationToken, teacherId);
         return attendance.Select(record => new AttendanceRecordResponse { Id = record.Id, OrganizationId = record.OrganizationId, LessonId = record.LessonId, ClientId = record.ClientId, ClientName = record.ClientName, AttendanceDate = record.AttendanceDate, Status = record.Status, ValidatedAt = record.ValidatedAt, ValidatedByPersonId = record.ValidatedByPersonId, CreatedAt = record.CreatedAt, UpdatedAt = record.UpdatedAt }).ToList();
     }
 
@@ -248,6 +248,8 @@ public sealed class AttendanceUseCase(IAttendanceRepository attendanceRepository
             LessonId = record.LessonId,
             ClientId = record.ClientId,
             ClientName = record.ClientName,
+            ModalityName = record.ModalityName,
+            LessonStartsAt = record.LessonStartsAt,
             AttendanceDate = record.AttendanceDate,
             Status = record.Status,
             ValidatedAt = record.ValidatedAt,

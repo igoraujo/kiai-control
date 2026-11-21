@@ -1,3 +1,5 @@
+import 'mobile_models.dart';
+
 class ClientProfile {
   const ClientProfile({
     required this.clientId,
@@ -22,16 +24,16 @@ class ClientProfile {
       : fullName;
 
   factory ClientProfile.fromJson(Map<String, dynamic> json) => ClientProfile(
-        clientId: json['clientId'] as String,
-        fullName: json['fullName'] as String? ?? '',
-        preferredName: json['preferredName'] as String?,
-        email: json['email'] as String?,
-        phone: json['phone'] as String?,
-        joinedAt: json['joinedAt'] == null
-            ? null
-            : DateTime.parse(json['joinedAt'] as String),
-        status: json['status'] as String? ?? '',
-      );
+    clientId: json['clientId'] as String,
+    fullName: requiredString(json, 'fullName'),
+    preferredName: json['preferredName'] as String?,
+    email: json['email'] as String?,
+    phone: json['phone'] as String?,
+    joinedAt: json['joinedAt'] == null
+        ? null
+        : DateTime.parse(json['joinedAt'] as String),
+    status: requiredString(json, 'status'),
+  );
 }
 
 class ClientLesson {
@@ -43,7 +45,8 @@ class ClientLesson {
     required this.status,
     this.branchName,
     this.checkInStatus,
-    this.allowCheckIn = true,
+    this.allowCheckIn = false,
+    this.checkInAllowed = false,
     this.cancellable,
   });
 
@@ -55,26 +58,24 @@ class ClientLesson {
   final String? branchName;
   final String? checkInStatus;
   final bool allowCheckIn;
+  final bool checkInAllowed;
   final bool? cancellable;
 
-  bool get canCheckIn =>
-      allowCheckIn && checkInStatus == null && !startsAt.isBefore(DateTime.now());
-
-  bool get canCancelCheckIn =>
-      (cancellable ?? (checkInStatus == 'pending_confirmation')) &&
-      !startsAt.isBefore(DateTime.now());
+  bool get canCheckIn => checkInAllowed;
+  bool get canCancelCheckIn => cancellable ?? false;
 
   factory ClientLesson.fromJson(Map<String, dynamic> json) => ClientLesson(
-        id: json['id'] as String,
-        modalityName: json['modalityName'] as String? ?? 'Aula',
-        startsAt: DateTime.parse(json['startsAt'] as String).toLocal(),
-        endsAt: DateTime.parse(json['endsAt'] as String).toLocal(),
-        status: json['status'] as String? ?? '',
-        branchName: json['branchName'] as String?,
-        checkInStatus: json['checkInStatus'] as String?,
-        allowCheckIn: json['allowCheckIn'] as bool? ?? true,
-        cancellable: json['canCancelCheckIn'] as bool?,
-      );
+    id: json['id'] as String,
+    modalityName: json['modalityName'] as String? ?? 'Aula',
+    startsAt: DateTime.parse(json['startsAt'] as String).toLocal(),
+    endsAt: DateTime.parse(json['endsAt'] as String).toLocal(),
+    status: requiredString(json, 'status'),
+    branchName: json['branchName'] as String?,
+    checkInStatus: json['checkInStatus'] as String?,
+    allowCheckIn: json['allowCheckIn'] as bool? ?? false,
+    checkInAllowed: json['canCheckIn'] as bool? ?? false,
+    cancellable: json['canCancelCheckIn'] as bool?,
+  );
 }
 
 class TeacherProfile {
@@ -93,10 +94,10 @@ class TeacherProfile {
       : fullName;
 
   factory TeacherProfile.fromJson(Map<String, dynamic> json) => TeacherProfile(
-        teacherId: json['teacherId'] as String,
-        fullName: json['fullName'] as String? ?? '',
-        preferredName: json['preferredName'] as String?,
-      );
+    teacherId: json['teacherId'] as String,
+    fullName: requiredString(json, 'fullName'),
+    preferredName: json['preferredName'] as String?,
+  );
 }
 
 class TeacherLesson {
@@ -117,13 +118,13 @@ class TeacherLesson {
   final String? branchName;
 
   factory TeacherLesson.fromJson(Map<String, dynamic> json) => TeacherLesson(
-        id: json['id'] as String,
-        startsAt: DateTime.parse(json['startsAt'] as String).toLocal(),
-        endsAt: DateTime.parse(json['endsAt'] as String).toLocal(),
-        status: json['status'] as String? ?? '',
-        modalityName: json['modalityName'] as String?,
-        branchName: json['branchName'] as String?,
-      );
+    id: json['id'] as String,
+    startsAt: DateTime.parse(json['startsAt'] as String).toLocal(),
+    endsAt: DateTime.parse(json['endsAt'] as String).toLocal(),
+    status: requiredString(json, 'status'),
+    modalityName: json['modalityName'] as String?,
+    branchName: json['branchName'] as String?,
+  );
 }
 
 class EligibleClient {
@@ -133,9 +134,9 @@ class EligibleClient {
   final String clientName;
 
   factory EligibleClient.fromJson(Map<String, dynamic> json) => EligibleClient(
-        clientId: json['clientId'] as String,
-        clientName: json['clientName'] as String? ?? '',
-      );
+    clientId: json['clientId'] as String,
+    clientName: requiredString(json, 'clientName'),
+  );
 }
 
 class AttendanceRecord {
@@ -153,12 +154,13 @@ class AttendanceRecord {
       AttendanceRecord(
         id: json['id'] as String,
         clientId: json['clientId'] as String,
-        status: json['status'] as String? ?? '',
+        status: requiredString(json, 'status'),
       );
 }
 
 class FitnessGoal {
   const FitnessGoal({
+    this.id,
     required this.title,
     required this.currentValue,
     required this.targetValue,
@@ -169,6 +171,7 @@ class FitnessGoal {
     this.dueDate,
   });
 
+  final String? id;
   final String title;
   final double currentValue;
   final double targetValue;
@@ -183,23 +186,27 @@ class FitnessGoal {
       return initialValue <= targetValue
           ? 0
           : ((initialValue - currentValue) / (initialValue - targetValue))
-              .clamp(0, 1).toDouble();
+                .clamp(0, 1)
+                .toDouble();
     }
-    return targetValue <= 0 ? 0 : (currentValue / targetValue).clamp(0, 1).toDouble();
+    return targetValue <= 0
+        ? 0
+        : (currentValue / targetValue).clamp(0, 1).toDouble();
   }
 
   factory FitnessGoal.fromJson(Map<String, dynamic> json) => FitnessGoal(
-        title: json['title'] as String? ?? '',
-        currentValue: (json['currentValue'] as num?)?.toDouble() ?? 0,
-        targetValue: (json['targetValue'] as num?)?.toDouble() ?? 0,
-        status: json['status'] as String? ?? '',
-        unit: json['unit'] as String?,
-        direction: json['direction'] as String? ?? 'increase',
-        initialValue: (json['initialValue'] as num?)?.toDouble() ?? 0,
-        dueDate: json['dueDate'] == null
-            ? null
-            : DateTime.parse(json['dueDate'] as String),
-      );
+    id: json['id'] as String?,
+    title: requiredString(json, 'title'),
+    currentValue: (json['currentValue'] as num).toDouble(),
+    targetValue: (json['targetValue'] as num).toDouble(),
+    status: requiredString(json, 'status'),
+    unit: json['unit'] as String?,
+    direction: json['direction'] as String? ?? 'increase',
+    initialValue: (json['initialValue'] as num?)?.toDouble() ?? 0,
+    dueDate: json['dueDate'] == null
+        ? null
+        : DateTime.parse(json['dueDate'] as String),
+  );
 }
 
 class FitnessOverview {
@@ -215,9 +222,9 @@ class FitnessOverview {
 
   factory FitnessOverview.fromJson(Map<String, dynamic> json) =>
       FitnessOverview(
-        activeGoals: json['activeGoals'] as int? ?? 0,
-        achievedGoals: json['achievedGoals'] as int? ?? 0,
-        goals: (json['goals'] as List<dynamic>? ?? const [])
+        activeGoals: json['activeGoals'] as int,
+        achievedGoals: json['achievedGoals'] as int,
+        goals: (json['goals'] as List<dynamic>)
             .map((item) => FitnessGoal.fromJson(item as Map<String, dynamic>))
             .toList(),
       );

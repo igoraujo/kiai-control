@@ -20,6 +20,7 @@ public sealed class ClientPortalLessonResponse
     public DateTimeOffset EndsAt { get; init; }
     public string Status { get; init; } = string.Empty;
     public string? CheckInStatus { get; init; }
+    public bool CanCheckIn { get; init; }
     public bool AllowCheckIn { get; init; }
     public bool CanCancelCheckIn { get; init; }
 }

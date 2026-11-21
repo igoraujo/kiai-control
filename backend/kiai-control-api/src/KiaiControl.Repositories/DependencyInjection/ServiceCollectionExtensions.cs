@@ -18,6 +18,8 @@ public static class ServiceCollectionExtensions
         SqlMapper.AddTypeHandler(new DateOnlyTypeHandler());
         services.AddSingleton<IDbConnectionFactory>(_ => new NpgsqlDbConnectionFactory(connectionString));
         services.AddScoped<IAuthRepository, SqlAuthRepository>();
+        services.AddScoped<IMobileRepository, SqlMobileRepository>();
+        services.AddScoped<IPushDeliveryRepository, SqlPushDeliveryRepository>();
         services.AddScoped<ICatalogRepository, SqlCatalogRepository>();
         services.AddScoped<IClientJourneyRepository, SqlClientJourneyRepository>();
         services.AddScoped<IAdministrationRepository, SqlAdministrationRepository>();

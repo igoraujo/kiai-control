@@ -93,6 +93,12 @@ create table if not exists persons (
     emergency_contact_name varchar(160),
     emergency_contact_phone varchar(30),
     hide_from_ranking boolean not null default false,
+    profile_photo bytea check (octet_length(profile_photo) <= 524288),
+    profile_photo_content_type varchar(30),
+    constraint ck_profile_photo_type check (
+        (profile_photo is null and profile_photo_content_type is null)
+        or (profile_photo is not null and profile_photo_content_type is not null and profile_photo_content_type in ('image/jpeg', 'image/png'))
+    ),
     created_at timestamptz not null default now(),
     updated_at timestamptz,
     deleted_at timestamptz
@@ -618,5 +624,35 @@ create table if not exists platform_request_metrics (
 
 create index if not exists ix_platform_metrics_org_bucket on platform_request_metrics (organization_id, bucket_start);
 create index if not exists ix_platform_metrics_bucket on platform_request_metrics (bucket_start);
+
+create table if not exists mobile_preferences (
+    organization_id uuid not null references organizations(id),
+    person_id uuid not null references persons(id),
+    push_enabled boolean not null default false,
+    primary key (organization_id, person_id)
+);
+
+create table if not exists mobile_devices (
+    installation_id varchar(200) primary key,
+    organization_id uuid not null references organizations(id),
+    person_id uuid not null references persons(id),
+    token varchar(4096) not null,
+    session_version integer not null,
+    platform varchar(10) not null check (platform in ('android', 'ios')),
+    updated_at timestamptz not null default now()
+);
+create index if not exists ix_mobile_devices_person on mobile_devices (organization_id, person_id);
+
+-- Durable delivery per device, separate from whether the notification has been read.
+create table if not exists push_deliveries (
+    notification_id uuid not null references notifications(id) on delete cascade,
+    installation_id varchar(200) not null references mobile_devices(installation_id) on delete cascade,
+    attempts integer not null default 0,
+    available_at timestamptz not null default now(),
+    accepted_at timestamptz,
+    primary key (notification_id, installation_id)
+);
+create index if not exists ix_push_deliveries_due on push_deliveries (available_at) where accepted_at is null;
+
 
 commit;

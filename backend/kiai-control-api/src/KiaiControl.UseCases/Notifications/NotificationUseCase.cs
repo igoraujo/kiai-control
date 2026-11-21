@@ -8,6 +8,13 @@ public sealed class NotificationUseCase(INotificationRepository notificationRepo
 {
     private static readonly string[] AllowedChannels = ["in_app", "push", "email"];
 
+    public async Task<NotificationResponse?> GetMineAsync(Guid organizationId, Guid personId, Guid id, CancellationToken ct)
+    {
+        EnsureIds(organizationId, personId);
+        var item = await notificationRepository.GetMineAsync(organizationId, personId, id, ct);
+        return item is null ? null : ToResponse(item);
+    }
+
     public async Task<NotificationResponse?> CreateAsync(
         Guid organizationId,
         CreateNotificationRequest request,
@@ -29,6 +36,9 @@ public sealed class NotificationUseCase(INotificationRepository notificationRepo
         {
             throw new ArgumentException(SystemMessages.ChannelMustBeInAppPushOrEmail);
         }
+
+        if (channel == "push" && System.Text.Encoding.UTF8.GetByteCount(request.Title + request.Body) > 3000)
+            throw new ArgumentException("O título e o texto do push devem somar até 3000 bytes em UTF-8.");
 
         if (request.ScheduledAt is not null && request.ScheduledAt <= DateTimeOffset.UtcNow)
         {

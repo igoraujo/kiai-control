@@ -11,7 +11,8 @@ public sealed class RequirePasswordChangeMiddleware(RequestDelegate next)
             && bool.TryParse(context.User.FindFirstValue("must_change_password"), out var mustChange)
             && mustChange;
         var isAllowedAuthEndpoint = context.Request.Path.Equals("/api/v1/auth/change-password")
-            || context.Request.Path.Equals("/api/v1/auth/logout");
+            || context.Request.Path.Equals("/api/v1/auth/logout")
+            || context.Request.Method == "GET" && context.Request.Path.Equals("/api/v1/mobile/context");
 
         if (requiresPasswordChange && !isAllowedAuthEndpoint)
         {

@@ -9,10 +9,10 @@ public static class ReportQueries
             (select count(1)::integer from clients c where c.organization_id = @OrganizationId and c.current_status = 'canceled') as CanceledClients,
             (select count(1)::integer from lessons l where l.organization_id = @OrganizationId and l.status = 'completed' and l.starts_at::date between @From and @To) as CompletedLessons,
             coalesce((
-                select 100.0 * count(1) filter (where a.status in ('present', 'late')) / nullif(count(a.id), 0)
+                select 100.0 * count(1) filter (where a.status in ('present', 'late') and a.validated_at is not null and a.validated_by_person_id <> (select person_id from clients where id = a.client_id and organization_id = a.organization_id)) / nullif(count(a.id) filter (where a.status <> 'pending_confirmation' and a.validated_at is not null and a.validated_by_person_id <> (select person_id from clients where id = a.client_id and organization_id = a.organization_id)), 0)
                 from attendances a
                 join lessons l on l.id = a.lesson_id and l.organization_id = a.organization_id
-                where a.organization_id = @OrganizationId and l.starts_at::date between @From and @To
+                where a.organization_id = @OrganizationId and l.status = 'completed' and l.starts_at::date between @From and @To
             ), 0)::numeric(6,2) as AttendanceRate,
             (select coalesce(sum(i.amount - i.discount_amount + i.fine_amount + i.interest_amount), 0)
              from invoices i where i.organization_id = @OrganizationId and i.due_date between @From and @To) as RevenueExpected,
@@ -27,9 +27,9 @@ public static class ReportQueries
         select l.modality_id as ModalityId,
                modality.name as ModalityName,
                count(distinct l.id)::integer as LessonsHeld,
-               count(a.id) filter (where a.status in ('present', 'late'))::integer as AttendanceCount,
+               count(a.id) filter (where a.status in ('present', 'late') and a.validated_at is not null and a.validated_by_person_id <> (select person_id from clients where id = a.client_id and organization_id = a.organization_id))::integer as AttendanceCount,
                count(a.id) filter (where a.status in ('absent', 'justified_absence'))::integer as AbsenceCount,
-               coalesce(100.0 * count(a.id) filter (where a.status in ('present', 'late')) / nullif(count(a.id), 0), 0)::numeric(6,2) as AttendanceRate
+               coalesce(100.0 * count(a.id) filter (where a.status in ('present', 'late') and a.validated_at is not null and a.validated_by_person_id <> (select person_id from clients where id = a.client_id and organization_id = a.organization_id)) / nullif(count(a.id) filter (where a.status <> 'pending_confirmation' and a.validated_at is not null and a.validated_by_person_id <> (select person_id from clients where id = a.client_id and organization_id = a.organization_id)), 0), 0)::numeric(6,2) as AttendanceRate
         from lessons l
         join modalities modality on modality.id = l.modality_id
             and modality.organization_id = l.organization_id
@@ -76,7 +76,7 @@ public static class ReportQueries
         ), lesson_totals as (
             select eligible.client_id,
                    count(distinct eligible.lesson_id) filter (where eligible.status = 'completed')::integer as lessons_available,
-                   count(a.id) filter (where a.status in ('present', 'late'))::integer as attendance_count
+                   count(a.id) filter (where a.status in ('present', 'late') and a.validated_at is not null and a.validated_by_person_id <> (select person_id from clients where id = a.client_id and organization_id = a.organization_id))::integer as attendance_count
             from eligible_lessons eligible
             left join attendances a on a.lesson_id = eligible.lesson_id
                 and a.client_id = eligible.client_id

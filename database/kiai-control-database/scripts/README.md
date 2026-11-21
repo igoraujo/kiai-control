@@ -1,6 +1,6 @@
 # Preparação do banco de produção
 
-O schema inclui a administração global e a tabela de ocorrências. Para bancos existentes, aplique as migrations até `016_platform_lifecycle_observability_privacy.sql`. Regras do Super Admin: [PLATFORM_ADMINISTRATION.md](../../../PLATFORM_ADMINISTRATION.md).
+O schema inclui a administração global e a tabela de ocorrências. Para bancos existentes, aplique as migrations até `017_mobile_accounts_and_push.sql`. Regras do Super Admin: [PLATFORM_ADMINISTRATION.md](../../../PLATFORM_ADMINISTRATION.md).
 
 Os scripts abaixo criam o schema atual do Kiai Control e inserem os dados globais de autorização:
 
@@ -53,3 +53,5 @@ Para bancos existentes, aplique `011_account_session_version.sql`, `012_fitness_
 Aplique também `014_backfill_organization_settings.sql`: ela cria as configurações padrão das academias antigas que ainda não possuem esse registro, preservando as políticas já configuradas. O seed administrativo legado agora também cria essas configurações. A `014` foi aplicada em transação no banco local `dev`, com registro no ledger e sem excluir dados.
 
 O schema consolidado de produção, o seed de referência e o DBML incluem essas estruturas. A aplicação no banco local `dev` e o registro em `schema_migrations` foram executados em transação nesta entrega.
+
+A migration `017` adiciona foto pessoal, preferências e registros de dispositivos/fila de push e torna obrigatória a confirmação de check-ins. Contratos e configuração: [MOBILE_API.md](../../../MOBILE_API.md). O snapshot de produção inclui as mesmas estruturas; a entrega foi validada somente em bancos temporários, sem aplicar a migration ao banco de trabalho do mantenedor.

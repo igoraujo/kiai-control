@@ -217,6 +217,8 @@ Table persons {
   emergency_contact_name varchar(160)
   emergency_contact_phone varchar(30)
   hide_from_ranking boolean [not null, default: false]
+  profile_photo bytea
+  profile_photo_content_type varchar(30)
   created_at timestamptz [not null, default: `now()`]
   updated_at timestamptz
   deleted_at timestamptz
@@ -807,4 +809,31 @@ Table audit_logs {
   }
   personal_data_redacted_at timestamptz
 
+}
+
+Table mobile_preferences {
+  organization_id uuid [not null, ref: > organizations.id]
+  person_id uuid [not null, ref: > persons.id]
+  push_enabled boolean [not null, default: false]
+  Indexes { (organization_id, person_id) [pk] }
+}
+
+Table mobile_devices {
+  installation_id varchar(200) [pk]
+  organization_id uuid [not null, ref: > organizations.id]
+  person_id uuid [not null, ref: > persons.id]
+  token varchar(4096) [not null, note: 'Firebase Installation ID (SDK 17); never log']
+  session_version integer [not null]
+  platform varchar(10) [not null]
+  updated_at timestamptz [not null, default: `now()`]
+  Indexes { (organization_id, person_id) }
+}
+
+Table push_deliveries {
+  notification_id uuid [not null, ref: > notifications.id]
+  installation_id varchar(200) [not null, ref: > mobile_devices.installation_id]
+  attempts integer [not null, default: 0]
+  available_at timestamptz [not null, default: `now()`]
+  accepted_at timestamptz
+  Indexes { (notification_id, installation_id) [pk] }
 }

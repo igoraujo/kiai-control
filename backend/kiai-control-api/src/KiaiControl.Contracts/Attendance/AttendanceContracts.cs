@@ -44,6 +44,10 @@ public sealed class AttendanceRecordResponse
 
     public Guid ClientId { get; init; }
 
+    public string? ModalityName { get; init; }
+
+    public DateTimeOffset? LessonStartsAt { get; init; }
+
     public string ClientName { get; init; } = string.Empty;
 
     public DateTimeOffset AttendanceDate { get; init; }

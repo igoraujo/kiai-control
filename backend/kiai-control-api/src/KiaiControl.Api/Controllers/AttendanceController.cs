@@ -11,7 +11,7 @@ namespace KiaiControl.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/v1/attendance")]
-public sealed class AttendanceController(OrganizationContext organizationContext, AttendanceUseCase attendanceUseCase, KiaiControl.UseCases.Teachers.TeacherUseCase teachers) : ControllerBase
+public sealed class AttendanceController(OrganizationContext organizationContext, AttendanceUseCase attendanceUseCase, KiaiControl.UseCases.Teachers.TeacherUseCase teachers, KiaiControl.UseCases.Lessons.LessonUseCase lessons) : ControllerBase
 {
     [AllowAnonymous]
     [HttpGet("status")]
@@ -34,6 +34,8 @@ public sealed class AttendanceController(OrganizationContext organizationContext
         {
             return Forbid();
         }
+
+        if (!await CanAccessLessonAsync(organizationId, request.LessonId, cancellationToken)) return NotFound();
 
         request.OrganizationId = organizationId;
         if (request.ClientId == Guid.Empty || request.LessonId == Guid.Empty)
@@ -110,7 +112,9 @@ public sealed class AttendanceController(OrganizationContext organizationContext
             return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
-        var attendance = await attendanceUseCase.ListAsync(organizationContext.OrganizationId.Value, page, pageSize, cancellationToken);
+        var teacherId = await ScopedTeacherIdAsync(organizationContext.OrganizationId.Value, cancellationToken);
+        if (teacherId == Guid.Empty) return NotFound();
+        var attendance = await attendanceUseCase.ListAsync(organizationContext.OrganizationId.Value, page, pageSize, cancellationToken, teacherId);
         return Ok(attendance);
     }
 
@@ -150,6 +154,8 @@ public sealed class AttendanceController(OrganizationContext organizationContext
 
         try
         {
+            var pending = await attendanceUseCase.GetByIdAsync(organizationId, id, cancellationToken);
+            if (pending is null || !await CanAccessLessonAsync(organizationId, pending.LessonId, cancellationToken)) return NotFound();
             var record = await attendanceUseCase.ValidateCheckInAsync(organizationId, id, validatorPersonId, request.Status, DateTimeOffset.UtcNow, cancellationToken);
             return record is null ? Conflict(SystemMessages.EsteCheckInJaFoiValidadoOuNaoEstaMaisDisponivel) : Ok(record);
         }
@@ -170,7 +176,7 @@ public sealed class AttendanceController(OrganizationContext organizationContext
         }
 
         var attendance = await attendanceUseCase.GetByIdAsync(organizationContext.OrganizationId.Value, id, cancellationToken);
-        return attendance is null ? NotFound() : Ok(attendance);
+        return attendance is null || !await CanAccessLessonAsync(organizationContext.OrganizationId.Value, attendance.LessonId, cancellationToken) ? NotFound() : Ok(attendance);
     }
 
     [Authorize(Roles = "owner,admin,teacher,reception")]
@@ -190,6 +196,8 @@ public sealed class AttendanceController(OrganizationContext organizationContext
                 return Unauthorized();
             }
 
+            var original = await attendanceUseCase.GetByIdAsync(organizationContext.OrganizationId.Value, id, cancellationToken);
+            if (original is null || !await CanAccessLessonAsync(organizationContext.OrganizationId.Value, original.LessonId, cancellationToken) || !await CanAccessLessonAsync(organizationContext.OrganizationId.Value, request.LessonId, cancellationToken)) return NotFound();
             var updated = await attendanceUseCase.UpdateAsync(organizationContext.OrganizationId.Value, id, request, validatorPersonId, cancellationToken);
             return updated is null ? NotFound() : Ok(updated);
         }
@@ -209,8 +217,24 @@ public sealed class AttendanceController(OrganizationContext organizationContext
             return BadRequest(SystemMessages.OrganizationContextIsRequired);
         }
 
+        var original = await attendanceUseCase.GetByIdAsync(organizationContext.OrganizationId.Value, id, cancellationToken);
+        if (original is null || !await CanAccessLessonAsync(organizationContext.OrganizationId.Value, original.LessonId, cancellationToken)) return NotFound();
         var deleted = await attendanceUseCase.DeleteAsync(organizationContext.OrganizationId.Value, id, cancellationToken);
         return deleted ? NoContent() : NotFound();
+    }
+
+    private async Task<Guid?> ScopedTeacherIdAsync(Guid org, CancellationToken ct)
+    {
+        if (!User.IsInRole("teacher") || User.IsInRole("owner") || User.IsInRole("admin") || User.IsInRole("reception")) return null;
+        if (!TryGetPersonId(out var person)) return Guid.Empty;
+        var teacher = await teachers.GetByPersonIdAsync(org, person, ct);
+        return teacher is { Status: "active" } ? teacher.Id : Guid.Empty;
+    }
+
+    private async Task<bool> CanAccessLessonAsync(Guid org, Guid lesson, CancellationToken ct)
+    {
+        var teacher = await ScopedTeacherIdAsync(org, ct);
+        return teacher is null || teacher != Guid.Empty && await lessons.GetByIdForTeacherAsync(org, lesson, teacher.Value, ct) is not null;
     }
 
     private bool TryGetPersonId(out Guid personId) => Guid.TryParse(User.FindFirstValue("person_id"), out personId);

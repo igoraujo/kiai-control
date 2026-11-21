@@ -55,7 +55,7 @@ public sealed class AdministrationUseCase(IAdministrationRepository repository, 
             Timezone = s.Timezone,
             CurrencyCode = s.CurrencyCode,
             AllowClientCheckin = s.AllowClientCheckin,
-            RequireTeacherConfirmation = s.RequireTeacherConfirmation,
+            RequireTeacherConfirmation = true,
             DefaultLateToleranceMinutes = s.DefaultLateToleranceMinutes
         };
     }
@@ -63,6 +63,8 @@ public sealed class AdministrationUseCase(IAdministrationRepository repository, 
     public Task SaveSettingsAsync(Guid org, OrganizationSettingsResponse s, CancellationToken ct)
     {
         CatalogUseCase.Validate(org, 1, 1, null);
+        if (!s.RequireTeacherConfirmation)
+            throw new ArgumentException("Check-ins dos alunos exigem validação por uma pessoa autorizada.");
         if (s.DefaultLateToleranceMinutes is < 0 or > 180 || s.CurrencyCode != "BRL")
             throw new ArgumentException("Informe uma tolerância entre 0 e 180 minutos e moeda BRL.");
         if (s.Timezone != "UTC" && !s.Timezone.Contains('/'))
@@ -76,6 +78,6 @@ public sealed class AdministrationUseCase(IAdministrationRepository repository, 
             throw new ArgumentException("Fuso horário inválido.");
         }
 
-        return repository.SaveSettingsAsync(org, new() { Timezone = s.Timezone, CurrencyCode = s.CurrencyCode, AllowClientCheckin = s.AllowClientCheckin, RequireTeacherConfirmation = s.RequireTeacherConfirmation, DefaultLateToleranceMinutes = s.DefaultLateToleranceMinutes }, ct);
+        return repository.SaveSettingsAsync(org, new() { Timezone = s.Timezone, CurrencyCode = s.CurrencyCode, AllowClientCheckin = s.AllowClientCheckin, RequireTeacherConfirmation = true, DefaultLateToleranceMinutes = s.DefaultLateToleranceMinutes }, ct);
     }
 }

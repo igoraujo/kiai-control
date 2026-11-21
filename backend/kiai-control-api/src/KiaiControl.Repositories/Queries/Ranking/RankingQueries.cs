@@ -46,7 +46,7 @@ public static class RankingQueries
             select c.id as client_id,
                    l.id as lesson_id,
                    l.starts_at,
-                   (a.status in ('present', 'late')) as attended
+                   (a.status in ('present', 'late') and a.validated_at is not null and a.validated_by_person_id <> c.person_id) as attended
             from target_cycle cycle
             join lessons l on l.organization_id = cycle.organization_id
                           and l.status = 'completed'

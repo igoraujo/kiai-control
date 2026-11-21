@@ -10,6 +10,10 @@ public sealed class AttendanceRecord
 
     public Guid ClientId { get; set; }
 
+    public string? ModalityName { get; set; }
+
+    public DateTimeOffset? LessonStartsAt { get; set; }
+
     public string ClientName { get; set; } = string.Empty;
 
     public DateTimeOffset AttendanceDate { get; set; }
